@@ -5,6 +5,8 @@ const CHAT = {
     voiceEnabled: false,
     discreteMode: false,
     conversationHistory: [],
+    customCharacters: [],
+    creatorStep: 0,
 
     characters: {
         'Aminata': {
@@ -13,7 +15,7 @@ const CHAT = {
             color: 'linear-gradient(135deg,#FF3B7F,#6C2BD9)',
             voiceStyle: 'douce',
             bio: 'Je suis là pour t\'écouter, te comprendre et te guider vers le plaisir.',
-            systemPrompt: 'Tu es Aminata, une femme douce, sensuelle et attentionnée vivant en Afrique de l\'Ouest. Tu parles français de manière naturelle. Tu es là pour guider l\'utilisateur vers le plaisir et la découverte de soi. Tu es patiente, compréhensive et jamais jugeante. Tu utilises un langage sensuel mais pas vulgaire. Tu t\'adaptes au rythme de l\'utilisateur.'
+            official: true
         },
         'Zara': {
             name: 'Zara',
@@ -21,7 +23,7 @@ const CHAT = {
             color: 'linear-gradient(135deg,#FF6B6B,#FF3B7F)',
             voiceStyle: 'coquine',
             bio: 'J\'aime les jeux et les défis. Prêt à t\'amuser avec moi ?',
-            systemPrompt: 'Tu es Zara, une femme passionnée et coquine vivant en Afrique de l\'Ouest. Tu parles français. Tu aimes les jeux de séduction et les défis. Tu es directe mais pas vulgaire. Tu sais ce que tu veux et tu pousses l\'utilisateur à oser ses désirs.'
+            official: true
         },
         'Grace': {
             name: 'Grace',
@@ -29,7 +31,7 @@ const CHAT = {
             color: 'linear-gradient(135deg,#845EC2,#D65DB1)',
             voiceStyle: 'guide',
             bio: 'Ferme les yeux. Inspire. Je vais te guider pas à pas.',
-            systemPrompt: 'Tu es Grace, une guide spirituelle et sensuelle vivant en Afrique de l\'Ouest. Tu parles français. Tu utilises la respiration, la visualisation et des instructions douces pour guider l\'utilisateur dans son voyage intime. Tu es apaisante, lente et précise.'
+            official: true
         },
         'Mamadou': {
             name: 'Mamadou',
@@ -37,7 +39,33 @@ const CHAT = {
             color: 'linear-gradient(135deg,#2D3436,#636E72)',
             voiceStyle: 'guide',
             bio: 'Je suis là pour toi. Laisse-toi aller entre mes mains.',
-            systemPrompt: 'Tu es Mamadou, un homme doux, fort et rassurant vivant en Afrique de l\'Ouest. Tu parles français. Tu es là pour guider l\'utilisatrice, la rassurer et l\'aider à se connecter à son corps. Tu es respectueux, patient et attentionné.'
+            official: true
+        }
+    },
+
+        'Nala': {
+            name: 'Nala',
+            avatar: 'N',
+            color: 'linear-gradient(135deg,#FF9671,#FFC75F)',
+            voiceStyle: 'coquine',
+            bio: 'Je sais ce que tu veux. N\'aie pas peur, laisse-toi aller.',
+            official: true
+        },
+        'Khalid': {
+            name: 'Khalid',
+            avatar: 'K',
+            color: 'linear-gradient(135deg,#0D0D1A,#2D3436)',
+            voiceStyle: 'coquine',
+            bio: 'J\'aime les femmes qui savent ce qu\'elles veulent. Montre-moi.',
+            official: true
+        },
+        'Samuel': {
+            name: 'Samuel',
+            avatar: 'S',
+            color: 'linear-gradient(135deg,#1A5276,#2E86C1)',
+            voiceStyle: 'guide',
+            bio: 'Découvre ton corps avec moi. Chaque étape est un voyage.',
+            official: true
         }
     },
 
@@ -52,6 +80,7 @@ const CHAT = {
         }
 
         await this.loadUserData();
+        await this.loadCustomCharacters();
         ANALYTICS.capture('app_opened', { character: charName || 'Aminata' });
     },
 
@@ -75,6 +104,278 @@ const CHAT = {
         if (el) {
             el.textContent = count;
             el.style.color = count <= 2 ? '#FF6B6B' : count <= 5 ? '#FFD93D' : '#6BCB77';
+        }
+    },
+
+    async loadCustomCharacters() {
+        const user = await API.getUser();
+        if (!user) return;
+        const chars = await API.getCustomCharacters();
+        this.customCharacters = chars || [];
+        const container = document.getElementById('customCharacterList');
+        const section = document.getElementById('customCharsList');
+        if (!container) return;
+        container.innerHTML = '';
+        if (chars.length === 0) { section.style.display = 'none'; return; }
+        section.style.display = 'block';
+        chars.forEach(c => {
+            const el = document.createElement('div');
+            el.className = 'character-item';
+            el.dataset.character = c.id;
+            const initial = c.name.charAt(0).toUpperCase();
+            const colors = ['#FF3B7F','#6C2BD9','#FF6B6B','#845EC2','#FF9671','#2D3436','#1A5276'];
+            const color = colors[c.id.charCodeAt(0) % colors.length];
+            el.innerHTML = `
+                <div class="char-avatar" style="background:${color};">${initial}</div>
+                <div class="char-info">
+                    <span class="char-name">${c.name}</span>
+                    <span class="char-status">${c.gender === 'masculin' ? 'Homme' : 'Femme'} · ${c.nationality}</span>
+                </div>
+                <button class="char-delete-btn" onclick="CHAT.deleteCustomCharacter('${c.id}')" title="Supprimer"><i class="fas fa-trash-can"></i></button>
+            `;
+            el.addEventListener('click', (e) => {
+                if (e.target.closest('.char-delete-btn')) return;
+                document.querySelectorAll('.character-item').forEach(i => i.classList.remove('active'));
+                el.classList.add('active');
+                this.loadCharacter(c.id);
+            });
+            container.appendChild(el);
+        });
+    },
+
+    async deleteCustomCharacter(id) {
+        if (!confirm('Supprimer ce personnage ?')) return;
+        await API.deleteCustomCharacter(id);
+        await this.loadCustomCharacters();
+        if (this.currentCharacter === id) {
+            this.loadCharacter('Aminata');
+        }
+        this.showToast('Personnage supprimé');
+    },
+
+    openCreator() {
+        this.creatorStep = 0;
+        this.renderCreator();
+        document.getElementById('charCreatorModal').classList.add('active');
+    },
+
+    closeCreator() {
+        document.getElementById('charCreatorModal').classList.remove('active');
+    },
+
+    creatorData: {},
+
+    renderCreator() {
+        const body = document.getElementById('charCreatorBody');
+        const s = this.creatorStep;
+        const d = this.creatorData;
+        const total = 5;
+        const steps = [
+            { title: 'Prénom', icon: 'fa-pen' },
+            { title: 'Genre', icon: 'fa-venus-mars' },
+            { title: 'Origine', icon: 'fa-globe' },
+            { title: 'Personnalité', icon: 'fa-heart' },
+            { title: 'Voix & Bio', icon: 'fa-microphone' }
+        ];
+
+        const nav = steps.map((st, i) =>
+            `<div class="creator-step-dot ${i === s ? 'active' : i < s ? 'done' : ''}">
+                <i class="fas ${st.icon}"></i>
+                <span>${st.title}</span>
+            </div>`
+        ).join('');
+
+        let content = '';
+        if (s === 0) {
+            content = `
+                <h2>Donne-lui un prénom</h2>
+                <p style="color:var(--text-secondary);margin-bottom:1.5rem;">Choisis le prénom de ton compagnon ou ta compagne</p>
+                <input type="text" id="creatorName" class="creator-input" placeholder="Prénom..." value="${d.name || ''}" maxlength="20" autofocus>
+                <div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:0.5rem;">
+                    ${['Aminata','Zara','Grace','Nala','Mamadou','Khalid','Samuel','Fatou','Kadija','Awa','Issa','Samba'].map(n =>
+                        `<button class="btn btn-sm ${d.name === n ? 'btn-primary' : 'btn-outline'}" onclick="CHAT.creatorPickName('${n}')">${n}</button>`
+                    ).join('')}
+                </div>
+            `;
+        } else if (s === 1) {
+            content = `
+                <h2>Genre</h2>
+                <p style="color:var(--text-secondary);margin-bottom:1.5rem;">Tu veux un compagnon ou une compagne ?</p>
+                <div class="creator-gender-grid">
+                    <div class="creator-gender-card ${d.gender !== 'masculin' ? 'selected' : ''}" onclick="CHAT.creatorPickGender('feminin')">
+                        <i class="fas fa-venus" style="font-size:2rem;color:#FF3B7F;"></i>
+                        <h3>Femme</h3>
+                        <p>Une compagne douce, sensuelle</p>
+                    </div>
+                    <div class="creator-gender-card ${d.gender === 'masculin' ? 'selected' : ''}" onclick="CHAT.creatorPickGender('masculin')">
+                        <i class="fas fa-mars" style="font-size:2rem;color:#2E86C1;"></i>
+                        <h3>Homme</h3>
+                        <p>Un compagnon fort, rassurant</p>
+                    </div>
+                </div>
+            `;
+        } else if (s === 2) {
+            content = `
+                <h2>Son origine</h2>
+                <p style="color:var(--text-secondary);margin-bottom:1.5rem;">D'où vient-${d.gender === 'masculin' ? 'il' : 'elle'} ?</p>
+                <div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;">
+                    ${[
+                        {v:'Sénégalaise',f:'🇸🇳'},{v:'Ivoirienne',f:'🇨🇮'},{v:'Malienne',f:'🇲🇱'},
+                        {v:'Guinéenne',f:'🇬🇳'},{v:'Burkinabè',f:'🇧🇫'},{v:'Béninoise',f:'🇧🇯'},
+                        {v:'Nigériane',f:'🇳🇬'},{v:'Togolaise',f:'🇹🇬'},{v:'Ghanéenne',f:'🇬🇭'},
+                        {v:'Française',f:'🇫🇷'},{v:'Africaine',f:'🌍'}
+                    ].map(n =>
+                        `<div class="creator-pill ${d.nationality === n.v ? 'selected' : ''}" onclick="CHAT.creatorPickNationality('${n.v}')">${n.f} ${n.v}</div>`
+                    ).join('')}
+                </div>
+            `;
+        } else if (s === 3) {
+            const p = d.personality || { passion: 3, romance: 3, talk: 3, timide: 3 };
+            content = `
+                <h2>Sa personnalité</h2>
+                <p style="color:var(--text-secondary);margin-bottom:1.5rem;">Règle son caractère avec les curseurs</p>
+                <div class="creator-sliders">
+                    <div class="slider-group">
+                        <label>Doux(ce) <span>━━━━━━━○━━━━━━</span> Passionné(e)</label>
+                        <input type="range" min="1" max="5" value="${p.passion}" oninput="CHAT.creatorSetPersonality('passion',this.value)">
+                        <div class="slider-labels"><span>Doux(ce)</span><span>Passionné(e)</span></div>
+                    </div>
+                    <div class="slider-group">
+                        <label>Romantique <span>━━━━━━━○━━━━━━</span> Direct(e)</label>
+                        <input type="range" min="1" max="5" value="${p.romance}" oninput="CHAT.creatorSetPersonality('romance',this.value)">
+                        <div class="slider-labels"><span>Romantique</span><span>Direct(e)</span></div>
+                    </div>
+                    <div class="slider-group">
+                        <label>Parleur(se) <span>━━━━━━━○━━━━━━</span> Écouteur(se)</label>
+                        <input type="range" min="1" max="5" value="${p.talk}" oninput="CHAT.creatorSetPersonality('talk',this.value)">
+                        <div class="slider-labels"><span>Parleur(se)</span><span>Écouteur(se)</span></div>
+                    </div>
+                    <div class="slider-group">
+                        <label>Timide <span>━━━━━━━○━━━━━━</span> Audacieux(se)</label>
+                        <input type="range" min="1" max="5" value="${p.timide}" oninput="CHAT.creatorSetPersonality('timide',this.value)">
+                        <div class="slider-labels"><span>Timide</span><span>Audacieux(se)</span></div>
+                    </div>
+                </div>
+            `;
+        } else if (s === 4) {
+            const voices = [
+                { id: '21m00Tcm4TlvDq8ikWAM', label: 'Douce et sensuelle', icon: '🎤' },
+                { id: 'EXAVITQu4vrRV1NfG6UX', label: 'Coquine et taquine', icon: '🎭' },
+                { id: 'IKNe3O0S0J5wq6SOh5qV', label: 'Guide apaisante', icon: '🧘' },
+                { id: 'ODIh6NmKjOBx8pVQZnAl', label: 'Enjôleuse', icon: '✨' },
+                { id: 'AZnzlk1XvdvUeBnXmlld', label: 'Grave et rassurante', icon: '🎙️' },
+                { id: 'pMsXgVXo2KuY3XObN2Vn', label: 'Chaude et passionnée', icon: '🔥' },
+                { id: 'ThT5KcBeYPX3keUxqAb3', label: 'Encourageante', icon: '💪' }
+            ];
+            content = `
+                <h2>Sa voix et sa devise</h2>
+                <p style="color:var(--text-secondary);margin-bottom:1.5rem;">Choisis sa voix et donne-lui une phrase d'accroche</p>
+                <div style="margin-bottom:1rem;">
+                    <label style="margin-bottom:0.5rem;display:block;">Voix</label>
+                    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                        ${voices.map(v =>
+                            `<div class="creator-pill ${d.voiceId === v.id ? 'selected' : ''}" onclick="CHAT.creatorPickVoice('${v.id}')">${v.icon} ${v.label}</div>`
+                        ).join('')}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Sa phrase d'accroche</label>
+                    <input type="text" id="creatorBio" class="creator-input" placeholder="Ex: Je suis là pour toi, rien que pour toi..." value="${d.bio || ''}">
+                </div>
+                <div class="creator-preview">
+                    <p style="font-style:italic;color:var(--text-secondary);">
+                        "${d.name || 'Prénom'} · ${d.gender === 'masculin' ? 'Homme' : 'Femme'} · ${d.nationality || 'Africaine'}"
+                    </p>
+                </div>
+            `;
+        }
+
+        body.innerHTML = `
+            <div class="creator-header">
+                <div class="creator-steps">${nav}</div>
+                <div class="creator-progress">
+                    <div class="creator-progress-bar" style="width:${((s+1)/total)*100}%"></div>
+                </div>
+            </div>
+            <div class="creator-content">${content}</div>
+            <div class="creator-footer">
+                ${s > 0 ? `<button class="btn btn-outline" onclick="CHAT.creatorPrev()"><i class="fas fa-arrow-left"></i> Retour</button>` : '<div></div>'}
+                ${s < total - 1
+                    ? `<button class="btn btn-primary" onclick="CHAT.creatorNext()">Suivant <i class="fas fa-arrow-right"></i></button>`
+                    : `<button class="btn btn-primary" onclick="CHAT.saveCustomCharacter()"><i class="fas fa-heart"></i> Créer ${(d.name || 'mon crush')}</button>`
+                }
+            </div>
+        `;
+    },
+
+    creatorPickName(name) {
+        this.creatorData.name = name;
+        document.getElementById('creatorName').value = name;
+        this.renderCreator();
+    },
+
+    creatorPickGender(g) {
+        this.creatorData.gender = g;
+        if (!this.creatorData.nationality && g === 'masculin') this.creatorData.nationality = 'Sénégalais';
+        this.renderCreator();
+    },
+
+    creatorPickNationality(n) {
+        this.creatorData.nationality = n;
+        this.renderCreator();
+    },
+
+    creatorSetPersonality(key, val) {
+        if (!this.creatorData.personality) this.creatorData.personality = { passion: 3, romance: 3, talk: 3, timide: 3 };
+        this.creatorData.personality[key] = parseInt(val);
+    },
+
+    creatorPickVoice(id) {
+        this.creatorData.voiceId = id;
+        this.renderCreator();
+    },
+
+    creatorNext() {
+        const d = this.creatorData;
+        if (this.creatorStep === 0) {
+            const name = document.getElementById('creatorName')?.value.trim();
+            if (!name) { this.showToast('Choisis un prénom'); return; }
+            d.name = name;
+        }
+        if (this.creatorStep === 3 && !d.personality) {
+            d.personality = { passion: 3, romance: 3, talk: 3, timide: 3 };
+        }
+        this.creatorStep++;
+        this.renderCreator();
+    },
+
+    creatorPrev() {
+        if (this.creatorStep > 0) this.creatorStep--;
+        this.renderCreator();
+    },
+
+    async saveCustomCharacter() {
+        const d = this.creatorData;
+        const bio = document.getElementById('creatorBio')?.value.trim() || '';
+        if (!d.name) { this.showToast('Donne un prénom'); return; }
+
+        const char = {
+            name: d.name,
+            gender: d.gender || 'feminin',
+            nationality: d.nationality || 'Africaine',
+            personality: d.personality || { passion: 3, romance: 3, talk: 3, timide: 3 },
+            voiceId: d.voiceId || '21m00Tcm4TlvDq8ikWAM',
+            bio
+        };
+
+        const result = await API.createCustomCharacter(char);
+        if (result.success) {
+            this.closeCreator();
+            this.showToast(`🎉 ${d.name} a été créé(e) !`);
+            await this.loadCustomCharacters();
+            this.creatorData = {};
+        } else {
+            this.showToast(result.message || 'Erreur de création');
         }
     },
 
@@ -121,22 +422,44 @@ const CHAT = {
         document.getElementById('logoutBtn')?.addEventListener('click', () => {
             window.location.href = 'index.html';
         });
+
+        document.getElementById('addCharBtn')?.addEventListener('click', () => this.openCreator());
+        document.getElementById('charCreatorClose')?.addEventListener('click', () => this.closeCreator());
+        document.getElementById('charCreatorOverlay')?.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) this.closeCreator();
+        });
     },
 
     loadCharacter(name) {
         const char = this.characters[name];
-        if (!char) return;
+        const custom = this.customCharacters.find(c => c.id === name);
+
+        if (!char && !custom) return;
 
         this.currentCharacter = name;
         this.conversationHistory = [];
 
-        document.getElementById('contactName').textContent = char.name;
-        document.getElementById('contactAvatar').style.background = char.color;
-        document.getElementById('contactAvatar').textContent = char.avatar;
-        document.getElementById('welcomeName').textContent = char.name;
-        document.getElementById('welcomeAvatar').style.background = char.color;
-        document.getElementById('welcomeAvatar').textContent = char.avatar;
-        document.getElementById('welcomeBio').textContent = char.bio;
+        const colors = ['#FF3B7F','#6C2BD9','#FF6B6B','#845EC2','#FF9671','#2D3436','#1A5276'];
+        const colorIdx = name.charCodeAt(0) % colors.length;
+
+        if (char) {
+            document.getElementById('contactName').textContent = char.name;
+            document.getElementById('contactAvatar').style.background = char.color;
+            document.getElementById('contactAvatar').textContent = char.avatar;
+            document.getElementById('welcomeName').textContent = char.name;
+            document.getElementById('welcomeAvatar').style.background = char.color;
+            document.getElementById('welcomeAvatar').textContent = char.avatar;
+            document.getElementById('welcomeBio').textContent = char.bio;
+        } else if (custom) {
+            const initial = custom.name.charAt(0).toUpperCase();
+            document.getElementById('contactName').textContent = custom.name;
+            document.getElementById('contactAvatar').style.background = colors[colorIdx];
+            document.getElementById('contactAvatar').textContent = initial;
+            document.getElementById('welcomeName').textContent = custom.name;
+            document.getElementById('welcomeAvatar').style.background = colors[colorIdx];
+            document.getElementById('welcomeAvatar').textContent = initial;
+            document.getElementById('welcomeBio').textContent = custom.bio || `Ton ${custom.gender === 'masculin' ? 'compagnon' : 'compagne'} ${custom.nationality} est là pour toi.`;
+        }
 
         const chatMessages = document.getElementById('chatMessages');
         chatMessages.querySelectorAll('.message').forEach(m => m.remove());
@@ -315,14 +638,14 @@ const CHAT = {
 
         this.showToast('Génération de l\'audio...');
 
-        if (CONFIG.elevenlabs.apiKey) {
-            const url = await API.generateVoice(text, '21m00Tcm4TlvDq8ikWAM');
-            if (url) {
-                const audio = new Audio(url);
-                audio.play();
-                this.showToast('Audio prêt 🔊');
-                return;
-            }
+        const custom = this.customCharacters.find(c => c.id === this.currentCharacter);
+        const voiceId = custom?.voiceid || '21m00Tcm4TlvDq8ikWAM';
+        const url = await API.voice(text, voiceId);
+        if (url) {
+            const audio = new Audio(url);
+            audio.play();
+            this.showToast('Audio prêt 🔊');
+            return;
         }
 
         if ('speechSynthesis' in window) {
@@ -348,22 +671,38 @@ const CHAT = {
         this.showToast('Génération de l\'image...');
 
         const time = new Date().toLocaleTimeString();
-        const imageUrl = await API.generateImage(text);
+        const result = await API.generateImage(text);
 
         const container = document.getElementById('chatMessages');
         const msg = document.createElement('div');
         msg.className = 'message ia';
-        msg.innerHTML = `
-            <div class="msg-avatar" style="background:${this.characters[this.currentCharacter].color}">${this.characters[this.currentCharacter].avatar}</div>
-            <div class="msg-content msg-image">
-                <div style="width:280px;height:350px;background:linear-gradient(135deg,#6C2BD9,#FF3B7F);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0.5rem;color:rgba(255,255,255,0.7);font-size:0.85rem;">
-                    <i class="fas fa-wand-magic-sparkles" style="font-size:2rem;"></i>
-                    <span>Image générée par IA</span>
-                    <span style="font-size:0.75rem;">"${text.substring(0, 60)}..."</span>
+
+        const char = this.characters[this.currentCharacter] || this.customCharacters.find(c => c.id === this.currentCharacter);
+        const colors = ['#FF3B7F','#6C2BD9','#FF6B6B','#845EC2','#FF9671','#2D3436','#1A5276'];
+        const color = char?.color || colors[this.currentCharacter.charCodeAt(0) % colors.length];
+        const avatar = char?.avatar || (char?.name?.charAt(0).toUpperCase()) || '?';
+
+        if (result?.imageUrl && !result.placeholder) {
+            msg.innerHTML = `
+                <div class="msg-avatar" style="background:${color}">${avatar}</div>
+                <div class="msg-content msg-image">
+                    <img src="${result.imageUrl}" alt="Image générée" loading="lazy">
+                    <div class="msg-timestamp">${time}</div>
                 </div>
-                <div class="msg-timestamp">${time}</div>
-            </div>
-        `;
+            `;
+        } else {
+            msg.innerHTML = `
+                <div class="msg-avatar" style="background:${color}">${avatar}</div>
+                <div class="msg-content msg-image">
+                    <div style="width:280px;height:350px;background:linear-gradient(135deg,${color},#0D0D1A);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0.5rem;color:rgba(255,255,255,0.7);font-size:0.85rem;">
+                        <i class="fas fa-wand-magic-sparkles" style="font-size:2rem;"></i>
+                        <span>Image générée par IA</span>
+                        <span style="font-size:0.75rem;">"${text.substring(0, 60)}..."</span>
+                    </div>
+                    <div class="msg-timestamp">${time}</div>
+                </div>
+            `;
+        }
         container.appendChild(msg);
         container.scrollTop = container.scrollHeight;
     },

@@ -189,6 +189,49 @@ const API = {
         }
     },
 
+    async getCustomCharacters() {
+        try {
+            const resp = await fetchWithAuth(`${CONFIG.backendUrl}/characters`);
+            const data = await resp.json();
+            return data.success ? data.characters : [];
+        } catch (e) { return []; }
+    },
+
+    async createCustomCharacter(char) {
+        try {
+            const token = getToken();
+            const resp = await fetch(`${CONFIG.backendUrl}/characters/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+                body: JSON.stringify(char)
+            });
+            return await resp.json();
+        } catch (e) { return { success: false, message: 'Erreur réseau' }; }
+    },
+
+    async deleteCustomCharacter(id) {
+        try {
+            const token = getToken();
+            await fetch(`${CONFIG.backendUrl}/characters/${id}`, {
+                method: 'DELETE',
+                headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+            });
+        } catch (e) {}
+    },
+
+    async generateImage(prompt) {
+        try {
+            const token = getToken();
+            const resp = await fetch(`${CONFIG.backendUrl}/images/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+                body: JSON.stringify({ prompt })
+            });
+            const data = await resp.json();
+            return data.success ? data : null;
+        } catch (e) { return null; }
+    },
+
     logout() {
         setToken(null);
         setRefreshToken(null);

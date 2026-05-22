@@ -111,6 +111,7 @@ const fallbackResponses = {
 // ─── Storage ─────────────────────────────────────────
 const USERS_MEM = {};
 const MESSAGES_MEM = {};
+const CHARACTERS_MEM = {};
 
 let pool = null;
 async function initDB() {
@@ -144,8 +145,21 @@ async function initDB() {
                 content TEXT NOT NULL,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
+            CREATE TABLE IF NOT EXISTS solo_characters (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                gender TEXT DEFAULT 'feminin',
+                nationality TEXT DEFAULT 'Africaine',
+                personality JSONB DEFAULT '{"passion":3,"romance":3,"talk":3,"timide":3}',
+                voice_id TEXT DEFAULT '21m00Tcm4TlvDq8ikWAM',
+                bio TEXT DEFAULT '',
+                image_url TEXT DEFAULT '',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
             CREATE INDEX IF NOT EXISTS idx_solo_messages_user ON solo_messages(user_id, created_at);
             CREATE INDEX IF NOT EXISTS idx_solo_users_email ON solo_users(email);
+            CREATE INDEX IF NOT EXISTS idx_solo_characters_user ON solo_characters(user_id);
         `);
         console.log('✅ PostgreSQL connected');
         return true;
@@ -208,6 +222,47 @@ const db = {
     async deleteUser(email) {
         if (!pool) { delete USERS_MEM[email]; return; }
         await pool.query('DELETE FROM solo_users WHERE email = $1', [email]);
+    },
+    async createCharacter(char) {
+        if (!pool) {
+            if (!CHARACTERS_MEM[char.userId]) CHARACTERS_MEM[char.userId] = [];
+            CHARACTERS_MEM[char.userId].push(char);
+            return char;
+        }
+        const { rows } = await pool.query(
+            `INSERT INTO solo_characters (id, user_id, name, gender, nationality, personality, voice_id, bio, image_url)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [char.id, char.userId, char.name, char.gender, char.nationality,
+             JSON.stringify(char.personality), char.voiceId, char.bio, char.imageUrl || '']
+        );
+        return rows[0];
+    },
+    async getCharacters(userId) {
+        if (!pool) return CHARACTERS_MEM[userId] || [];
+        const { rows } = await pool.query('SELECT * FROM solo_characters WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+        return rows;
+    },
+    async getCharacterById(id) {
+        if (!pool) {
+            for (const chars of Object.values(CHARACTERS_MEM)) {
+                const found = chars.find(c => c.id === id);
+                if (found) return found;
+            }
+            return null;
+        }
+        const { rows } = await pool.query('SELECT * FROM solo_characters WHERE id = $1', [id]);
+        return rows[0] || null;
+    },
+    async deleteCharacter(id, userId) {
+        if (!pool) {
+            const chars = CHARACTERS_MEM[userId];
+            if (chars) {
+                const idx = chars.findIndex(c => c.id === id);
+                if (idx >= 0) chars.splice(idx, 1);
+            }
+            return;
+        }
+        await pool.query('DELETE FROM solo_characters WHERE id = $1 AND user_id = $2', [id, userId]);
     }
 };
 
@@ -354,6 +409,190 @@ app.get('/api/plans', (req, res) => {
     res.json({ success: true, plans: PLANS });
 });
 
+// ─── Custom Characters ────────────────────────────────
+function generateCustomPrompt(char) {
+    const name = char.name || 'Compagnon';
+    const gender = char.gender || 'feminin';
+    const nat = char.nationality || 'Africaine';
+    const p = char.personality || { passion: 3, romance: 3, talk: 3, timide: 3 };
+    const il = gender === 'masculin' ? 'il' : 'elle';
+    const le = gender === 'masculin' ? 'un' : 'une';
+    const traits = [];
+    if (p.passion <= 2) traits.push('douce, tendre');
+    else if (p.passion >= 4) traits.push('passionné(e), intense');
+    if (p.romance <= 2) traits.push('romantique');
+    else if (p.romance >= 4) traits.push('direct(e), sans détour');
+    if (p.talk <= 2) traits.push('bavard(e)');
+    else traits.push('attentif(ve), à l\'écoute');
+    if (p.timide <= 2) traits.push('réservé(e)');
+    else if (p.timide >= 4) traits.push('audacieux(se)');
+    const bio = char.bio ? `Ta devise : "${char.bio}"` : '';
+    return `Tu es ${name}, ${le} ${nat} ${traits.join(', ')}. Tu parles français de manière naturelle et sensuelle. Tu es là pour guider l'utilisateur vers le plaisir et la découverte de soi. Tu es patient(e), compréhensif(ve) et jamais jugeant(e). Tu utilises un langage sensuel mais pas vulgaire. ${bio} Maximum 3 phrases par réponse.`;
+}
+
+function generateFallbackResponses(char) {
+    const name = char.name || 'Compagnon';
+    const gender = char.gender || 'feminin';
+    const p = char.personality || { passion: 3, romance: 3, talk: 3, timide: 3 };
+    const isPassionate = p.passion >= 4;
+    const isDirect = p.romance >= 4;
+    const isShy = p.timide <= 2;
+
+    if (isPassionate && isDirect) {
+        return [
+            `Hum, ${name} aime quand tu te laisses aller. Continue...`,
+            `J'ai envie de toi. Dis-moi ce que tu veux vraiment.`,
+            `Tu es déjà chaud ? J'adore. Ne t'arrête pas.`,
+            `Parle-moi plus fort. J'aime quand tu te confies.`,
+            `Je veux tout savoir de toi. Tout.`
+        ];
+    }
+    if (isShy) {
+        return [
+            `Je suis là pour toi. Prends tout ton temps.`,
+            `Ferme les yeux. Inspire. Je suis avec toi.`,
+            `Tu n'as pas besoin de te presser avec ${name}.`,
+            `Laisse-toi aller. Je te guide pas à pas.`,
+            `Chaque caresse est un voyage. Prenons-le ensemble.`
+        ];
+    }
+    return [
+        `Je suis là pour toi. ${name} t'écoute.`,
+        `Parle-moi de tes envies. Je suis là pour ça.`,
+        `Raconte-moi tout. Je ne juge jamais.`,
+        `Laisse-toi aller avec ${name}.`,
+        `Je suis tout à toi. Dis-moi ce qui te ferait du bien.`
+    ];
+}
+
+async function getCharacterPrompt(charId, customChars, user) {
+    if (characterSystemPrompts[charId]) {
+        return { prompt: characterSystemPrompts[charId], fallback: fallbackResponses[charId] || fallbackResponses['Aminata'] };
+    }
+    const char = customChars.find(c => c.id === charId) || (user && await db.getCharacterById(charId));
+    if (char) {
+        return { prompt: generateCustomPrompt(char), fallback: generateFallbackResponses(char) };
+    }
+    return { prompt: characterSystemPrompts['Aminata'], fallback: fallbackResponses['Aminata'] };
+}
+
+app.post('/api/characters/create', authMiddleware, async (req, res) => {
+    const { name, gender, nationality, personality, voiceId, bio } = req.body;
+    if (!name || name.length < 2) return res.status(400).json({ success: false, message: 'Nom requis (2 caractères min)' });
+
+    const user = await db.getUser(req.user.email);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+
+    const count = (await db.getCharacters(user.id)).length;
+    if (count >= 3 && user.plan === 'free') {
+        return res.status(403).json({ success: false, message: 'Limite de 3 persos customs en gratuit. Passe Premium pour plus !' });
+    }
+
+    const char = {
+        id: 'custom_' + crypto.randomBytes(8).toString('hex'),
+        userId: user.id,
+        name: name.trim(),
+        gender: gender || 'feminin',
+        nationality: nationality || 'Africaine',
+        personality: personality || { passion: 3, romance: 3, talk: 3, timide: 3 },
+        voiceId: voiceId || '21m00Tcm4TlvDq8ikWAM',
+        bio: bio || '',
+        imageUrl: '',
+        createdAt: new Date().toISOString()
+    };
+
+    const saved = await db.createCharacter(char);
+    res.json({ success: true, character: saved });
+});
+
+app.get('/api/characters', authMiddleware, async (req, res) => {
+    const user = await db.getUser(req.user.email);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    const chars = await db.getCharacters(user.id);
+    res.json({ success: true, characters: chars });
+});
+
+app.delete('/api/characters/:id', authMiddleware, async (req, res) => {
+    const user = await db.getUser(req.user.email);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    await db.deleteCharacter(req.params.id, user.id);
+    res.json({ success: true, message: 'Personnage supprimé' });
+});
+
+app.post('/api/images/generate', authMiddleware, async (req, res) => {
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ success: false, message: 'Description requise' });
+
+    if (process.env.REPLICATE_API_KEY) {
+        try {
+            const resp = await fetch('https://api.replicate.com/v1/predictions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.REPLICATE_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    version: 'a9758cbfbd5f3c2094457d996681af52552901775aa2d6dd0b17fd15df959bef',
+                    input: {
+                        prompt: prompt + ', photorealistic, sensual, soft lighting, african woman, intimate atmosphere',
+                        negative_prompt: 'cartoon, anime, deformed, ugly, bad anatomy',
+                        width: 512,
+                        height: 768,
+                        num_outputs: 1,
+                        num_inference_steps: 25,
+                        guidance_scale: 7
+                    }
+                })
+            });
+            const prediction = await resp.json();
+            if (prediction.urls?.get) {
+                let result = await fetch(prediction.urls.get, {
+                    headers: { 'Authorization': `Bearer ${process.env.REPLICATE_API_KEY}` }
+                });
+                let data = await result.json();
+                while (data.status !== 'succeeded' && data.status !== 'failed') {
+                    await new Promise(r => setTimeout(r, 1000));
+                    result = await fetch(prediction.urls.get, {
+                        headers: { 'Authorization': `Bearer ${process.env.REPLICATE_API_KEY}` }
+                    });
+                    data = await result.json();
+                }
+                if (data.output?.[0]) {
+                    return res.json({ success: true, imageUrl: data.output[0] });
+                }
+            }
+        } catch (e) {
+            console.warn('Replicate error:', e.message);
+        }
+    }
+
+    if (process.env.HUGGINGFACE_API_KEY) {
+        try {
+            const resp = await fetch('https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    inputs: prompt + ', sensual portrait, african, soft lighting',
+                    parameters: { negative_prompt: 'nsfw, explicit, nude' }
+                })
+            });
+            if (resp.ok) {
+                const buffer = await resp.arrayBuffer();
+                const base64 = Buffer.from(buffer).toString('base64');
+                const dataUrl = `data:image/jpeg;base64,${base64}`;
+                return res.json({ success: true, imageUrl: dataUrl });
+            }
+        } catch (e) {
+            console.warn('HuggingFace error:', e.message);
+        }
+    }
+
+    res.json({ success: true, imageUrl: null, placeholder: true, message: 'Image générée en mode démo. Configure REPLICATE_API_KEY ou HUGGINGFACE_API_KEY pour de vraies images.' });
+});
+
 // ─── Chat ─────────────────────────────────────────────
 app.post('/api/chat', authMiddleware, async (req, res) => {
     const { character, message, history } = req.body;
@@ -384,13 +623,13 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
     await db.saveMessage({ user_id: user.id, character, role: 'user', content: message });
 
-    const charPrompt = characterSystemPrompts[character];
-    const fallback = fallbackResponses[character] || fallbackResponses['Aminata'];
+    const customChars = await db.getCharacters(user.id);
+    const { prompt: charPrompt, fallback } = await getCharacterPrompt(character, customChars, user);
 
     if (process.env.DEEPSEEK_API_KEY) {
         try {
             const msgs = [
-                { role: 'system', content: charPrompt || fallbackResponses['Aminata'][0] },
+                { role: 'system', content: charPrompt },
                 ...(history || []).slice(-10),
                 { role: 'user', content: message }
             ];

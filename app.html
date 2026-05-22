@@ -35,36 +35,64 @@
             </div>
 
             <div class="sidebar-characters">
-                <h4 class="sidebar-label">Tes personnages</h4>
+                <h4 class="sidebar-label">
+                    Tes personnages
+                    <button class="add-char-btn" id="addCharBtn" title="Créer ton compagnon"><i class="fas fa-plus"></i></button>
+                </h4>
                 <div class="character-list" id="characterList">
                     <div class="character-item active" data-character="Aminata">
                         <div class="char-avatar" style="background:linear-gradient(135deg,#FF3B7F,#6C2BD9);">A</div>
                         <div class="char-info">
                             <span class="char-name">Aminata</span>
-                            <span class="char-status">En ligne</span>
+                            <span class="char-status">Officiel</span>
                         </div>
                     </div>
                     <div class="character-item" data-character="Zara">
                         <div class="char-avatar" style="background:linear-gradient(135deg,#FF6B6B,#FF3B7F);">Z</div>
                         <div class="char-info">
                             <span class="char-name">Zara</span>
-                            <span class="char-status">En ligne</span>
+                            <span class="char-status">Officiel</span>
                         </div>
                     </div>
                     <div class="character-item" data-character="Grace">
                         <div class="char-avatar" style="background:linear-gradient(135deg,#845EC2,#D65DB1);">G</div>
                         <div class="char-info">
                             <span class="char-name">Grace</span>
-                            <span class="char-status">En ligne</span>
+                            <span class="char-status">Officiel</span>
                         </div>
                     </div>
                     <div class="character-item" data-character="Mamadou">
                         <div class="char-avatar" style="background:linear-gradient(135deg,#2D3436,#636E72);">M</div>
                         <div class="char-info">
                             <span class="char-name">Mamadou</span>
-                            <span class="char-status">En ligne</span>
+                            <span class="char-status">Officiel</span>
                         </div>
                     </div>
+                    <div class="character-item" data-character="Nala">
+                        <div class="char-avatar" style="background:linear-gradient(135deg,#FF9671,#FFC75F);">N</div>
+                        <div class="char-info">
+                            <span class="char-name">Nala</span>
+                            <span class="char-status">Officiel</span>
+                        </div>
+                    </div>
+                    <div class="character-item" data-character="Khalid">
+                        <div class="char-avatar" style="background:linear-gradient(135deg,#0D0D1A,#2D3436);">K</div>
+                        <div class="char-info">
+                            <span class="char-name">Khalid</span>
+                            <span class="char-status">Officiel</span>
+                        </div>
+                    </div>
+                    <div class="character-item" data-character="Samuel">
+                        <div class="char-avatar" style="background:linear-gradient(135deg,#1A5276,#2E86C1);">S</div>
+                        <div class="char-info">
+                            <span class="char-name">Samuel</span>
+                            <span class="char-status">Officiel</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="customCharsList" style="display:none;">
+                    <h4 class="sidebar-label" style="margin-top:1rem;">Tes créations</h4>
+                    <div class="character-list" id="customCharacterList"></div>
                 </div>
             </div>
 
@@ -150,6 +178,14 @@
                 </button>
             </div>
         </main>
+    </div>
+
+    <div class="modal" id="charCreatorModal">
+        <div class="modal-overlay" id="charCreatorOverlay"></div>
+        <div class="modal-content char-creator-modal">
+            <button class="modal-close" id="charCreatorClose"><i class="fas fa-times"></i></button>
+            <div id="charCreatorBody"></div>
+        </div>
     </div>
 
     <div class="toast" id="toast"></div>
