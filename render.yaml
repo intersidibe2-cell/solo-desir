@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: solo-africa
+    name: solo-desir
     env: node
     buildCommand: cd backend && npm install
     startCommand: node backend/server.js
@@ -25,8 +25,16 @@ services:
         fromDatabase:
           name: solo-db
           property: connectionString
+      - key: RUNPOD_API_KEY
+        sync: false
+      - key: RUNPOD_ENDPOINT_ID
+        sync: false
+      - key: REPLICATE_API_KEY
+        sync: false
+      - key: HUGGINGFACE_API_KEY
+        sync: false
       - key: BASE_URL
-        value: https://solo.onrender.com
+        value: https://solodesir.com
 
 databases:
   - name: solo-db

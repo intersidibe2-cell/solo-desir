@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
-        ? [/\.solo\.africa$/, /\.onrender\.com$/]
+        ? [/\.solodesir\.com$/, /\.onrender\.com$/]
         : [/localhost:/],
     credentials: true
 }));
@@ -523,6 +523,39 @@ app.post('/api/images/generate', authMiddleware, async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ success: false, message: 'Description requise' });
 
+    // ── 1. RunPod (self-hosted SDXL, NSFW-friendly) ──
+    if (process.env.RUNPOD_API_KEY && process.env.RUNPOD_ENDPOINT_ID) {
+        try {
+            const resp = await fetch(`https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/runsync`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.RUNPOD_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    input: {
+                        prompt: prompt + ', photorealistic, sensual, soft lighting, african woman, intimate atmosphere',
+                        negative_prompt: 'cartoon, anime, deformed, ugly, bad anatomy',
+                        width: 512,
+                        height: 768,
+                        num_outputs: 1,
+                        num_inference_steps: 25,
+                        guidance_scale: 7,
+                        nsfw_filter: false
+                    }
+                })
+            });
+            const data = await resp.json();
+            if (data.status === 'COMPLETED' && data.output) {
+                const imageUrl = Array.isArray(data.output) ? data.output[0] : data.output.image_url || data.output;
+                if (imageUrl) return res.json({ success: true, imageUrl });
+            }
+        } catch (e) {
+            console.warn('RunPod error:', e.message);
+        }
+    }
+
+    // ── 2. Replicate (SDXL, censuré — fallback) ──
     if (process.env.REPLICATE_API_KEY) {
         try {
             const resp = await fetch('https://api.replicate.com/v1/predictions', {
@@ -566,6 +599,7 @@ app.post('/api/images/generate', authMiddleware, async (req, res) => {
         }
     }
 
+    // ── 3. HuggingFace (FLUX, censuré — fallback) ──
     if (process.env.HUGGINGFACE_API_KEY) {
         try {
             const resp = await fetch('https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev', {
@@ -575,8 +609,7 @@ app.post('/api/images/generate', authMiddleware, async (req, res) => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    inputs: prompt + ', sensual portrait, african, soft lighting',
-                    parameters: { negative_prompt: 'nsfw, explicit, nude' }
+                    inputs: prompt + ', sensual portrait, african, soft lighting'
                 })
             });
             if (resp.ok) {
@@ -590,7 +623,7 @@ app.post('/api/images/generate', authMiddleware, async (req, res) => {
         }
     }
 
-    res.json({ success: true, imageUrl: null, placeholder: true, message: 'Image générée en mode démo. Configure REPLICATE_API_KEY ou HUGGINGFACE_API_KEY pour de vraies images.' });
+    res.json({ success: true, imageUrl: null, placeholder: true, message: 'Image générée en mode démo. Configure RUNPOD_API_KEY / REPLICATE_API_KEY / HUGGINGFACE_API_KEY pour de vraies images.' });
 });
 
 // ─── Chat ─────────────────────────────────────────────
