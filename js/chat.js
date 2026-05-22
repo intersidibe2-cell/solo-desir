@@ -52,6 +52,7 @@ const CHAT = {
         }
 
         await this.loadUserData();
+        ANALYTICS.capture('app_opened', { character: charName || 'Aminata' });
     },
 
     async loadUserData() {
@@ -163,6 +164,7 @@ const CHAT = {
                 if (response.messagesLeft !== undefined) {
                     this.updateMsgCounter(response.messagesLeft);
                 }
+                ANALYTICS.capture('message_sent', { character: this.currentCharacter, limit: !!response.limit });
                 this.conversationHistory.push({ role: 'user', content: messageText });
                 this.conversationHistory.push({ role: 'assistant', content: response.content });
                 this.addMessage(response.content, 'ia');

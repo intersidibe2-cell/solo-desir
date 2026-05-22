@@ -302,6 +302,7 @@ const APP = {
         if (result.success) {
             this.isAuthenticated = true;
             this.closeModal('authModal');
+            ANALYTICS.capture('user_logged_in', { plan: result.user?.plan || 'free' });
             this.showToast('Connexion réussie 🔥');
             if (this.selectedPlan?.price > 0) {
                 setTimeout(() => this.showPaymentModal(), 500);
@@ -327,6 +328,7 @@ const APP = {
         if (result.success) {
             this.isAuthenticated = true;
             this.closeModal('authModal');
+            ANALYTICS.capture('user_signed_up', { plan: 'free', country: CONFIG.user?.countryCode });
             this.showToast('Compte créé 🔥 Bienvenue sur Solo !');
             setTimeout(() => window.location.href = 'app.html', 800);
         } else {
@@ -385,10 +387,12 @@ const APP = {
         const result = await API.initiatePayment(phone, amount, operator);
 
         if (result.success && result.paymentUrl) {
+            ANALYTICS.capture('payment_initiated', { amount, operator });
             this.showToast('Redirection vers le paiement...');
             window.open(result.paymentUrl, '_blank');
             this.closeModal('authModal');
         } else if (result.success) {
+            ANALYTICS.capture('payment_completed', { amount, operator, demo: !!result.demo });
             this.showToast(result.demo ? '🎉 Abonnement activé (mode démo)' : '✅ Paiement réussi !');
             this.closeModal('authModal');
         } else {
