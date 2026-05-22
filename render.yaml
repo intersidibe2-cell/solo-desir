@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: solo-africa
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: node backend/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: CINETPAY_API_KEY
+        sync: false
+      - key: CINETPAY_SITE_ID
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: solo-db
+          property: connectionString
+      - key: BASE_URL
+        value: https://solo.onrender.com
+
+databases:
+  - name: solo-db
+    databaseName: solo
+    plan: free

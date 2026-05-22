@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solo — Le plaisir par toi-même</title>
+    <meta name="description" content="Solo est ton compagnon intime IA. Chat, voix, images. Découvre-toi sans tabou ni jugement.">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🔥%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+    <div id="ip-data" style="display:none;"></div>
+    <div class="emergency-bar">
+        <i class="fas fa-shield-halved"></i>
+        <span>100% anonyme & confidentiel — Discrétion absolue</span>
+        <i class="fas fa-lock"></i>
+    </div>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <span class="logo-icon">S</span>
+                <span class="logo-text">Solo.</span>
+            </a>
+            <div class="nav-links">
+                <a href="#features" class="nav-link">Pourquoi Solo</a>
+                <a href="#how" class="nav-link">Comment ça marche</a>
+                <a href="#pricing" class="nav-link">Tarifs</a>
+                <a href="#characters" class="nav-link">Personnages</a>
+            </div>
+            <div class="nav-auth">
+                <button class="btn btn-ghost" id="loginBtn">Connexion</button>
+                <button class="btn btn-primary" id="signupBtn">Essayer gratuitement</button>
+            </div>
+            <button class="mobile-menu-btn" id="mobileMenuBtn">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <div class="mobile-menu" id="mobileMenu">
+        <a href="#features" class="mobile-link">Pourquoi Solo</a>
+        <a href="#how" class="mobile-link">Comment ça marche</a>
+        <a href="#pricing" class="mobile-link">Tarifs</a>
+        <a href="#characters" class="mobile-link">Personnages</a>
+        <div class="mobile-auth">
+            <button class="btn btn-ghost btn-full" id="loginBtnMobile">Connexion</button>
+            <button class="btn btn-primary btn-full" id="signupBtnMobile">Essayer gratuitement</button>
+        </div>
+    </div>
+
+    <section class="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-particles" id="particles"></div>
+        <div class="hero-content">
+            <div class="hero-badge">
+                <i class="fas fa-sparkles"></i>
+                Le premier compagnon intime IA en Afrique
+            </div>
+            <h1 class="hero-title">
+                Le plaisir<br>
+                <span class="gradient-text">par toi-même</span>
+            </h1>
+            <p class="hero-subtitle">
+                Discute, écoute, explore. Sans tabou, sans jugement.<br>
+                Ton compagnon intime IA qui parle ta langue.
+            </p>
+            <div class="hero-actions">
+                <button class="btn btn-primary btn-lg" id="heroCta">
+                    <i class="fas fa-heart"></i> Commencer gratuitement
+                </button>
+                <button class="btn btn-outline btn-lg" id="heroDemo">
+                    <i class="fas fa-play"></i> Voir une démo
+                </button>
+            </div>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-number">0</span>
+                    <span class="stat-label">Jugement</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">100%</span>
+                    <span class="stat-label">Anonyme</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">24/7</span>
+                    <span class="stat-label">Disponible</span>
+                </div>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="hero-phone">
+                <div class="phone-frame">
+                    <div class="phone-status">
+                        <span>9:41</span>
+                        <i class="fas fa-signal"></i>
+                    </div>
+                    <div class="phone-chat">
+                        <div class="phone-contact">
+                            <div class="contact-avatar">A</div>
+                            <span>Aminata</span>
+                            <span class="online-dot"></span>
+                        </div>
+                        <div class="chat-messages">
+                            <div class="msg msg-ia">
+                                <div class="msg-avatar">A</div>
+                                <div class="msg-text">Je suis là pour toi. Rien que pour toi.</div>
+                            </div>
+                            <div class="msg msg-user">
+                                <div class="msg-text">J'avais envie de parler à quelqu'un...</div>
+                            </div>
+                            <div class="msg msg-ia">
+                                <div class="msg-avatar">A</div>
+                                <div class="msg-text">Raconte-moi tout. Je t'écoute.</div>
+                            </div>
+                            <div class="msg msg-audio">
+                                <div class="msg-avatar">A</div>
+                                <div class="msg-audio-player">
+                                    <i class="fas fa-play"></i>
+                                    <div class="audio-wave">
+                                        <span></span><span></span><span></span><span></span><span></span>
+                                        <span></span><span></span><span></span><span></span><span></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="phone-input">
+                            <i class="fas fa-microphone"></i>
+                            <input type="text" placeholder="Écris ici..." disabled>
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="features-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Pourquoi Solo</span>
+                <h2 class="section-title">Plus qu'un simple chat IA</h2>
+                <p class="section-subtitle">Ton expérience intime, complète et personnalisée</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <i class="fas fa-comment-dots"></i>
+                    </div>
+                    <h3>Chat intime IA</h3>
+                    <p>Une intelligence artificielle qui t'écoute, te répond et te comprend. Sans filtre, sans tabou.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <i class="fas fa-headphones"></i>
+                    </div>
+                    <h3>Voix naturelle</h3>
+                    <p>Des voix féminines et masculines ultra-réalistes. Elle te parle, te guide, te berce.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                    </div>
+                    <h3>Images générées</h3>
+                    <p>Des images uniques créées pour toi, selon tes envies et ton imagination.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <i class="fas fa-user-astronaut"></i>
+                    </div>
+                    <h3>Ton personnage unique</h3>
+                    <p>Choisis le nom, la voix, le style. Ou crée le personnage de tes rêves.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                    <h3>Mode couple</h3>
+                    <p>Un espace pour deux. Coaching intime, défis, exercices pour pimenter votre relation.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon-wrapper">
+                        <i class="fas fa-shield-halved"></i>
+                    </div>
+                    <h3>100% discret</h3>
+                    <p>Rien ne sort de Solo. Pas de traces, pas de jugement. Ton secret est protégé.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="how" class="how-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Comment ça marche</span>
+                <h2 class="section-title">Commence en 3 minutes</h2>
+            </div>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-icon"><i class="fas fa-user-plus"></i></div>
+                    <h3>Crée ton compte</h3>
+                    <p>Pseudo, email, et c'est tout. Personne ne saura qui tu es.</p>
+                </div>
+                <div class="step-line"></div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+                    <h3>Choisis ton personnage</h3>
+                    <p>Parmi nos personnages ou crée le tien : nom, voix, style, apparence.</p>
+                </div>
+                <div class="step-line"></div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-icon"><i class="fas fa-heart"></i></div>
+                    <h3>Laisse-toi guider</h3>
+                    <p>Chat, écoute, explore. À ton rythme, sans pression.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="characters" class="characters-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Personnages</span>
+                <h2 class="section-title">Qui veux-tu rencontrer ?</h2>
+                <p class="section-subtitle">Des personnalités uniques, créées pour toi</p>
+            </div>
+            <div class="characters-tabs">
+                <button class="tab-btn active" data-tab="feminin">Féminins</button>
+                <button class="tab-btn" data-tab="masculin">Masculins</button>
+                <button class="tab-btn create-btn" data-tab="custom">
+                    <i class="fas fa-plus"></i> Créer le mien
+                </button>
+            </div>
+            <div class="characters-grid active" id="feminin-grid">
+                <div class="character-card" data-name="Aminata">
+                    <div class="character-avatar" style="background:linear-gradient(135deg,#FF3B7F,#6C2BD9);">A</div>
+                    <h4>Aminata</h4>
+                    <span class="char-voice">Voix : Douce & sensuelle</span>
+                    <span class="char-style">Style : Romantique</span>
+                    <p class="char-bio">"Je suis là pour t'écouter, te comprendre et te guider vers le plaisir."</p>
+                </div>
+                <div class="character-card" data-name="Zara">
+                    <div class="character-avatar" style="background:linear-gradient(135deg,#FF6B6B,#FF3B7F);">Z</div>
+                    <h4>Zara</h4>
+                    <span class="char-voice">Voix : Coquine & taquine</span>
+                    <span class="char-style">Style : Passionnée</span>
+                    <p class="char-bio">"J'aime les jeux et les défis. Prêt à t'amuser avec moi ?"</p>
+                </div>
+                <div class="character-card" data-name="Grace">
+                    <div class="character-avatar" style="background:linear-gradient(135deg,#845EC2,#D65DB1);">G</div>
+                    <h4>Grace</h4>
+                    <span class="char-voice">Voix : Douce & apaisante</span>
+                    <span class="char-style">Style : Guidance</span>
+                    <p class="char-bio">"Ferme les yeux. Inspire. Je vais te guider pas à pas."</p>
+                </div>
+                <div class="character-card" data-name="Nala">
+                    <div class="character-avatar" style="background:linear-gradient(135deg,#FF9671,#FFC75F);">N</div>
+                    <h4>Nala</h4>
+                    <span class="char-voice">Voix : Enjôleuse</span>
+                    <span class="char-style">Style : Audacieuse</span>
+                    <p class="char-bio">"Je sais ce que tu veux. N'aie pas peur, laisse-toi aller."</p>
+                </div>
+            </div>
+            <div class="characters-grid" id="masculin-grid">
+                <div class="character-card" data-name="Mamadou">
+                    <div class="character-avatar" style="background:linear-gradient(135deg,#2D3436,#636E72);">M</div>
+                    <h4>Mamadou</h4>
+                    <span class="char-voice">Voix : Grave & rassurante</span>
+                    <span class="char-style">Style : Protecteur</span>
+                    <p class="char-bio">"Je suis là pour toi. Laisse-toi aller entre mes mains."</p>
+                </div>
+                <div class="character-card" data-name="Khalid">
+                    <div class="character-avatar" style="background:linear-gradient(135deg,#0D0D1A,#2D3436);">K</div>
+                    <h4>Khalid</h4>
+                    <span class="char-voice">Voix : Chaude & sensuelle</span>
+                    <span class="char-style">Style : Passionné</span>
+                    <p class="char-bio">"J'aime les femmes qui savent ce qu'elles veulent. Montre-moi."</p>
+                </div>
+                <div class="character-card" data-name="Samuel">
+                    <div class="character-avatar" style="background:linear-gradient(135deg,#1A5276,#2E86C1);">S</div>
+                    <h4>Samuel</h4>
+                    <span class="char-voice">Voix : Douce & encourageante</span>
+                    <span class="char-style">Style : Coach</span>
+                    <p class="char-bio">"Découvre ton corps avec moi. Chaque étape est un voyage."</p>
+                </div>
+            </div>
+            <div class="characters-grid" id="custom-grid">
+                <div class="custom-card">
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                    <h3>Crée ton personnage unique</h3>
+                    <p>Choisis chaque détail : nom, voix, apparence, personnalité. L'IA génère tout.</p>
+                    <ul class="custom-options">
+                        <li><i class="fas fa-check"></i> Nom & genre</li>
+                        <li><i class="fas fa-check"></i> Voix sur mesure</li>
+                        <li><i class="fas fa-check"></i> Apparence générée par IA</li>
+                        <li><i class="fas fa-check"></i> Personnalité unique</li>
+                    </ul>
+                    <button class="btn btn-primary" id="createCharacterBtn">
+                        <i class="fas fa-wand-magic-sparkles"></i> Créer maintenant
+                    </button>
+                    <span class="premium-badge">Premium</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="pricing" class="pricing-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Tarifs</span>
+                <h2 class="section-title">Un plaisir accessible à tous</h2>
+                <p class="section-subtitle">Paiement sécurisé par Mobile Money</p>
+            </div>
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3>Gratuit</h3>
+                        <div class="price">0 FCFA</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li><i class="fas fa-check"></i> 5 messages / jour</li>
+                        <li><i class="fas fa-check"></i> Tous les personnages</li>
+                        <li><i class="fas fa-check"></i> Chat texte</li>
+                        <li class="disabled"><i class="fas fa-times"></i> Voix & audio</li>
+                        <li class="disabled"><i class="fas fa-times"></i> Images IA</li>
+                    </ul>
+                    <button class="btn btn-outline btn-full pricing-btn">Commencer</button>
+                </div>
+                <div class="pricing-card featured">
+                    <div class="pricing-badge">🔥 Pour les jeunes</div>
+                    <div class="pricing-header">
+                        <h3>Pass 1 jour</h3>
+                        <div class="price">500 FCFA</div>
+                        <div class="price-period">/ 24h</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li><i class="fas fa-check"></i> Chat illimité 24h</li>
+                        <li><i class="fas fa-check"></i> Tous les personnages</li>
+                        <li><i class="fas fa-check"></i> Voix & audio (5 messages)</li>
+                        <li class="disabled"><i class="fas fa-times"></i> Images IA</li>
+                    </ul>
+                    <button class="btn btn-primary btn-full pricing-btn" data-price="500">Choisir Pass 1 jour</button>
+                </div>
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3>Pass 7 jours</h3>
+                        <div class="price">1 500 FCFA</div>
+                        <div class="price-period">/ 7 jours</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li><i class="fas fa-check"></i> Chat illimité 7 jours</li>
+                        <li><i class="fas fa-check"></i> Tous les personnages</li>
+                        <li><i class="fas fa-check"></i> Voix & audio (30 messages)</li>
+                        <li><i class="fas fa-check"></i> <strong>Images IA (5/jour)</strong></li>
+                    </ul>
+                    <button class="btn btn-outline btn-full pricing-btn" data-price="1500">Choisir Pass 7 jours</button>
+                </div>
+            </div>
+            <div class="pricing-grid" style="margin-top: 1rem;">
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <h3>Plaisir</h3>
+                        <div class="price">2 500 FCFA</div>
+                        <div class="price-period">/ mois</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li><i class="fas fa-check"></i> Chat illimité 30 jours</li>
+                        <li><i class="fas fa-check"></i> Tous les personnages</li>
+                        <li><i class="fas fa-check"></i> <strong>Voix & audio (100/mois)</strong></li>
+                        <li><i class="fas fa-check"></i> Images IA (20/jour)</li>
+                    </ul>
+                    <button class="btn btn-outline btn-full pricing-btn" data-price="2500">Choisir Plaisir</button>
+                </div>
+                <div class="pricing-card featured">
+                    <div class="pricing-badge">⭐ Meilleur rapport</div>
+                    <div class="pricing-header">
+                        <h3>Extase</h3>
+                        <div class="price">5 000 FCFA</div>
+                        <div class="price-period">/ mois</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li><i class="fas fa-check"></i> Tout débloqué</li>
+                        <li><i class="fas fa-check"></i> Chat illimité</li>
+                        <li><i class="fas fa-check"></i> Voix & audio illimité</li>
+                        <li><i class="fas fa-check"></i> <strong>Images IA illimitées</strong></li>
+                        <li><i class="fas fa-check"></i> Personnage custom</li>
+                    </ul>
+                    <button class="btn btn-primary btn-full pricing-btn" data-price="5000">Choisir Extase</button>
+                </div>
+            </div>
+            <div class="payment-notice" style="margin-top: 1.5rem;">
+                <i class="fas fa-mobile-screen"></i>
+                <span>Paiement par <strong>Orange Money</strong>, <strong>MTN MoMo</strong>, <strong>Wave</strong> — via CinetPay sécurisé</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="testimonials-section">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Ils nous font confiance</span>
+                <h2 class="section-title">Ce qu'ils disent</h2>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <i class="fas fa-quote-left quote-icon"></i>
+                    <p>"Enfin un endroit où je peux explorer sans honte. Aminata m'a aidé à me comprendre."</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">K</div>
+                        <div>
+                            <strong>Koffi</strong>
+                            <span>Abidjan, Côte d'Ivoire</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <i class="fas fa-quote-left quote-icon"></i>
+                    <p>"Le mode couple a changé notre relation. On communique enfin vraiment."</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">M</div>
+                        <div>
+                            <strong>Mariam & Amadou</strong>
+                            <span>Bamako, Mali</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <i class="fas fa-quote-left quote-icon"></i>
+                    <p>"La voix de Mamadou... je ne peux plus m'en passer. C'est exactement ce dont j'avais besoin."</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">F</div>
+                        <div>
+                            <strong>Fatou</strong>
+                            <span>Dakar, Sénégal</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-content">
+                <h2>Prêt à découvrir <span class="gradient-text">Solo</span> ?</h2>
+                <p>Rejoins des milliers d'africains qui osent enfin parler de leur plaisir.</p>
+                <button class="btn btn-primary btn-lg" id="ctaBtn">
+                    <i class="fas fa-heart"></i> Commencer maintenant
+                </button>
+                <span class="cta-note">Gratuit pendant 7 jours. Sans engagement.</span>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <span class="logo-icon">S</span>
+                        <span class="logo-text">Solo.</span>
+                    </div>
+                    <p>Le compagnon intime IA qui te comprend, te guide et ne te juge jamais.</p>
+                    <div class="social-links">
+                        <a href="#" class="social-link"><i class="fab fa-tiktok"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-whatsapp"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-x-twitter"></i></a>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <h4>Solo</h4>
+                    <ul>
+                        <li><a href="#features">Pourquoi Solo</a></li>
+                        <li><a href="#pricing">Tarifs</a></li>
+                        <li><a href="#characters">Personnages</a></li>
+                        <li><a href="#">FAQ</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Légal</h4>
+                    <ul>
+                        <li><a href="mentions-legales.html">Mentions légales</a></li>
+                        <li><a href="#">CGU</a></li>
+                        <li><a href="#">Confidentialité</a></li>
+                        <li><a href="#">Cookies</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Aide</h4>
+                    <ul>
+                        <li><a href="#"><i class="fas fa-envelope"></i> hello@solo.africa</a></li>
+                        <li><a href="#"><i class="fas fa-comment"></i> Chat support</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Solo. Africa.</p>
+                <p><i class="fas fa-shield-halved"></i> 100% anonyme & sécurisé</p>
+            </div>
+        </div>
+    </footer>
+
+    <div class="modal" id="authModal">
+        <div class="modal-overlay" id="modalOverlay"></div>
+        <div class="modal-content">
+            <button class="modal-close" id="modalClose"><i class="fas fa-times"></i></button>
+            <div class="modal-tabs">
+                <button class="modal-tab active" data-tab="login">Connexion</button>
+                <button class="modal-tab" data-tab="signup">Inscription</button>
+            </div>
+
+            <div class="tab-content active" id="loginTab">
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>Email ou pseudo</label>
+                        <input type="text" placeholder="ton@email.com ou ton pseudo" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mot de passe</label>
+                        <input type="password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Se connecter</button>
+                    <p class="form-footer">Pas encore inscrit ? <a href="#" class="switch-tab" data-tab="signup">Créer un compte</a></p>
+                </form>
+            </div>
+
+            <div class="tab-content" id="signupTab">
+                <form id="signupForm">
+                    <div class="form-group">
+                        <label>Choisis ton pseudo</label>
+                        <input type="text" placeholder="Ton pseudo (jamais ton vrai nom)" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" placeholder="ton@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mot de passe</label>
+                        <input type="password" placeholder="Minimum 8 caractères" required>
+                    </div>
+                    <label class="checkbox-wrapper">
+                        <input type="checkbox" id="acceptTerms" required>
+                        <span>J'accepte les <a href="#">CGU</a> et j'ai 18+ ans</span>
+                    </label>
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <i class="fas fa-heart"></i> Créer mon compte gratuit
+                    </button>
+                    <p class="form-footer">Déjà inscrit ? <a href="#" class="switch-tab" data-tab="login">Se connecter</a></p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="characterModal">
+        <div class="modal-overlay" id="characterModalOverlay"></div>
+        <div class="modal-content character-modal">
+            <button class="modal-close" id="characterModalClose"><i class="fas fa-times"></i></button>
+            <div id="characterModalBody"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
