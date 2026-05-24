@@ -409,6 +409,18 @@ app.get('/api/plans', (req, res) => {
     res.json({ success: true, plans: PLANS });
 });
 
+app.post('/api/admin/set-plan', async (req, res) => {
+    const { email, plan, secret } = req.body;
+    if (secret !== 'solo2025') {
+        return res.status(403).json({ success: false, message: 'Accès refusé' });
+    }
+    if (!email || !PLANS[plan]) {
+        return res.status(400).json({ success: false, message: 'Email et plan valide requis' });
+    }
+    await db.updateUser(email, { plan });
+    res.json({ success: true, message: `Plan ${PLANS[plan].label} activé pour ${email}` });
+});
+
 // ─── Custom Characters ────────────────────────────────
 function generateCustomPrompt(char) {
     const name = char.name || 'Compagnon';
