@@ -410,15 +410,27 @@ app.get('/api/plans', (req, res) => {
 });
 
 app.post('/api/admin/set-plan', async (req, res) => {
-    const { email, plan, secret } = req.body;
+    const { email, plan, password, secret } = req.body;
     if (secret !== 'solo2025') {
         return res.status(403).json({ success: false, message: 'Accès refusé' });
     }
-    if (!email || !PLANS[plan]) {
-        return res.status(400).json({ success: false, message: 'Email et plan valide requis' });
+    if (!email) {
+        return res.status(400).json({ success: false, message: 'Email requis' });
     }
-    await db.updateUser(email, { plan });
-    res.json({ success: true, message: `Plan ${PLANS[plan].label} activé pour ${email}` });
+    const updates = {};
+    if (plan && PLANS[plan]) updates.plan = plan;
+    if (password) {
+        const salt = await bcrypt.genSalt(10);
+        updates.password = await bcrypt.hash(password, salt);
+    }
+    if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ success: false, message: 'Aucune mise à jour spécifiée' });
+    }
+    await db.updateUser(email, updates);
+    const actions = [];
+    if (updates.plan) actions.push(`Plan ${PLANS[updates.plan].label}`);
+    if (updates.password) actions.push('Mot de passe');
+    res.json({ success: true, message: `${actions.join(' + ')} mis à jour pour ${email}` });
 });
 
 // ─── Custom Characters ────────────────────────────────
