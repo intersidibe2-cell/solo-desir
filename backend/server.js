@@ -538,16 +538,15 @@ app.post('/api/images/generate', authMiddleware, async (req, res) => {
                         negative_prompt: 'cartoon, anime, deformed, ugly, bad anatomy',
                         width: 512,
                         height: 768,
-                        num_outputs: 1,
+                        num_images: 1,
                         num_inference_steps: 25,
-                        guidance_scale: 7,
-                        nsfw_filter: false
+                        guidance_scale: 7
                     }
                 })
             });
             const data = await resp.json();
             if (data.status === 'COMPLETED' && data.output) {
-                const imageUrl = Array.isArray(data.output) ? data.output[0] : data.output.image_url || data.output;
+                const imageUrl = data.output.image_url || (data.output.images?.[0] || null);
                 if (imageUrl) return res.json({ success: true, imageUrl });
             }
         } catch (e) {
