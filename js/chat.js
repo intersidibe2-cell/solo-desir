@@ -40,9 +40,7 @@ const CHAT = {
             voiceStyle: 'guide',
             bio: 'Je suis là pour toi. Laisse-toi aller entre mes mains.',
             official: true
-        }
-    },
-
+        },
         'Nala': {
             name: 'Nala',
             avatar: 'N',
@@ -420,6 +418,7 @@ const CHAT = {
         });
 
         document.getElementById('logoutBtn')?.addEventListener('click', () => {
+            API.logout();
             window.location.href = 'index.html';
         });
 
@@ -500,7 +499,7 @@ const CHAT = {
                     }
                 }
             } else {
-                const char = this.characters[this.currentCharacter];
+        const char = this.characters[this.currentCharacter] || this.customCharacters.find(c => c.id === this.currentCharacter) || { avatar: '?', color: 'var(--gradient-primary)' };
                 const fallbacks = [
                     "Je suis là pour toi. Continue, je t'écoute...",
                     "Parle-moi encore, j'aime t'entendre.",
@@ -575,8 +574,9 @@ const CHAT = {
         const indicator = document.createElement('div');
         indicator.className = 'typing-indicator';
         indicator.id = 'typingIndicator';
+        const charTyping = this.characters[this.currentCharacter] || this.customCharacters.find(c => c.id === this.currentCharacter) || { avatar: '?', color: 'var(--gradient-primary)' };
         indicator.innerHTML = `
-            <div class="msg-avatar" style="background:${this.characters[this.currentCharacter].color}">${this.characters[this.currentCharacter].avatar}</div>
+            <div class="msg-avatar" style="background:${charTyping.color}">${charTyping.avatar}</div>
             <div class="typing-dots">
                 <span></span><span></span><span></span>
             </div>
@@ -639,7 +639,7 @@ const CHAT = {
         this.showToast('Génération de l\'audio...');
 
         const custom = this.customCharacters.find(c => c.id === this.currentCharacter);
-        const voiceId = custom?.voiceid || '21m00Tcm4TlvDq8ikWAM';
+        const voiceId = custom?.voiceId || custom?.voiceid || '21m00Tcm4TlvDq8ikWAM';
         const url = await API.voice(text, voiceId);
         if (url) {
             const audio = new Audio(url);
