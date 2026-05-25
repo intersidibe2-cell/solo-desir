@@ -680,15 +680,11 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
     const customChars = await db.getCharacters(user.id);
     const { prompt: charPrompt, fallback } = await getCharacterPrompt(character, customChars, user);
 
-    // ── Auto image generation ──
-    const wantsImage = isImageRequest(message) || isNSFW(message) || character === 'Zara' || character === 'Grace';
-    let imagePrompt = null;
-    if (wantsImage) {
-        imagePrompt = message.replace(/(photo|image|montre|envoie|fais voir|je veux te voir|selfie|dis-moi|raconte)/gi, '').trim() || message;
-    }
+    // ── Auto image generation: utiliser la réponse IA comme prompt ──
+    const wantsImage = isImageRequest(message) && process.env.RUNPOD_API_KEY;
 
     const msgs = [
-        { role: 'system', content: charPrompt },
+        { role: 'system', content: charPrompt + (wantsImage ? ' Quand l\'utilisateur demande une photo, réponds d\'abord par une description VISUELLE détaillée de la scène (lieu, pose, tenue, lumière, ambiance) en 2-3 phrases, comme si tu décrivais une photo que tu envoies.' : '') },
         ...(history || []).slice(-10),
         { role: 'user', content: message }
     ];
@@ -718,10 +714,11 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
     await db.saveMessage({ user_id: user.id, character, role: 'assistant', content: reply });
 
-    // ── Generate image if requested ──
+    // ── Generate image using AI's detailed description ──
     let imageUrl = null;
-    if (wantsImage && imagePrompt) {
-        imageUrl = await generateImageFromRunPod(imagePrompt);
+    if (wantsImage && reply) {
+        imageUrl = await generateImageFromRunPod(reply);
+        if (!imageUrl) imageUrl = await generateImageFromHuggingFace(reply);
     }
 
     res.json({
