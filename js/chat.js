@@ -33,12 +33,12 @@ const CHAT = {
             bio: 'Ferme les yeux. Inspire. Je vais te guider pas à pas.',
             official: true
         },
-        'Mamadou': {
-            name: 'Mamadou',
-            avatar: 'M',
+        'Amadou': {
+            name: 'Amadou',
+            avatar: 'A',
             color: 'linear-gradient(135deg,#2D3436,#636E72)',
             voiceStyle: 'guide',
-            bio: 'Je suis là pour toi. Laisse-toi aller entre mes mains.',
+            bio: 'Je suis là pour toi ma chérie. Laisse-toi aller entre mes mains.',
             official: true
         },
         'Nala': {
