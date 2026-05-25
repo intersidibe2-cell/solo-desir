@@ -850,6 +850,15 @@ app.get('*', (req, res) => {
     });
 });
 
+app.get('/api/debug', (req, res) => {
+    res.json({
+        deepseek: !!process.env.DEEPSEEK_API_KEY,
+        runpod: !!process.env.RUNPOD_API_KEY,
+        endpointId: !!process.env.RUNPOD_ENDPOINT_ID,
+        nodeVersion: process.version
+    });
+});
+
 // ─── Start ────────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
     console.log('');
