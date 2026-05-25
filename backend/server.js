@@ -564,6 +564,8 @@ app.post('/api/images/generate', authMiddleware, async (req, res) => {
     // ── 1. RunPod (self-hosted SDXL, NSFW-friendly) ──
     if (process.env.RUNPOD_API_KEY && process.env.RUNPOD_ENDPOINT_ID) {
         try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 60000);
             const resp = await fetch(`https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/runsync`, {
                 method: 'POST',
                 headers: {
@@ -580,8 +582,10 @@ app.post('/api/images/generate', authMiddleware, async (req, res) => {
                         num_inference_steps: 25,
                         guidance_scale: 7
                     }
-                })
+                }),
+                signal: ctrl.signal
             });
+            clearTimeout(timer);
             const data = await resp.json();
             if (data.status === 'COMPLETED' && data.output) {
                 const imageUrl = data.output.image_url || (data.output.images?.[0] || null);
@@ -715,7 +719,7 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
                     max_tokens: 500,
                     temperature: 0.85
                 }),
-                signal: AbortSignal.timeout(10000)
+                signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 15000); return c.signal; })()
             });
             const data = await apiRes.json();
             if (data.choices?.[0]?.message?.content) {
