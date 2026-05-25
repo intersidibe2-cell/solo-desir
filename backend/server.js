@@ -563,9 +563,9 @@ async function generateImageFromRunPod(prompt) {
             headers: { 'Authorization': `Bearer ${process.env.RUNPOD_API_KEY}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 input: {
-                    prompt: prompt + ', photorealistic, sensual, soft lighting, african woman, intimate atmosphere',
-                    negative_prompt: 'cartoon, anime, deformed, ugly, bad anatomy',
-                    width: 512, height: 768, num_images: 1, num_inference_steps: 25, guidance_scale: 7
+                    prompt: `${prompt}, professional fashion photography, shot on Canon EOS R5, 35mm f/1.4, natural window light, soft shadows, editorial magazine, african melanin skin, flawless skin texture, realistic skin pores, elegant atmosphere, cinematic color grading, candids, intimate moment, modern bedroom`,
+                    negative_prompt: 'cartoon, anime, drawing, painting, 3d render, plastic skin, doll, fake, low quality, blurry, bad anatomy, deformed hands, extra limbs, ugly face, watermark, text, logo, unrealistic, oversaturated, overexposed, weird eyes, cross-eyed, bad hands',
+                    width: 768, height: 1152, num_images: 1, num_inference_steps: 30, guidance_scale: 7.5
                 }
             }),
             signal: ctrl.signal
