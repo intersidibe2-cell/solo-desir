@@ -553,34 +553,6 @@ app.delete('/api/characters/:id', authMiddleware, async (req, res) => {
     res.json({ success: true, message: 'Personnage supprimé' });
 });
 
-async function generateImageFromRunPod(prompt) {
-    if (!process.env.RUNPOD_API_KEY || !process.env.RUNPOD_ENDPOINT_ID) return null;
-    try {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 90000);
-        const resp = await fetch(`https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/runsync`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${process.env.RUNPOD_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                input: {
-                    prompt: `${prompt}, professional fashion photography, shot on Canon EOS R5, 35mm f/1.4, natural window light, soft shadows, editorial magazine style, african melanin skin, flawless skin texture, realistic skin pores, elegant atmosphere, cinematic color grading, candid pose, intimate moment, modern bedroom, high-end retouch`,
-                    negative_prompt: 'cartoon, anime, drawing, painting, 3d render, plastic skin, doll, fake, low quality, blurry, bad anatomy, deformed hands, extra limbs, ugly face, watermark, text, logo, unrealistic, oversaturated, overexposed, weird eyes, cross-eyed, bad hands, ugly, duplicate, mutation, deformed, bad proportions',
-                    width: 832, height: 1216, num_images: 1,
-                    num_inference_steps: 40, refiner_inference_steps: 30,
-                    guidance_scale: 7.5, scheduler: 'K_EULER', high_noise_frac: 0.8
-                }
-            }),
-            signal: ctrl.signal
-        });
-        clearTimeout(timer);
-        const data = await resp.json();
-        if (data.status === 'COMPLETED' && data.output) {
-            return data.output.image_url || (data.output.images?.[0] || null);
-        }
-    } catch (e) { console.warn('RunPod error:', e.message); }
-    return null;
-}
-
 async function generateImageFromHuggingFace(prompt) {
     if (!process.env.HUGGINGFACE_API_KEY) return null;
     try {
@@ -590,12 +562,12 @@ async function generateImageFromHuggingFace(prompt) {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                inputs: `${prompt}, professional photography, natural lighting, african melanin skin, realistic skin texture, editorial quality`,
+                inputs: `${prompt}, amateur selfie photo, natural cellphone camera, candid shot, real person, authentic moment, melanin-rich skin, African beauty, natural body, soft intimate lighting, mirror selfie aesthetic, no filters, genuine expression`,
                 parameters: {
-                    negative_prompt: 'cartoon, anime, drawing, painting, plastic skin, doll, low quality, blurry, bad anatomy, deformed, watermark, text',
+                    negative_prompt: 'professional studio, fashion magazine, artificial, plastic, doll, cartoon, anime, 3D render, airbrushed, makeup, lingerie catalog, porn set, fake',
                     width: 1024, height: 1024,
                     num_inference_steps: 30,
-                    guidance_scale: 7.5
+                    guidance_scale: 7
                 }
             }),
             signal: ctrl.signal
@@ -609,6 +581,34 @@ async function generateImageFromHuggingFace(prompt) {
             }
         }
     } catch (e) { console.warn('HuggingFace error:', e.message); }
+    return null;
+}
+
+async function generateImageFromRunPod(prompt) {
+    if (!process.env.RUNPOD_API_KEY || !process.env.RUNPOD_ENDPOINT_ID) return null;
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 90000);
+        const resp = await fetch(`https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/runsync`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${process.env.RUNPOD_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                input: {
+                    prompt: `${prompt}, amateur selfie, natural cellphone photo, candid shot, real skin texture, melanin-rich skin, authentic unposed moment, soft natural window light, bedroom at home, mirror reflection, genuine intimate vibe, no professional lighting`,
+                    negative_prompt: 'studio, professional, fashion, editorial, airbrush, makeup, plastic, artificial, doll, cartoon, anime, 3D, logo, watermark, text, filters, lingerie ad, porn',
+                    width: 832, height: 1216, num_images: 1,
+                    num_inference_steps: 35, refiner_inference_steps: 25,
+                    guidance_scale: 7, scheduler: 'K_EULER', high_noise_frac: 0.8
+                }
+            }),
+            signal: ctrl.signal
+        });
+        clearTimeout(timer);
+        const data = await resp.json();
+        if (data.status === 'COMPLETED' && data.output) {
+            return data.output.image_url || (data.output.images?.[0] || null);
+        }
+    } catch (e) { console.warn('RunPod error:', e.message); }
     return null;
 }
 
@@ -646,8 +646,8 @@ function isNSFW(msg) {
 app.post('/api/images/generate', authMiddleware, async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ success: false, message: 'Description requise' });
-    let imageUrl = await generateImageFromRunPod(prompt);
-    if (!imageUrl) imageUrl = await generateImageFromHuggingFace(prompt);
+    let imageUrl = await generateImageFromHuggingFace(prompt);
+    if (!imageUrl) imageUrl = await generateImageFromRunPod(prompt);
     if (imageUrl) return res.json({ success: true, imageUrl });
     res.json({ success: true, imageUrl: null, placeholder: true, message: 'Image générée en mode démo.' });
 });
@@ -714,11 +714,11 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
     await db.saveMessage({ user_id: user.id, character, role: 'assistant', content: reply });
 
-    // ── Generate image using AI's detailed description ──
+    // ── Generate image from AI description: HuggingFace (RealVis) first, RunPod fallback ──
     let imageUrl = null;
     if (wantsImage && reply) {
-        imageUrl = await generateImageFromRunPod(reply);
-        if (!imageUrl) imageUrl = await generateImageFromHuggingFace(reply);
+        imageUrl = await generateImageFromHuggingFace(reply);
+        if (!imageUrl) imageUrl = await generateImageFromRunPod(reply);
     }
 
     res.json({
