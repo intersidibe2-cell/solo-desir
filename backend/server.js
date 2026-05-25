@@ -418,19 +418,33 @@ app.post('/api/admin/set-plan', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Email requis' });
     }
     const updates = {};
-    if (plan && PLANS[plan]) updates.plan = plan;
-    if (password) {
+    const existingUser = await db.getUser(email);
+    if (!existingUser) {
+        if (!password) return res.status(400).json({ success: false, message: 'Mot de passe requis pour créer un compte' });
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(password, salt);
+        await db.createUser({
+            id: crypto.randomUUID(),
+            pseudo: email.split('@')[0],
+            email,
+            password: hash,
+            plan: 'free',
+            country: 'ML',
+            messages_today: 0,
+            last_message_date: new Date().toDateString()
+        });
+    }
+    const actions = [];
+    if (plan && PLANS[plan]) { updates.plan = plan; actions.push(`Plan ${PLANS[plan].label}`); }
+    if (password && existingUser) {
         const salt = await bcrypt.genSalt(10);
         updates.password = await bcrypt.hash(password, salt);
+        actions.push('Mot de passe');
     }
-    if (Object.keys(updates).length === 0) {
-        return res.status(400).json({ success: false, message: 'Aucune mise à jour spécifiée' });
+    if (Object.keys(updates).length > 0) {
+        await db.updateUser(email, updates);
     }
-    await db.updateUser(email, updates);
-    const actions = [];
-    if (updates.plan) actions.push(`Plan ${PLANS[updates.plan].label}`);
-    if (updates.password) actions.push('Mot de passe');
-    res.json({ success: true, message: `${actions.join(' + ')} mis à jour pour ${email}` });
+    res.json({ success: true, message: `Compte prêt pour ${email} — ${actions.join(' + ') || 'OK'}` });
 });
 
 // ─── Custom Characters ────────────────────────────────
