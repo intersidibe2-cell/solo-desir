@@ -557,7 +557,7 @@ async function generateImageFromHuggingFace(prompt) {
     if (!process.env.HUGGINGFACE_API_KEY) return null;
     try {
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 20000);
+        const timer = setTimeout(() => ctrl.abort(), 35000);
         const resp = await fetch('https://api-inference.huggingface.co/models/SG161222/RealVisXL_V4.0', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`, 'Content-Type': 'application/json' },
@@ -714,11 +714,19 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
     await db.saveMessage({ user_id: user.id, character, role: 'assistant', content: reply });
 
-    // ── Generate image from AI description: HuggingFace (RealVis) first, RunPod fallback ──
+    // ── Image: HuggingFace (RealVis) + RunPod en parallèle, premier arrivé ──
     let imageUrl = null;
     if (wantsImage && reply) {
-        imageUrl = await generateImageFromHuggingFace(reply);
-        if (!imageUrl) imageUrl = await generateImageFromRunPod(reply);
+        const results = await Promise.allSettled([
+            generateImageFromHuggingFace(reply),
+            generateImageFromRunPod(reply)
+        ]);
+        for (const r of results) {
+            if (r.status === 'fulfilled' && r.value) {
+                imageUrl = r.value;
+                break;
+            }
+        }
     }
 
     res.json({
