@@ -557,15 +557,17 @@ async function generateImageFromRunPod(prompt) {
     if (!process.env.RUNPOD_API_KEY || !process.env.RUNPOD_ENDPOINT_ID) return null;
     try {
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 60000);
+        const timer = setTimeout(() => ctrl.abort(), 90000);
         const resp = await fetch(`https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/runsync`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${process.env.RUNPOD_API_KEY}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 input: {
-                    prompt: `${prompt}, professional fashion photography, shot on Canon EOS R5, 35mm f/1.4, natural window light, soft shadows, editorial magazine, african melanin skin, flawless skin texture, realistic skin pores, elegant atmosphere, cinematic color grading, candids, intimate moment, modern bedroom`,
-                    negative_prompt: 'cartoon, anime, drawing, painting, 3d render, plastic skin, doll, fake, low quality, blurry, bad anatomy, deformed hands, extra limbs, ugly face, watermark, text, logo, unrealistic, oversaturated, overexposed, weird eyes, cross-eyed, bad hands',
-                    width: 768, height: 1152, num_images: 1, num_inference_steps: 30, guidance_scale: 7.5
+                    prompt: `${prompt}, professional fashion photography, shot on Canon EOS R5, 35mm f/1.4, natural window light, soft shadows, editorial magazine style, african melanin skin, flawless skin texture, realistic skin pores, elegant atmosphere, cinematic color grading, candid pose, intimate moment, modern bedroom, high-end retouch`,
+                    negative_prompt: 'cartoon, anime, drawing, painting, 3d render, plastic skin, doll, fake, low quality, blurry, bad anatomy, deformed hands, extra limbs, ugly face, watermark, text, logo, unrealistic, oversaturated, overexposed, weird eyes, cross-eyed, bad hands, ugly, duplicate, mutation, deformed, bad proportions',
+                    width: 832, height: 1216, num_images: 1,
+                    num_inference_steps: 40, refiner_inference_steps: 30,
+                    guidance_scale: 7.5, scheduler: 'K_EULER', high_noise_frac: 0.8
                 }
             }),
             signal: ctrl.signal
@@ -576,6 +578,37 @@ async function generateImageFromRunPod(prompt) {
             return data.output.image_url || (data.output.images?.[0] || null);
         }
     } catch (e) { console.warn('RunPod error:', e.message); }
+    return null;
+}
+
+async function generateImageFromHuggingFace(prompt) {
+    if (!process.env.HUGGINGFACE_API_KEY) return null;
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 60000);
+        const resp = await fetch('https://api-inference.huggingface.co/models/SG161222/RealVisXL_V4.0', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                inputs: `${prompt}, professional photography, natural lighting, african melanin skin, realistic skin texture, editorial quality`,
+                parameters: {
+                    negative_prompt: 'cartoon, anime, drawing, painting, plastic skin, doll, low quality, blurry, bad anatomy, deformed, watermark, text',
+                    width: 1024, height: 1024,
+                    num_inference_steps: 30,
+                    guidance_scale: 7.5
+                }
+            }),
+            signal: ctrl.signal
+        });
+        clearTimeout(timer);
+        if (resp.ok) {
+            const buffer = await resp.arrayBuffer();
+            if (buffer.byteLength > 1024) {
+                const base64 = Buffer.from(buffer).toString('base64');
+                return `data:image/jpeg;base64,${base64}`;
+            }
+        }
+    } catch (e) { console.warn('HuggingFace error:', e.message); }
     return null;
 }
 
@@ -613,7 +646,8 @@ function isNSFW(msg) {
 app.post('/api/images/generate', authMiddleware, async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ success: false, message: 'Description requise' });
-    const imageUrl = await generateImageFromRunPod(prompt);
+    let imageUrl = await generateImageFromRunPod(prompt);
+    if (!imageUrl) imageUrl = await generateImageFromHuggingFace(prompt);
     if (imageUrl) return res.json({ success: true, imageUrl });
     res.json({ success: true, imageUrl: null, placeholder: true, message: 'Image générée en mode démo.' });
 });
