@@ -557,7 +557,7 @@ async function generateImageFromHuggingFace(prompt) {
     if (!process.env.HUGGINGFACE_API_KEY) return null;
     try {
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 60000);
+        const timer = setTimeout(() => ctrl.abort(), 20000);
         const resp = await fetch('https://api-inference.huggingface.co/models/SG161222/RealVisXL_V4.0', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`, 'Content-Type': 'application/json' },
