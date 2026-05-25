@@ -561,114 +561,69 @@ app.delete('/api/characters/:id', authMiddleware, async (req, res) => {
     res.json({ success: true, message: 'Personnage supprimé' });
 });
 
+async function generateImageFromRunPod(prompt) {
+    if (!process.env.RUNPOD_API_KEY || !process.env.RUNPOD_ENDPOINT_ID) return null;
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 60000);
+        const resp = await fetch(`https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/runsync`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${process.env.RUNPOD_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                input: {
+                    prompt: prompt + ', photorealistic, sensual, soft lighting, african woman, intimate atmosphere',
+                    negative_prompt: 'cartoon, anime, deformed, ugly, bad anatomy',
+                    width: 512, height: 768, num_images: 1, num_inference_steps: 25, guidance_scale: 7
+                }
+            }),
+            signal: ctrl.signal
+        });
+        clearTimeout(timer);
+        const data = await resp.json();
+        if (data.status === 'COMPLETED' && data.output) {
+            return data.output.image_url || (data.output.images?.[0] || null);
+        }
+    } catch (e) { console.warn('RunPod error:', e.message); }
+    return null;
+}
+
+async function callOpenRouter(messages) {
+    if (!process.env.OPENROUTER_API_KEY) return null;
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 20000);
+        const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                'HTTP-Referer': process.env.BASE_URL || 'https://solodesir.com',
+                'X-Title': 'Solo Desir'
+            },
+            body: JSON.stringify({ model: 'llamatherapy/llama-3.1-euryale-70b-v2.2', messages, max_tokens: 500, temperature: 0.9 }),
+            signal: ctrl.signal
+        });
+        clearTimeout(timer);
+        const data = await resp.json();
+        return data.choices?.[0]?.message?.content || null;
+    } catch (e) { console.warn('OpenRouter error:', e.message); }
+    return null;
+}
+
+function isImageRequest(msg) {
+    return /\b(photo|image|montre|montre-toi|envoie|envoie-moi|fais voir|vois|voir|nue|nues|sexy|corps|regarde|selfie|cam|pic|picture|snap)\b/i.test(msg);
+}
+
+function isNSFW(msg) {
+    return /\b(chatte|bite|queue|baiser|baise|niquer|nique|jouir|cul|seins|t[eé]tons|branler|sucer|suce|l[eé]cher|l[eè]che|p[eé]n[eè]tre|hard|brutal|domine|soumise|fouette|pute|salope|cochon|cochonne|pipe|anal|orgasme|gode|masturbe|doigt|doigter)\b/i.test(msg);
+}
+
 app.post('/api/images/generate', authMiddleware, async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ success: false, message: 'Description requise' });
-
-    // ── 1. RunPod (self-hosted SDXL, NSFW-friendly) ──
-    if (process.env.RUNPOD_API_KEY && process.env.RUNPOD_ENDPOINT_ID) {
-        try {
-            const ctrl = new AbortController();
-            const timer = setTimeout(() => ctrl.abort(), 60000);
-            const resp = await fetch(`https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/runsync`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${process.env.RUNPOD_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    input: {
-                        prompt: prompt + ', photorealistic, sensual, soft lighting, african woman, intimate atmosphere',
-                        negative_prompt: 'cartoon, anime, deformed, ugly, bad anatomy',
-                        width: 512,
-                        height: 768,
-                        num_images: 1,
-                        num_inference_steps: 25,
-                        guidance_scale: 7
-                    }
-                }),
-                signal: ctrl.signal
-            });
-            clearTimeout(timer);
-            const data = await resp.json();
-            if (data.status === 'COMPLETED' && data.output) {
-                const imageUrl = data.output.image_url || (data.output.images?.[0] || null);
-                if (imageUrl) return res.json({ success: true, imageUrl });
-            }
-        } catch (e) {
-            console.warn('RunPod error:', e.message);
-        }
-    }
-
-    // ── 2. Replicate (SDXL, censuré — fallback) ──
-    if (process.env.REPLICATE_API_KEY) {
-        try {
-            const resp = await fetch('https://api.replicate.com/v1/predictions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${process.env.REPLICATE_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    version: 'a9758cbfbd5f3c2094457d996681af52552901775aa2d6dd0b17fd15df959bef',
-                    input: {
-                        prompt: prompt + ', photorealistic, sensual, soft lighting, african woman, intimate atmosphere',
-                        negative_prompt: 'cartoon, anime, deformed, ugly, bad anatomy',
-                        width: 512,
-                        height: 768,
-                        num_outputs: 1,
-                        num_inference_steps: 25,
-                        guidance_scale: 7
-                    }
-                })
-            });
-            const prediction = await resp.json();
-            if (prediction.urls?.get) {
-                let result = await fetch(prediction.urls.get, {
-                    headers: { 'Authorization': `Bearer ${process.env.REPLICATE_API_KEY}` }
-                });
-                let data = await result.json();
-                while (data.status !== 'succeeded' && data.status !== 'failed') {
-                    await new Promise(r => setTimeout(r, 1000));
-                    result = await fetch(prediction.urls.get, {
-                        headers: { 'Authorization': `Bearer ${process.env.REPLICATE_API_KEY}` }
-                    });
-                    data = await result.json();
-                }
-                if (data.output?.[0]) {
-                    return res.json({ success: true, imageUrl: data.output[0] });
-                }
-            }
-        } catch (e) {
-            console.warn('Replicate error:', e.message);
-        }
-    }
-
-    // ── 3. HuggingFace (FLUX, censuré — fallback) ──
-    if (process.env.HUGGINGFACE_API_KEY) {
-        try {
-            const resp = await fetch('https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    inputs: prompt + ', sensual portrait, african, soft lighting'
-                })
-            });
-            if (resp.ok) {
-                const buffer = await resp.arrayBuffer();
-                const base64 = Buffer.from(buffer).toString('base64');
-                const dataUrl = `data:image/jpeg;base64,${base64}`;
-                return res.json({ success: true, imageUrl: dataUrl });
-            }
-        } catch (e) {
-            console.warn('HuggingFace error:', e.message);
-        }
-    }
-
-    res.json({ success: true, imageUrl: null, placeholder: true, message: 'Image générée en mode démo. Configure RUNPOD_API_KEY / REPLICATE_API_KEY / HUGGINGFACE_API_KEY pour de vraies images.' });
+    const imageUrl = await generateImageFromRunPod(prompt);
+    if (imageUrl) return res.json({ success: true, imageUrl });
+    res.json({ success: true, imageUrl: null, placeholder: true, message: 'Image générée en mode démo.' });
 });
 
 // ─── Chat ─────────────────────────────────────────────
@@ -688,57 +643,68 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
         return res.status(403).json({
             success: false,
             message: `Limite quotidienne atteinte (${limit}/jour). Prends un Pass pour continuer !`,
-            plan: user.plan,
-            limit
+            plan: user.plan, limit
         });
     }
 
     msgCount++;
-    await db.updateUser(email, {
-        messages_today: msgCount,
-        last_message_date: today
-    });
-
+    await db.updateUser(email, { messages_today: msgCount, last_message_date: today });
     await db.saveMessage({ user_id: user.id, character, role: 'user', content: message });
 
     const customChars = await db.getCharacters(user.id);
     const { prompt: charPrompt, fallback } = await getCharacterPrompt(character, customChars, user);
 
-    if (process.env.DEEPSEEK_API_KEY) {
+    // ── Auto image generation ──
+    const wantsImage = isImageRequest(message) && process.env.RUNPOD_API_KEY;
+    let imagePrompt = null;
+    if (wantsImage) {
+        imagePrompt = message.replace(/(photo|image|montre|envoie|fais voir|je veux te voir|selfie)/gi, '').trim() || message;
+    }
+
+    const msgs = [
+        { role: 'system', content: charPrompt },
+        ...(history || []).slice(-10),
+        { role: 'user', content: message + (wantsImage ? ' (Décris ce que tu montres en détail, de manière sensuelle.)' : '') }
+    ];
+
+    let reply = null;
+
+    // ── AI Model Selection ──
+    const useNSFW = isNSFW(message) || wantsImage;
+
+    if (useNSFW && process.env.OPENROUTER_API_KEY) {
+        reply = await callOpenRouter(msgs);
+    }
+    if (!reply && process.env.DEEPSEEK_API_KEY) {
         try {
-            const msgs = [
-                { role: 'system', content: charPrompt },
-                ...(history || []).slice(-10),
-                { role: 'user', content: message }
-            ];
             const apiRes = await fetch('https://api.deepseek.com/v1/chat/completions', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: 'deepseek-chat',
-                    messages: msgs,
-                    max_tokens: 500,
-                    temperature: 0.85
-                }),
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}` },
+                body: JSON.stringify({ model: 'deepseek-chat', messages: msgs, max_tokens: 500, temperature: 0.85 }),
                 signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 15000); return c.signal; })()
             });
             const data = await apiRes.json();
-            if (data.choices?.[0]?.message?.content) {
-                const reply = data.choices[0].message.content;
-                await db.saveMessage({ user_id: user.id, character, role: 'assistant', content: reply });
-                return res.json({ success: true, response: reply, messagesLeft: limit - msgCount });
-            }
-        } catch (e) {
-            console.warn('DeepSeek API error, using fallback');
-        }
+            reply = data.choices?.[0]?.message?.content || null;
+        } catch (e) { console.warn('DeepSeek error:', e.message); }
+    }
+    if (!reply) {
+        reply = fallback[Math.floor(Math.random() * fallback.length)];
     }
 
-    const reply = fallback[Math.floor(Math.random() * fallback.length)];
     await db.saveMessage({ user_id: user.id, character, role: 'assistant', content: reply });
-    res.json({ success: true, response: reply, messagesLeft: limit - msgCount });
+
+    // ── Generate image if requested ──
+    let imageUrl = null;
+    if (wantsImage && imagePrompt) {
+        imageUrl = await generateImageFromRunPod(imagePrompt);
+    }
+
+    res.json({
+        success: true,
+        response: reply,
+        messagesLeft: limit - msgCount,
+        imageUrl: imageUrl || undefined
+    });
 });
 
 // ─── Voice ────────────────────────────────────────────
@@ -842,15 +808,6 @@ app.get('/api/stats', async (req, res) => {
 app.get('/health', async (req, res) => {
     const users = await db.getAllUsers();
     res.json({ success: true, status: 'ok', uptime: process.uptime(), users: users.length, db: pool ? 'postgres' : 'memory' });
-});
-
-app.get('/api/debug', (req, res) => {
-    res.json({
-        deepseek: !!process.env.DEEPSEEK_API_KEY,
-        runpod: !!process.env.RUNPOD_API_KEY,
-        endpointId: !!process.env.RUNPOD_ENDPOINT_ID,
-        nodeVersion: process.version
-    });
 });
 
 // ─── SPA fallback ─────────────────────────────────────

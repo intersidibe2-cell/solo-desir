@@ -489,7 +489,7 @@ const CHAT = {
                 ANALYTICS.capture('message_sent', { character: this.currentCharacter, limit: !!response.limit });
                 this.conversationHistory.push({ role: 'user', content: messageText });
                 this.conversationHistory.push({ role: 'assistant', content: response.content });
-                this.addMessage(response.content, 'ia');
+                this.addMessage(response.content, 'ia', response.imageUrl);
 
                 if (response.limit) {
                     this.showToast('🔥 ' + response.content);
@@ -517,16 +517,21 @@ const CHAT = {
         }
     },
 
-    addMessage(text, type) {
+    addMessage(text, type, imageUrl = null) {
         const container = document.getElementById('chatMessages');
         const msg = document.createElement('div');
         msg.className = `message ${type}`;
 
-        const char = this.characters[this.currentCharacter];
+        const char = this.characters[this.currentCharacter] || this.customCharacters.find(c => c.id === this.currentCharacter) || { avatar: '?', color: 'var(--gradient-primary)' };
         const avatar = type === 'ia' ? char.avatar : 'T';
         const avatarColor = type === 'ia' ? char.color : 'var(--gradient-primary)';
         const now = new Date();
         const time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+        let imageHtml = '';
+        if (imageUrl) {
+            imageHtml = `<img src="${imageUrl}" alt="Image" loading="lazy" style="width:100%;max-width:280px;border-radius:12px;margin-top:0.5rem;">`;
+        }
 
         if (text.startsWith('[AUDIO]')) {
             msg.innerHTML = `
@@ -550,7 +555,7 @@ const CHAT = {
         } else {
             msg.innerHTML = `
                 <div class="msg-avatar" style="background:${avatarColor}">${avatar}</div>
-                <div class="msg-content">${this.formatText(text)}
+                <div class="msg-content">${this.formatText(text)}${imageHtml}
                     <div class="msg-timestamp">${time}</div>
                 </div>
             `;

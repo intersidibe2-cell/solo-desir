@@ -125,7 +125,7 @@ const API = {
             });
             const data = await resp.json();
             if (data.success && data.response) {
-                return { type: 'text', content: data.response, messagesLeft: data.messagesLeft };
+                return { type: 'text', content: data.response, messagesLeft: data.messagesLeft, imageUrl: data.imageUrl || null };
             }
             if (resp.status === 403) return { type: 'text', content: data.message || 'Limite atteinte', limit: true };
             if (resp.status === 401) {
