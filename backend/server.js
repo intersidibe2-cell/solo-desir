@@ -840,6 +840,15 @@ app.get('/health', async (req, res) => {
     res.json({ success: true, status: 'ok', uptime: process.uptime(), users: users.length, db: pool ? 'postgres' : 'memory' });
 });
 
+app.get('/api/debug', (req, res) => {
+    res.json({
+        deepseek: !!process.env.DEEPSEEK_API_KEY,
+        runpod: !!process.env.RUNPOD_API_KEY,
+        endpointId: !!process.env.RUNPOD_ENDPOINT_ID,
+        nodeVersion: process.version
+    });
+});
+
 // ─── SPA fallback ─────────────────────────────────────
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {
@@ -847,15 +856,6 @@ app.get('*', (req, res) => {
     }
     res.sendFile(path.join(__dirname, '..', req.path === '/' ? 'index.html' : req.path), (err) => {
         if (err) res.sendFile(path.join(__dirname, '..', 'index.html'));
-    });
-});
-
-app.get('/api/debug', (req, res) => {
-    res.json({
-        deepseek: !!process.env.DEEPSEEK_API_KEY,
-        runpod: !!process.env.RUNPOD_API_KEY,
-        endpointId: !!process.env.RUNPOD_ENDPOINT_ID,
-        nodeVersion: process.version
     });
 });
 
