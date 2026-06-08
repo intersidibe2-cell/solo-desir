@@ -577,6 +577,44 @@ async function generateImageFromFalAI(prompt) {
     return null;
 }
 
+async function generateImageFromReplicate(prompt) {
+    if (!process.env.REPLICATE_API_KEY) return null;
+    const model = process.env.REPLICATE_MODEL || 'adirik/juggernaut-xl-v9';
+    try {
+        const resp = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
+            method: 'POST',
+            headers: { 'Authorization': `Token ${process.env.REPLICATE_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                input: {
+                    prompt: `${prompt}, amateur selfie, natural phone camera, candid shot, melanin-rich skin, African beauty, soft natural lighting, authentic unposed, real skin texture, mirror selfie style`,
+                    negative_prompt: 'studio, professional, artificial, plastic, doll, cartoon, anime, 3D, watermark, text, airbrushed, lingerie catalog, clothes',
+                    width: 896, height: 1152,
+                    num_outputs: 1,
+                    num_inference_steps: 30,
+                    guidance_scale: 7.5
+                }
+            }),
+            signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 15000); return c.signal; })()
+        });
+        if (!resp.ok) return null;
+        const prediction = await resp.json();
+        if (prediction.id) {
+            for (let i = 0; i < 20; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                const statusResp = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+                    headers: { 'Authorization': `Token ${process.env.REPLICATE_API_KEY}` }
+                });
+                const statusData = await statusResp.json();
+                if (statusData.status === 'succeeded') {
+                    return statusData.output?.[0] || null;
+                }
+                if (statusData.status === 'failed') return null;
+            }
+        }
+    } catch (e) { console.warn('Replicate error:', e.message); }
+    return null;
+}
+
 async function generateImageFromRunPod(prompt) {
     if (!process.env.RUNPOD_API_KEY || !process.env.RUNPOD_ENDPOINT_ID) return null;
     try {
@@ -639,8 +677,15 @@ function isNSFW(msg) {
 app.post('/api/images/generate', authMiddleware, async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ success: false, message: 'Description requise' });
-    let imageUrl = await generateImageFromFalAI(prompt);
-    if (!imageUrl) imageUrl = await generateImageFromRunPod(prompt);
+    const results = await Promise.allSettled([
+        generateImageFromFalAI(prompt),
+        generateImageFromReplicate(prompt),
+        generateImageFromRunPod(prompt)
+    ]);
+    let imageUrl = null;
+    for (const r of results) {
+        if (r.status === 'fulfilled' && r.value) { imageUrl = r.value; break; }
+    }
     if (imageUrl) return res.json({ success: true, imageUrl });
     res.json({ success: true, imageUrl: null, placeholder: true, message: 'Image générée en mode démo.' });
 });
@@ -707,11 +752,12 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
     await db.saveMessage({ user_id: user.id, character, role: 'assistant', content: reply });
 
-    // ── Image: Fal.ai (RealVis XL) + RunPod en parallèle, premier arrivé ──
+    // ── Image: Fal.ai + Replicate + RunPod en parallèle, premier arrivé ──
     let imageUrl = null;
     if (wantsImage && reply) {
         const results = await Promise.allSettled([
             generateImageFromFalAI(reply),
+            generateImageFromReplicate(reply),
             generateImageFromRunPod(reply)
         ]);
         for (const r of results) {

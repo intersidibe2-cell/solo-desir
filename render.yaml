@@ -25,6 +25,10 @@ services:
         fromDatabase:
           name: solo-db
           property: connectionString
+      - key: REPLICATE_API_KEY
+        sync: false
+      - key: REPLICATE_MODEL
+        sync: false
       - key: FALAI_API_KEY
         sync: false
       - key: RUNPOD_API_KEY
