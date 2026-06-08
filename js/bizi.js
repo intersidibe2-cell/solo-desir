@@ -6,7 +6,7 @@ const B = {
     currentMatch: null,
 
     init() {
-        const saved = localStorage.getItem('solo_token');
+        const saved = localStorage.getItem('bizi_token');
         if (saved) { this.token = saved; this.loadMain(); return; }
         document.getElementById('loginForm').addEventListener('submit', e => { e.preventDefault(); this.login(); });
         document.getElementById('registerForm').addEventListener('submit', e => { e.preventDefault(); this.register(); });
@@ -22,7 +22,7 @@ const B = {
 
     async login() {
         this.showErr('');
-        const r = await fetch('/api/solo/login', {
+        const r = await fetch('/api/bizi/login', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: document.getElementById('loginEmail').value.trim(), password: document.getElementById('loginPassword').value })
         });
@@ -34,7 +34,7 @@ const B = {
 
     async register() {
         this.showErr('');
-        const r = await fetch('/api/solo/register', {
+        const r = await fetch('/api/bizi/register', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 pseudo: document.getElementById('regPseudo').value.trim(),
@@ -51,19 +51,19 @@ const B = {
         this.loadMain();
     },
 
-    setToken(t) { this.token = t; localStorage.setItem('solo_token', t); },
+    setToken(t) { this.token = t; localStorage.setItem('bizi_token', t); },
     showErr(msg) { const el = document.getElementById('authError'); el.textContent = msg; el.style.display = msg ? 'block' : 'none'; },
 
     async loadMain() {
-        document.getElementById('soloLogin').style.display = 'none';
-        document.getElementById('soloMain').style.display = 'block';
+        document.getElementById('biziLogin').style.display = 'none';
+        document.getElementById('biziMain').style.display = 'block';
         await this.loadUser();
         this.bindEvents();
         this.loadProfiles();
     },
 
     async loadUser() {
-        const r = await fetch('/api/solo/me', { headers: { 'Authorization': `Bearer ${this.token}` } });
+        const r = await fetch('/api/bizi/me', { headers: { 'Authorization': `Bearer ${this.token}` } });
         const d = await r.json();
         if (!d.success) return this.logout();
         this.user = d.user;
@@ -98,7 +98,7 @@ const B = {
         this.startChatPoll();
     },
 
-    logout() { localStorage.removeItem('solo_token'); location.reload(); },
+    logout() { localStorage.removeItem('bizi_token'); location.reload(); },
 
     async loadProfiles() {
         const params = new URLSearchParams();
@@ -110,7 +110,7 @@ const B = {
         if (c) params.set('country', c);
         if (min) params.set('ageMin', min);
         if (max) params.set('ageMax', max);
-        const r = await fetch('/api/solo/profiles?' + params, { headers: { 'Authorization': `Bearer ${this.token}` } });
+        const r = await fetch('/api/bizi/profiles?' + params, { headers: { 'Authorization': `Bearer ${this.token}` } });
         const d = await r.json();
         this.profiles = d.profiles || [];
         this.renderProfiles();
@@ -162,7 +162,7 @@ const B = {
     },
 
     async like(targetEmail) {
-        const r = await fetch('/api/solo/like', {
+        const r = await fetch('/api/bizi/like', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
             body: JSON.stringify({ targetEmail })
         });
@@ -176,7 +176,7 @@ const B = {
     },
 
     async loadMatches() {
-        const r = await fetch('/api/solo/matches', { headers: { 'Authorization': `Bearer ${this.token}` } });
+        const r = await fetch('/api/bizi/matches', { headers: { 'Authorization': `Bearer ${this.token}` } });
         const d = await r.json();
         this.matches = d.matches || [];
         const list = document.getElementById('matchesList');
@@ -200,7 +200,7 @@ const B = {
 
     async loadMessages() {
         if (!this.currentMatch) return;
-        const r = await fetch('/api/solo/messages/' + this.currentMatch.id, { headers: { 'Authorization': `Bearer ${this.token}` } });
+        const r = await fetch('/api/bizi/messages/' + this.currentMatch.id, { headers: { 'Authorization': `Bearer ${this.token}` } });
         const d = await r.json();
         const container = document.getElementById('chatMessages');
         container.innerHTML = (d.messages || []).map(m => {
@@ -215,7 +215,7 @@ const B = {
         const content = input.value.trim();
         if (!content || !this.currentMatch) return;
         input.value = '';
-        await fetch('/api/solo/message', {
+        await fetch('/api/bizi/message', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
             body: JSON.stringify({ matchId: this.currentMatch.id, content })
         });
@@ -232,7 +232,7 @@ const B = {
 
     async saveProfile() {
         const photos = document.getElementById('editPhotos').value.split(',').map(s => s.trim()).filter(s => s);
-        const r = await fetch('/api/solo/me', {
+        const r = await fetch('/api/bizi/me', {
             method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
             body: JSON.stringify({
                 pseudo: document.getElementById('editPseudo').value.trim(),

@@ -1,7 +1,7 @@
 {
-    "name": "solo",
+    "name": "bizi",
     "version": "1.0.0",
-    "description": "Solo — Rencontres Africaines",
+    "description": "Bizi — Rencontres Africaines",
     "main": "server.js",
     "scripts": {
         "start": "node server.js",
