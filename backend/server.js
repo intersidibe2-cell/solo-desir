@@ -557,16 +557,16 @@ async function generateImageFromFalAI(prompt) {
     if (!process.env.FALAI_API_KEY) return null;
     try {
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 30000);
-        const resp = await fetch('https://fal.run/fal-ai/realvisxl-v4', {
+        const timer = setTimeout(() => ctrl.abort(), 20000);
+        const resp = await fetch('https://fal.run/fal-ai/fast-sdxl', {
             method: 'POST',
             headers: { 'Authorization': `Key ${process.env.FALAI_API_KEY}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                prompt: `${prompt}, amateur selfie, natural phone camera photo, candid shot, real skin texture, melanin-rich African skin, soft window light, authentic intimate moment, no professional lighting`,
-                negative_prompt: 'studio, professional, artificial, doll, plastic, cartoon, anime, 3D render, watermark, text, airbrushed, makeup ad, jewelry, accessories',
+                prompt: `${prompt}, amateur selfie, natural phone camera photo, candid shot, real skin texture, melanin-rich African skin, soft window light, authentic moment, no professional lighting, mirror selfie style`,
+                negative_prompt: 'studio, professional, artificial, doll, plastic, cartoon, anime, 3D render, watermark, text, airbrushed, makeup ad, jewelry, clothes, lingerie catalog',
                 image_size: 'portrait_4_3',
-                num_inference_steps: 30,
-                guidance_scale: 7
+                num_inference_steps: 25,
+                guidance_scale: 7.5
             }),
             signal: ctrl.signal
         });
