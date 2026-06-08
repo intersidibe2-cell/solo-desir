@@ -108,6 +108,10 @@ const fallbackResponses = {
 const USERS_MEM = {};
 const MESSAGES_MEM = {};
 const CHARACTERS_MEM = {};
+const BIZI_USERS_MEM = {};
+const BIZI_LIKES_MEM = [];
+const BIZI_MATCHES_MEM = [];
+const BIZI_MSGS_MEM = {};
 
 let pool = null;
 async function initDB() {
@@ -156,6 +160,44 @@ async function initDB() {
             CREATE INDEX IF NOT EXISTS idx_solo_messages_user ON solo_messages(user_id, created_at);
             CREATE INDEX IF NOT EXISTS idx_solo_users_email ON solo_users(email);
             CREATE INDEX IF NOT EXISTS idx_solo_characters_user ON solo_characters(user_id);
+            CREATE TABLE IF NOT EXISTS bizi_users (
+                id TEXT PRIMARY KEY,
+                pseudo TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                gender TEXT DEFAULT 'homme',
+                age INTEGER DEFAULT 25,
+                country TEXT DEFAULT 'ML',
+                city TEXT DEFAULT '',
+                photos JSONB DEFAULT '[]',
+                bio TEXT DEFAULT '',
+                plan TEXT DEFAULT 'free',
+                messages_today INTEGER DEFAULT 0,
+                matches_today INTEGER DEFAULT 0,
+                last_message_date TEXT DEFAULT '',
+                plan_expires_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS bizi_likes (
+                id SERIAL PRIMARY KEY,
+                from_user TEXT REFERENCES bizi_users(email),
+                to_user TEXT REFERENCES bizi_users(email),
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE(from_user, to_user)
+            );
+            CREATE TABLE IF NOT EXISTS bizi_matches (
+                id SERIAL PRIMARY KEY,
+                user1 TEXT REFERENCES bizi_users(email),
+                user2 TEXT REFERENCES bizi_users(email),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS bizi_messages (
+                id SERIAL PRIMARY KEY,
+                match_id INTEGER REFERENCES bizi_matches(id),
+                sender TEXT REFERENCES bizi_users(email),
+                content TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
         `);
         console.log('✅ PostgreSQL connected');
         return true;
@@ -872,6 +914,141 @@ app.get('/api/stats', async (req, res) => {
 app.get('/health', async (req, res) => {
     const users = await db.getAllUsers();
     res.json({ success: true, status: 'ok', uptime: process.uptime(), users: users.length, db: pool ? 'postgres' : 'memory' });
+});
+
+// ─── Bizi ────────────────────────────────────────
+app.post('/api/bizi/register', async (req, res) => {
+    const { pseudo, email, password, gender, age, country, city, bio, photos } = req.body;
+    if (!pseudo || !email || !password || !gender) {
+        return res.status(400).json({ success: false, message: 'Pseudo, email, mot de passe et genre requis' });
+    }
+    const existing = pool
+        ? (await pool.query('SELECT * FROM bizi_users WHERE email = $1 OR pseudo = $2', [email, pseudo])).rows[0]
+        : Object.values(BIZI_USERS_MEM).find(u => u.email === email || u.pseudo === pseudo);
+    if (existing) return res.status(409).json({ success: false, message: 'Email ou pseudo déjà utilisé' });
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password, salt);
+    const user = {
+        id: crypto.randomUUID(), pseudo, email, password: hash, gender, age: age || 25,
+        country: country || 'ML', city: city || '', photos: photos || [], bio: bio || '',
+        plan: 'free', messages_today: 0, matches_today: 0, last_message_date: '', created_at: new Date().toISOString()
+    };
+    if (pool) {
+        await pool.query(
+            `INSERT INTO bizi_users (id, pseudo, email, password, gender, age, country, city, photos, bio, plan, messages_today, matches_today, last_message_date, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, JSON.stringify(user.photos), user.bio, user.plan, user.messages_today, user.matches_today, user.last_message_date, user.created_at]
+        );
+    } else { BIZI_USERS_MEM[email] = user; }
+    const tokens = generateTokens(user);
+    res.json({ success: true, token: tokens.accessToken, user: { pseudo, email, gender, plan: 'free' } });
+});
+
+app.post('/api/bizi/login', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ success: false, message: 'Email et mot de passe requis' });
+    const user = pool
+        ? (await pool.query('SELECT * FROM bizi_users WHERE email = $1', [email.toLowerCase().trim()])).rows[0]
+        : BIZI_USERS_MEM[email.toLowerCase().trim()];
+    if (!user) return res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' });
+    const tokens = generateTokens(user);
+    res.json({ success: true, token: tokens.accessToken, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, plan: user.plan } });
+});
+
+app.get('/api/bizi/me', authMiddleware, async (req, res) => {
+    const user = pool
+        ? (await pool.query('SELECT * FROM bizi_users WHERE email = $1', [req.user.email])).rows[0]
+        : BIZI_USERS_MEM[req.user.email];
+    if (!user) return res.status(404).json({ success: false });
+    const today = new Date().toDateString();
+    const msgsLeft = user.plan === 'free' ? Math.max(0, 5 - (user.last_message_date === today ? user.messages_today : 0)) : 999;
+    const matchesLeft = user.plan === 'free' ? Math.max(0, 3 - (user.last_message_date === today ? user.matches_today : 0)) : 999;
+    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, photos: user.photos, bio: user.bio, plan: user.plan, messagesLeft: msgsLeft, matchesLeft } });
+});
+
+app.put('/api/bizi/me', authMiddleware, async (req, res) => {
+    const { pseudo, age, country, city, photos, bio } = req.body;
+    const updates = {};
+    if (pseudo !== undefined) updates.pseudo = pseudo;
+    if (age !== undefined) updates.age = age;
+    if (country !== undefined) updates.country = country;
+    if (city !== undefined) updates.city = city;
+    if (photos !== undefined) updates.photos = photos;
+    if (bio !== undefined) updates.bio = bio;
+    if (pool) {
+        const keys = Object.keys(updates);
+        const setClause = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');
+        await pool.query(`UPDATE bizi_users SET ${setClause} WHERE email = $1`, [req.user.email, ...Object.values(updates)]);
+    } else {
+        Object.assign(BIZI_USERS_MEM[req.user.email], updates);
+    }
+    res.json({ success: true, message: 'Profil mis à jour' });
+});
+
+app.get('/api/bizi/profiles', authMiddleware, async (req, res) => {
+    const { country, gender, ageMin, ageMax } = req.query;
+    const profiles = pool
+        ? (await pool.query('SELECT pseudo, gender, age, country, city, photos, bio, created_at FROM bizi_users WHERE email != $1', [req.user.email])).rows
+        : Object.values(BIZI_USERS_MEM).filter(u => u.email !== req.user.email);
+    let filtered = profiles.map(p => ({ ...p, password: undefined, id: undefined }));
+    if (gender) filtered = filtered.filter(p => p.gender === gender);
+    if (country) filtered = filtered.filter(p => p.country === country);
+    if (ageMin) filtered = filtered.filter(p => p.age >= parseInt(ageMin));
+    if (ageMax) filtered = filtered.filter(p => p.age <= parseInt(ageMax));
+    res.json({ success: true, profiles: filtered.slice(0, 50) });
+});
+
+app.post('/api/bizi/like', authMiddleware, async (req, res) => {
+    const { targetEmail } = req.body;
+    if (!targetEmail) return res.status(400).json({ success: false, message: 'Cible requise' });
+    if (pool) {
+        await pool.query('INSERT INTO bizi_likes (from_user, to_user) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.user.email, targetEmail]);
+        const rev = (await pool.query('SELECT * FROM bizi_likes WHERE from_user = $1 AND to_user = $2', [targetEmail, req.user.email])).rows[0];
+        if (rev) {
+            await pool.query('INSERT INTO bizi_matches (user1, user2) VALUES ($1,$2)', [req.user.email, targetEmail]);
+            const m = (await pool.query('SELECT * FROM bizi_matches WHERE user1 = $1 AND user2 = $2', [req.user.email, targetEmail])).rows[0];
+            return res.json({ success: true, matched: true, matchId: m.id });
+        }
+    } else {
+        BIZI_LIKES_MEM.push({ from: req.user.email, to: targetEmail });
+        const rev = BIZI_LIKES_MEM.find(l => l.from === targetEmail && l.to === req.user.email);
+        if (rev) {
+            const matchId = crypto.randomBytes(8).toString('hex');
+            BIZI_MATCHES_MEM.push({ id: matchId, user1: req.user.email, user2: targetEmail });
+            return res.json({ success: true, matched: true, matchId });
+        }
+    }
+    res.json({ success: true, matched: false });
+});
+
+app.post('/api/bizi/message', authMiddleware, async (req, res) => {
+    const { matchId, content } = req.body;
+    if (!matchId || !content) return res.status(400).json({ success: false });
+    const sender = req.user.email;
+    if (pool) {
+        await pool.query('INSERT INTO bizi_messages (match_id, sender, content) VALUES ($1,$2,$3)', [matchId, sender, content]);
+    } else {
+        if (!BIZI_MSGS_MEM[matchId]) BIZI_MSGS_MEM[matchId] = [];
+        BIZI_MSGS_MEM[matchId].push({ sender, content, time: new Date().toISOString() });
+    }
+    res.json({ success: true });
+});
+
+app.get('/api/bizi/messages/:matchId', authMiddleware, async (req, res) => {
+    const { matchId } = req.params;
+    const msgs = pool
+        ? (await pool.query('SELECT sender, content, created_at FROM bizi_messages WHERE match_id = $1 ORDER BY created_at', [matchId])).rows
+        : (BIZI_MSGS_MEM[matchId] || []);
+    res.json({ success: true, messages: msgs });
+});
+
+app.get('/api/bizi/matches', authMiddleware, async (req, res) => {
+    const matches = pool
+        ? (await pool.query('SELECT * FROM bizi_matches WHERE user1 = $1 OR user2 = $1', [req.user.email])).rows
+        : BIZI_MATCHES_MEM.filter(m => m.user1 === req.user.email || m.user2 === req.user.email);
+    res.json({ success: true, matches: matches.map(m => ({ id: m.id, with: m.user1 === req.user.email ? m.user2 : m.user1, created_at: m.created_at })) });
 });
 
 // ─── SPA fallback ─────────────────────────────────────

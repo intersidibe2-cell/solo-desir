@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bizi — Rencontres Discrètes</title>
+    <link rel="stylesheet" href="css/bizi.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div id="app">
+        <div id="biziLogin" class="bizi-auth">
+            <div class="auth-card">
+                <div class="logo">🔥 Bizi</div>
+                <p class="subtitle">Rencontres discrètes en Afrique</p>
+                <div class="tabs">
+                    <button class="tab active" data-tab="login">Connexion</button>
+                    <button class="tab" data-tab="register">Inscription</button>
+                </div>
+                <form id="loginForm" class="auth-form">
+                    <input type="text" id="loginEmail" placeholder="Email" required>
+                    <input type="password" id="loginPassword" placeholder="Mot de passe" required>
+                    <button type="submit">Se connecter</button>
+                </form>
+                <form id="registerForm" class="auth-form" style="display:none">
+                    <input type="text" id="regPseudo" placeholder="Pseudo" required>
+                    <input type="email" id="regEmail" placeholder="Email" required>
+                    <input type="password" id="regPassword" placeholder="Mot de passe" required>
+                    <select id="regGender" required>
+                        <option value="">Genre</option>
+                        <option value="homme">Homme</option>
+                        <option value="femme">Femme</option>
+                        <option value="couple">Couple</option>
+                    </select>
+                    <input type="number" id="regAge" placeholder="Âge" min="18" max="99" value="25">
+                    <select id="regCountry">
+                        <option value="ML">Mali</option>
+                        <option value="CI">Côte d'Ivoire</option>
+                        <option value="SN">Sénégal</option>
+                        <option value="BF">Burkina Faso</option>
+                        <option value="GN">Guinée</option>
+                        <option value="CM">Cameroun</option>
+                        <option value="BJ">Bénin</option>
+                        <option value="TG">Togo</option>
+                        <option value="NG">Nigéria</option>
+                        <option value="GH">Ghana</option>
+                    </select>
+                    <button type="submit">Créer mon compte</button>
+                </form>
+                <div id="authError" class="error-msg" style="display:none"></div>
+            </div>
+        </div>
+
+        <div id="biziMain" class="bizi-main" style="display:none">
+            <header class="bizi-header">
+                <span class="logo">🔥 Bizi</span>
+                <div>
+                    <span id="userPlan" class="plan-badge">Gratuit</span>
+                    <button id="logoutBtn" class="btn-ghost"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+
+            <div class="tab-bar">
+                <button class="tab-btn active" data-page="browse"><i class="fas fa-users"></i> Découvrir</button>
+                <button class="tab-btn" data-page="matches"><i class="fas fa-heart"></i> Matchs</button>
+                <button class="tab-btn" data-page="chat"><i class="fas fa-comments"></i> Chat</button>
+                <button class="tab-btn" data-page="profile"><i class="fas fa-user"></i> Profil</button>
+            </div>
+
+            <div id="pageBrowse" class="page active">
+                <div class="filters">
+                    <select id="filterGender"><option value="">Tous</option><option value="homme">Homme</option><option value="femme">Femme</option><option value="couple">Couple</option></select>
+                    <select id="filterCountry"><option value="">Tous pays</option><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="BJ">Bénin</option><option value="TG">Togo</option><option value="NG">Nigéria</option><option value="GH">Ghana</option></select>
+                    <input type="number" id="filterAgeMin" placeholder="Âge min" min="18">
+                    <input type="number" id="filterAgeMax" placeholder="Âge max" min="18">
+                </div>
+                <div id="profilesGrid" class="profiles-grid"></div>
+            </div>
+
+            <div id="pageMatches" class="page">
+                <div id="matchesList" class="matches-list"></div>
+            </div>
+
+            <div id="pageChat" class="page">
+                <div id="chatHeader" class="chat-header">Sélectionne un match</div>
+                <div id="chatMessages" class="chat-messages"></div>
+                <div class="chat-input-bar">
+                    <input type="text" id="chatInput" placeholder="Écris ici..." disabled>
+                    <button id="sendChatBtn" disabled><i class="fas fa-arrow-up"></i></button>
+                </div>
+            </div>
+
+            <div id="pageProfile" class="page">
+                <div class="profile-edit">
+                    <h3>Mon profil</h3>
+                    <input type="text" id="editPseudo" placeholder="Pseudo">
+                    <input type="number" id="editAge" placeholder="Âge" min="18">
+                    <select id="editCountry"><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="NG">Nigéria</option><option value="GH">Ghana</option></select>
+                    <input type="text" id="editCity" placeholder="Ville">
+                    <textarea id="editBio" placeholder="Parle de toi..." rows="3"></textarea>
+                    <input type="text" id="editPhotos" placeholder="URLs photos (séparées par des virgules)">
+                    <button id="saveProfileBtn">Sauvegarder</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <script src="js/bizi.js"></script>
+</body>
+</html>
