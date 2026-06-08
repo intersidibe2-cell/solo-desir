@@ -1,7 +1,7 @@
 {
-    "name": "solo-africa",
+    "name": "bizi",
     "version": "1.0.0",
-    "description": "Solo - IA Companion Platform for Africa",
+    "description": "Bizi — Rencontres discrètes en Afrique",
     "main": "server.js",
     "scripts": {
         "start": "node server.js",
