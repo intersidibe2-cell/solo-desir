@@ -25,6 +25,8 @@ services:
         fromDatabase:
           name: solo-db
           property: connectionString
+      - key: FALAI_API_KEY
+        sync: false
       - key: RUNPOD_API_KEY
         sync: false
       - key: RUNPOD_ENDPOINT_ID

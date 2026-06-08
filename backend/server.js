@@ -553,34 +553,27 @@ app.delete('/api/characters/:id', authMiddleware, async (req, res) => {
     res.json({ success: true, message: 'Personnage supprimé' });
 });
 
-async function generateImageFromHuggingFace(prompt) {
-    if (!process.env.HUGGINGFACE_API_KEY) return null;
+async function generateImageFromFalAI(prompt) {
+    if (!process.env.FALAI_API_KEY) return null;
     try {
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 35000);
-        const resp = await fetch('https://api-inference.huggingface.co/models/SG161222/RealVisXL_V4.0', {
+        const timer = setTimeout(() => ctrl.abort(), 30000);
+        const resp = await fetch('https://fal.run/fal-ai/realvisxl-v4', {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`, 'Content-Type': 'application/json' },
+            headers: { 'Authorization': `Key ${process.env.FALAI_API_KEY}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                inputs: `${prompt}, amateur selfie photo, natural cellphone camera, candid shot, real person, authentic moment, melanin-rich skin, African beauty, natural body, soft intimate lighting, mirror selfie aesthetic, no filters, genuine expression`,
-                parameters: {
-                    negative_prompt: 'professional studio, fashion magazine, artificial, plastic, doll, cartoon, anime, 3D render, airbrushed, makeup, lingerie catalog, porn set, fake',
-                    width: 1024, height: 1024,
-                    num_inference_steps: 30,
-                    guidance_scale: 7
-                }
+                prompt: `${prompt}, amateur selfie, natural phone camera photo, candid shot, real skin texture, melanin-rich African skin, soft window light, authentic intimate moment, no professional lighting`,
+                negative_prompt: 'studio, professional, artificial, doll, plastic, cartoon, anime, 3D render, watermark, text, airbrushed, makeup ad, jewelry, accessories',
+                image_size: 'portrait_4_3',
+                num_inference_steps: 30,
+                guidance_scale: 7
             }),
             signal: ctrl.signal
         });
         clearTimeout(timer);
-        if (resp.ok) {
-            const buffer = await resp.arrayBuffer();
-            if (buffer.byteLength > 1024) {
-                const base64 = Buffer.from(buffer).toString('base64');
-                return `data:image/jpeg;base64,${base64}`;
-            }
-        }
-    } catch (e) { console.warn('HuggingFace error:', e.message); }
+        const data = await resp.json();
+        return data.images?.[0]?.url || null;
+    } catch (e) { console.warn('Fal.ai error:', e.message); }
     return null;
 }
 
@@ -646,7 +639,7 @@ function isNSFW(msg) {
 app.post('/api/images/generate', authMiddleware, async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ success: false, message: 'Description requise' });
-    let imageUrl = await generateImageFromHuggingFace(prompt);
+    let imageUrl = await generateImageFromFalAI(prompt);
     if (!imageUrl) imageUrl = await generateImageFromRunPod(prompt);
     if (imageUrl) return res.json({ success: true, imageUrl });
     res.json({ success: true, imageUrl: null, placeholder: true, message: 'Image générée en mode démo.' });
@@ -714,11 +707,11 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
     await db.saveMessage({ user_id: user.id, character, role: 'assistant', content: reply });
 
-    // ── Image: HuggingFace (RealVis) + RunPod en parallèle, premier arrivé ──
+    // ── Image: Fal.ai (RealVis XL) + RunPod en parallèle, premier arrivé ──
     let imageUrl = null;
     if (wantsImage && reply) {
         const results = await Promise.allSettled([
-            generateImageFromHuggingFace(reply),
+            generateImageFromFalAI(reply),
             generateImageFromRunPod(reply)
         ]);
         for (const r of results) {
