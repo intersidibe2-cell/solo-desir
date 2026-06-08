@@ -599,7 +599,7 @@ async function generateImageFromReplicate(prompt) {
         if (!resp.ok) return null;
         const prediction = await resp.json();
         if (prediction.id) {
-            for (let i = 0; i < 20; i++) {
+            for (let i = 0; i < 8; i++) {
                 await new Promise(r => setTimeout(r, 2000));
                 const statusResp = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
                     headers: { 'Authorization': `Token ${process.env.REPLICATE_API_KEY}` }
@@ -677,15 +677,14 @@ function isNSFW(msg) {
 app.post('/api/images/generate', authMiddleware, async (req, res) => {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ success: false, message: 'Description requise' });
-    const results = await Promise.allSettled([
-        generateImageFromFalAI(prompt),
-        generateImageFromReplicate(prompt),
-        generateImageFromRunPod(prompt)
-    ]);
     let imageUrl = null;
-    for (const r of results) {
-        if (r.status === 'fulfilled' && r.value) { imageUrl = r.value; break; }
-    }
+    try {
+        imageUrl = await Promise.any([
+            generateImageFromFalAI(prompt),
+            generateImageFromReplicate(prompt),
+            generateImageFromRunPod(prompt)
+        ]);
+    } catch (e) {}
     if (imageUrl) return res.json({ success: true, imageUrl });
     res.json({ success: true, imageUrl: null, placeholder: true, message: 'Image générée en mode démo.' });
 });
@@ -752,20 +751,16 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
     await db.saveMessage({ user_id: user.id, character, role: 'assistant', content: reply });
 
-    // ── Image: Fal.ai + Replicate + RunPod en parallèle, premier arrivé ──
+    // ── Image: Fal.ai + Replicate + RunPod, premier arrivé (Promise.any) ──
     let imageUrl = null;
     if (wantsImage && reply) {
-        const results = await Promise.allSettled([
-            generateImageFromFalAI(reply),
-            generateImageFromReplicate(reply),
-            generateImageFromRunPod(reply)
-        ]);
-        for (const r of results) {
-            if (r.status === 'fulfilled' && r.value) {
-                imageUrl = r.value;
-                break;
-            }
-        }
+        try {
+            imageUrl = await Promise.any([
+                generateImageFromFalAI(reply),
+                generateImageFromReplicate(reply),
+                generateImageFromRunPod(reply)
+            ]);
+        } catch (e) {}
     }
 
     res.json({
