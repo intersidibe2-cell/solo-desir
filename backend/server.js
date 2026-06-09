@@ -218,9 +218,15 @@ app.post('/api/solo/message', authMiddleware, async (req, res) => {
     if (msgsToday >= maxMsgs) return res.status(429).json({ success: false, message: 'Limite de messages atteinte. Passe VIP !' });
     const suspiciousKeywords = /(envoie.*argent|OM.*code|moMo.*code|wester.*union|money.*gram|envoie.*ton.*code|donne.*code|num[eé]ro.*carte)/i;
     const hasSuspicious = suspiciousKeywords.test(content);
-    await pool.query('UPDATE solo_users SET messages_today = messages_today + 1, last_message_date = $2 WHERE email = $1', [req.user.email, today]);
-    if (pool) { await pool.query('INSERT INTO solo_messages (match_id, sender, content) VALUES ($1,$2,$3)', [matchId, req.user.email, content]); }
-    else { if (!MSGS_MEM[matchId]) MSGS_MEM[matchId] = []; MSGS_MEM[matchId].push({ sender: req.user.email, content, time: new Date().toISOString() }); }
+    if (pool) {
+        await pool.query('UPDATE solo_users SET messages_today = messages_today + 1, last_message_date = $2 WHERE email = $1', [req.user.email, today]);
+        await pool.query('INSERT INTO solo_messages (match_id, sender, content) VALUES ($1,$2,$3)', [matchId, req.user.email, content]);
+    } else {
+        USERS_MEM[req.user.email].messages_today = msgsToday + 1;
+        USERS_MEM[req.user.email].last_message_date = today;
+        if (!MSGS_MEM[matchId]) MSGS_MEM[matchId] = [];
+        MSGS_MEM[matchId].push({ sender: req.user.email, content, time: new Date().toISOString() });
+    }
     res.json({ success: true, warning: hasSuspicious ? '⚠️ Message suspect détecté. Ne partage jamais tes informations bancaires.' : null });
 });
 
