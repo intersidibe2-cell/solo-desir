@@ -76,8 +76,8 @@ body{font-family:Inter,system-ui,sans-serif;background:#0a0a0f;color:#eee;line-h
 .feat-body{padding:1rem 1.2rem}
 .feat-name{font-weight:700;font-size:1.05rem;color:#fff}
 .feat-age{color:#ff3b3b;font-size:.95rem;font-weight:600}
-.feat-job,.feat-location{color:#999;font-size:.8rem;margin:.15rem 0}
-.feat-looking{display:inline-block;background:rgba(255,59,59,.12);color:#ff3b3b;padding:.2rem .7rem;border-radius:8px;font-size:.75rem;margin-top:.3rem;font-weight:500}
+.feat-bio{color:#ccc;font-size:.85rem;line-height:1.5;margin:.4rem 0;font-style:italic}
+.feat-location{color:#888;font-size:.78rem}
 
 /* Discover */
 .discover{padding:4rem 0}
