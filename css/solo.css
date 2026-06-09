@@ -131,3 +131,28 @@ body.eco-mode .profile-photo{width:50px;height:50px;border-radius:50%;display:fl
 .match-content .btn-primary{background:#fff;color:#ff3b3b;padding:.6rem 1.5rem;border-radius:10px;font-weight:700;text-decoration:none;display:block;margin-bottom:.5rem}
 .match-content .btn-ghost{background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:.85rem}
 @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.1)}}
+
+/* Responsive */
+@media(max-width:480px){
+    .tab-btn{font-size:.65rem}
+    .tab-btn i{font-size:1rem}
+    .profiles-grid{grid-template-columns:1fr 1fr;gap:.5rem}
+    .profile-photo{height:150px}
+    .swipe-card{max-width:100%}
+    .swipe-photo{height:280px}
+    .chat-messages{height:calc(100vh - 320px)}
+    .featured-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:340px){
+    .profiles-grid{grid-template-columns:1fr}
+    .featured-grid{grid-template-columns:1fr}
+}
+
+/* Branding */
+.logo{font-size:1.6rem;font-weight:800}
+.tab-bar{border-top:2px solid #ff3b3b22}
+.tab-btn.active{border-top:2px solid #ff3b3b;margin-top:-2px}
+.likes-list{display:flex;flex-direction:column;gap:.5rem;padding:1rem 0}
+.likes-sub{color:#888;font-size:.75rem}
+.match-item{display:flex;align-items:center;gap:.8rem;padding:.8rem;background:#141420;border-radius:10px;border:1px solid #1a1a2e}
+.match-name{font-weight:600;font-size:.9rem}
