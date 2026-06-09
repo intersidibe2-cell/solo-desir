@@ -209,13 +209,41 @@ app.get('/api/solo/matches', authMiddleware, async (req, res) => {
 app.post('/api/solo/message', authMiddleware, async (req, res) => {
     const { matchId, content } = req.body;
     if (!matchId || !content) return res.status(400).json({ success: false, message: 'Match ID et contenu requis' });
-    if (pool) {
-        await pool.query('INSERT INTO solo_messages (match_id, sender, content) VALUES ($1,$2,$3)', [matchId, req.user.email, content]);
-    } else {
-        if (!MSGS_MEM[matchId]) MSGS_MEM[matchId] = [];
-        MSGS_MEM[matchId].push({ sender: req.user.email, content, time: new Date().toISOString() });
+    const user = pool ? (await pool.query('SELECT * FROM solo_users WHERE email = $1', [req.user.email])).rows[0] : USERS_MEM[req.user.email];
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+    const accountAge = (Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24);
+    const today = new Date().toDateString();
+    const msgsToday = user.last_message_date === today ? (user.messages_today || 0) : 0;
+    const maxMsgs = accountAge < 7 ? 10 : 999;
+    if (msgsToday >= maxMsgs) return res.status(429).json({ success: false, message: 'Limite de messages atteinte. Passe VIP !' });
+    const suspiciousKeywords = /(envoie.*argent|OM.*code|moMo.*code|wester.*union|money.*gram|envoie.*ton.*code|donne.*code|num[eé]ro.*carte)/i;
+    const hasSuspicious = suspiciousKeywords.test(content);
+    await pool.query('UPDATE solo_users SET messages_today = messages_today + 1, last_message_date = $2 WHERE email = $1', [req.user.email, today]);
+    if (pool) { await pool.query('INSERT INTO solo_messages (match_id, sender, content) VALUES ($1,$2,$3)', [matchId, req.user.email, content]); }
+    else { if (!MSGS_MEM[matchId]) MSGS_MEM[matchId] = []; MSGS_MEM[matchId].push({ sender: req.user.email, content, time: new Date().toISOString() }); }
+    res.json({ success: true, warning: hasSuspicious ? '⚠️ Message suspect détecté. Ne partage jamais tes informations bancaires.' : null });
+});
+
+app.get('/api/solo/likes-received', authMiddleware, async (req, res) => {
+    const likes = pool
+        ? (await pool.query("SELECT from_user, created_at FROM solo_likes WHERE to_user = $1 AND from_user NOT IN (SELECT user2 FROM solo_matches WHERE user1 = $1 UNION SELECT user1 FROM solo_matches WHERE user2 = $1) ORDER BY created_at DESC LIMIT 20", [req.user.email])).rows
+        : LIKES_MEM.filter(l => l.to === req.user.email && !MATCHES_MEM.find(m => (m.user1 === req.user.email && m.user2 === l.from) || (m.user2 === req.user.email && m.user1 === l.from)));
+    const profiles = [];
+    for (const l of likes) {
+        const em = l.from_user || l.from;
+        const p = pool ? (await pool.query('SELECT pseudo, gender, age, country, city, photos FROM solo_users WHERE email = $1', [em])).rows[0] : Object.values(USERS_MEM).find(u => u.email === em);
+        if (p) profiles.push({ email: em, pseudo: p.pseudo, age: p.age, country: p.country, city: p.city, photos: (p.photos || [])[0] || null });
     }
-    res.json({ success: true });
+    res.json({ success: true, likes: profiles });
+});
+
+app.get('/api/solo/admin/stats', async (req, res) => {
+    const today = new Date().toDateString();
+    const adminPass = req.query.key;
+    if (adminPass !== 'solo2025') return res.json({ success: false });
+    const users = pool ? (await pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN created_at > NOW() - INTERVAL \'7 days\' THEN 1 END) as new, COUNT(CASE WHEN plan != \'free\' THEN 1 END) as premium FROM solo_users')).rows[0] : { total: Object.keys(USERS_MEM).length, new: 0, premium: 0 };
+    const matches = pool ? (await pool.query('SELECT COUNT(*) as total FROM solo_matches')).rows[0].total : MATCHES_MEM.length;
+    res.json({ success: true, users, matches });
 });
 
 app.get('/api/solo/messages/:matchId', authMiddleware, async (req, res) => {

@@ -121,6 +121,7 @@ const B = {
                 if (btn.dataset.page === 'browse') this.loadProfiles();
                 if (btn.dataset.page === 'swipe') this.initSwipe();
                 if (btn.dataset.page === 'matches') this.loadMatches();
+                if (btn.dataset.page === 'likes') this.loadLikes();
             });
         });
         document.getElementById('filterGender').addEventListener('change', () => this.loadProfiles());
@@ -229,6 +230,19 @@ const B = {
         });
     },
 
+    async loadLikes() {
+        const r = await fetch('/api/solo/likes-received', { headers: { 'Authorization': `Bearer ${this.token}` } });
+        const d = await r.json();
+        const list = document.getElementById('likesList');
+        if (!d.likes || !d.likes.length) { list.innerHTML = '<p style="text-align:center;color:#666;padding:2rem">Personne ne t\'a encore liké</p>'; return; }
+        list.innerHTML = d.likes.map(l => {
+            const blur = this.user.plan === 'free' ? 'filter:blur(8px)' : '';
+            const name = this.user.plan === 'free' ? '?????' : l.pseudo;
+            const meta = this.user.plan === 'free' ? 'Passe VIP pour voir' : `${l.age || '?'} · ${l.country || ''}`;
+            return `<div class="match-item"><div class="match-avatar" style="background:#1a1a2e;${blur}">👤</div><span class="match-name">${name}</span><br><span style="color:#888;font-size:.7rem">${meta}</span></div>`;
+        }).join('');
+    },
+
     openChat(matchId, withUser) {
         this.currentMatch = { id: matchId, with: withUser };
         document.getElementById('chatHeader').textContent = '💬 ' + withUser;
@@ -255,10 +269,13 @@ const B = {
         const content = input.value.trim();
         if (!content || !this.currentMatch) return;
         input.value = '';
-        await fetch('/api/solo/message', {
+        const r = await fetch('/api/solo/message', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
             body: JSON.stringify({ matchId: this.currentMatch.id, content })
         });
+        const d = await r.json();
+        if (d.warning) this.toast(d.warning);
+        if (r.status === 429) this.toast('⚠️ ' + (d.message || 'Limite atteinte'));
         this.loadMessages();
     },
 
