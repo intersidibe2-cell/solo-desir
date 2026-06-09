@@ -1,6 +1,6 @@
 #cloud-config
 # Solo — Installation automatique Hetzner
-# Copier-coller ce fichier dans "Cloud Config" à la création du serveur
+# Copier-coller dans Cloud Config a la creation
 
 package_update: true
 package_upgrade: true
@@ -14,69 +14,57 @@ packages:
   - certbot
   - python3-certbot-nginx
 
+write_files:
+  - path: /opt/setup.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+      echo "=== Solo Setup ==="
+      curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+      apt install -y nodejs
+      npm install -g pm2
+      sudo -u postgres psql -c "CREATE USER solo WITH PASSWORD 'solo2024';"
+      sudo -u postgres psql -c "CREATE DATABASE solo OWNER solo;"
+      sudo -u postgres psql -c "ALTER USER solo CREATEDB;"
+      git clone https://github.com/intersidibe2-cell/solo-desir.git /opt/solo
+      cd /opt/solo/backend
+      npm install
+      JWT_SEC=$(openssl rand -base64 32)
+      JWT_REF=$(openssl rand -base64 32)
+      echo "NODE_ENV=production" > .env
+      echo "PORT=3000" >> .env
+      echo "DATABASE_URL=postgresql://solo:solo2024@localhost:5432/solo" >> .env
+      echo "JWT_SECRET=$JWT_SEC" >> .env
+      echo "JWT_REFRESH_SECRET=$JWT_REF" >> .env
+      echo "BASE_URL=https://solodesir.com" >> .env
+      cat > /etc/nginx/sites-available/solo << 'NGINXEOF'
+      server {
+          listen 80;
+          server_name solodesir.com;
+          location / {
+              proxy_pass http://localhost:3000;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection 'upgrade';
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              client_max_body_size 5m;
+          }
+      }
+      NGINXEOF
+      ln -sf /etc/nginx/sites-available/solo /etc/nginx/sites-enabled/default
+      nginx -t && systemctl reload nginx
+      ufw allow 22
+      ufw allow 80
+      ufw allow 443
+      ufw --force enable
+      cd /opt/solo/backend
+      pm2 start server.js --name solo
+      pm2 save
+      pm2 startup systemd -u root --hp /root
+      echo "=== DONE ==="
+
 runcmd:
-  # Node.js 22
-  - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-  - apt install -y nodejs
-
-  # PostgreSQL
-  - sudo -u postgres psql -c "CREATE USER solo WITH PASSWORD 'solo2024';"
-  - sudo -u postgres psql -c "CREATE DATABASE solo OWNER solo;"
-  - sudo -u postgres psql -c "ALTER USER solo CREATEDB;"
-
-  # PM2
-  - npm install -g pm2
-
-  # Clone & install
-  - git clone https://github.com/intersidibe2-cell/solo-desir.git /opt/solo
-  - cd /opt/solo/backend && npm install
-
-  # Config .env
-  - |
-    cat > /opt/solo/backend/.env << EOF
-    NODE_ENV=production
-    PORT=3000
-    DATABASE_URL=postgresql://solo:solo2024@localhost:5432/solo
-    JWT_SECRET=$(openssl rand -base64 32)
-    JWT_REFRESH_SECRET=$(openssl rand -base64 32)
-    BASE_URL=https://solodesir.com
-    EOF
-
-  # nginx config
-  - |
-    cat > /etc/nginx/sites-available/solo << EOF
-    server {
-        listen 80;
-        server_name solodesir.com;
-        location / {
-            proxy_pass http://localhost:3000;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade \$http_upgrade;
-            proxy_set_header Connection 'upgrade';
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto \$scheme;
-            proxy_cache_bypass \$http_upgrade;
-            client_max_body_size 5m;
-        }
-    }
-    EOF
-  - ln -sf /etc/nginx/sites-available/solo /etc/nginx/sites-enabled/default
-  - rm -f /etc/nginx/sites-enabled/default
-  - nginx -t && systemctl reload nginx
-
-  # Firewall
-  - ufw allow 22
-  - ufw allow 80
-  - ufw allow 443
-  - ufw --force enable
-
-  # PM2 startup
-  - cd /opt/solo/backend
-  - pm2 start server.js --name solo
-  - pm2 save
-  - pm2 startup systemd -u root --hp /root
-
-  # Done
-  - echo "=== SOLO INSTALLED ===" > /opt/solo/INSTALLED.txt
+  - bash /opt/setup.sh
