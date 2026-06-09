@@ -60,6 +60,11 @@ const B = {
         await this.loadUser();
         this.bindEvents();
         this.loadProfiles();
+        const visited = localStorage.getItem('solo_visited');
+        if (!visited) {
+            localStorage.setItem('solo_visited', '1');
+            setTimeout(() => this.toast('👋 Bienvenue ! Complète ton profil pour attirer plus de matchs'), 500);
+        }
     },
 
     async loadUser() {
@@ -74,6 +79,18 @@ const B = {
         document.getElementById('editCity').value = d.user.city || '';
         document.getElementById('editBio').value = d.user.bio || '';
         document.getElementById('editPhotos').value = (d.user.photos || []).join(', ');
+        document.getElementById('editPhotosPrivate').checked = d.user.photos_private === true;
+        this.updateScore();
+    },
+
+    updateScore() {
+        let pts = 20;
+        if (this.user.pseudo) pts += 10;
+        if (this.user.bio) pts += 20;
+        if (this.user.city) pts += 10;
+        if (this.user.photos && this.user.photos.length > 0) pts += 30;
+        if (this.user.age) pts += 10;
+        document.getElementById('scoreValue').textContent = pts;
     },
 
     bindEvents() {
@@ -112,7 +129,8 @@ const B = {
         if (max) params.set('ageMax', max);
         const r = await fetch('/api/solo/profiles?' + params, { headers: { 'Authorization': `Bearer ${this.token}` } });
         const d = await r.json();
-        this.profiles = d.profiles || [];
+        const blocked = JSON.parse(localStorage.getItem('solo_blocked') || '[]');
+        this.profiles = (d.profiles || []).filter(p => !blocked.includes(p.email));
         this.renderProfiles();
     },
 
@@ -154,6 +172,7 @@ const B = {
                 <div class="detail-actions">
                     <button class="btn-like" onclick="B.like('${p.email}');document.querySelector('.modal-overlay').remove()">❤️ J'aime</button>
                     <button class="btn-close-detail" onclick="this.closest('.modal-overlay').remove()">Fermer</button>
+                    <button class="btn-block" onclick="B.blockUser('${p.email}');document.querySelector('.modal-overlay').remove()" title="Bloquer">🚫</button>
                 </div>
             </div>
         </div>`;
@@ -232,6 +251,7 @@ const B = {
 
     async saveProfile() {
         const photos = document.getElementById('editPhotos').value.split(',').map(s => s.trim()).filter(s => s);
+        const photosPrivate = document.getElementById('editPhotosPrivate').checked;
         const r = await fetch('/api/solo/me', {
             method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
             body: JSON.stringify({
@@ -240,12 +260,22 @@ const B = {
                 country: document.getElementById('editCountry').value,
                 city: document.getElementById('editCity').value.trim(),
                 bio: document.getElementById('editBio').value.trim(),
-                photos
+                photos,
+                photos_private: photosPrivate
             })
         });
         const d = await r.json();
-        this.toast(d.success ? '✅ Profil sauvegardé' : '❌ Erreur');
+        if (d.success) { this.toast('✅ Profil sauvegardé'); this.updateScore(); }
+        else this.toast('❌ Erreur');
         this.loadUser();
+    },
+
+    blockUser(email) {
+        if (!confirm('Bloquer cet utilisateur ?')) return;
+        const blocked = JSON.parse(localStorage.getItem('solo_blocked') || '[]');
+        if (!blocked.includes(email)) { blocked.push(email); localStorage.setItem('solo_blocked', JSON.stringify(blocked)); }
+        this.toast('🚫 Utilisateur bloqué');
+        this.loadProfiles();
     },
 
     toast(msg) {

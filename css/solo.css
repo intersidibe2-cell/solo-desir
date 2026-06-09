@@ -89,3 +89,9 @@ body{font-family:Inter,system-ui,sans-serif;background:#0a0a0f;color:#eee;min-he
 /* Toast */
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#141420;color:#eee;padding:.6rem 1.2rem;border-radius:20px;font-size:.8rem;z-index:30;opacity:0;transition:opacity .3s;pointer-events:none;border:1px solid #2a2a3e}
 .toast.show{opacity:1}
+
+.profile-score{background:#1a1a2e;padding:.5rem .8rem;border-radius:8px;font-size:.8rem;margin-bottom:.8rem}
+.profile-score span{color:#ff3b3b;font-weight:600}
+.private-photos-label{font-size:.8rem;color:#888;display:flex;align-items:center;gap:.5rem;cursor:pointer}
+.private-photos-label input{margin:0}
+.btn-block{background:1a1a2e;color:#ff3b3b;border:none;cursor:pointer;padding:.6rem;border-radius:8px;font-size:1rem}

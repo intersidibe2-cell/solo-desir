@@ -101,12 +101,14 @@
             <div id="pageProfile" class="page">
                 <div class="profile-edit">
                     <h3>Mon profil</h3>
+                    <div id="profileScore" class="profile-score">Profil complété à <span id="scoreValue">40</span>%</div>
                     <input type="text" id="editPseudo" placeholder="Pseudo">
                     <input type="number" id="editAge" placeholder="Âge" min="18">
                     <select id="editCountry"><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="NG">Nigéria</option><option value="GH">Ghana</option></select>
                     <input type="text" id="editCity" placeholder="Ville">
                     <textarea id="editBio" placeholder="Parle de toi..." rows="3"></textarea>
                     <input type="text" id="editPhotos" placeholder="URLs photos (séparées par des virgules)">
+                    <label class="private-photos-label"><input type="checkbox" id="editPhotosPrivate"> Mes photos sont privées (visibles après match seulement)</label>
                     <button id="saveProfileBtn">Sauvegarder</button>
                 </div>
             </div>
