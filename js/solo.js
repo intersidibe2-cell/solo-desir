@@ -42,7 +42,8 @@ const B = {
                 password: document.getElementById('regPassword').value,
                 gender: document.getElementById('regGender').value,
                 age: parseInt(document.getElementById('regAge').value),
-                country: document.getElementById('regCountry').value
+                country: document.getElementById('regCountry').value,
+                phone: document.getElementById('regPhone')?.value?.trim() || ''
             })
         });
         const d = await r.json();
@@ -77,6 +78,7 @@ const B = {
         document.getElementById('editAge').value = d.user.age || '';
         document.getElementById('editCountry').value = d.user.country || 'ML';
         document.getElementById('editCity').value = d.user.city || '';
+        document.getElementById('editPhone').value = d.user.phone || '';
         document.getElementById('editBio').value = d.user.bio || '';
         document.getElementById('editPhotos').value = (d.user.photos || []).join(', ');
         document.getElementById('editPhotosPrivate').checked = localStorage.getItem('solo_photos_private') === '1';
@@ -95,6 +97,8 @@ const B = {
 
     bindEvents() {
         document.getElementById('logoutBtn').addEventListener('click', () => this.logout());
+        document.getElementById('ecoBtn')?.addEventListener('click', () => this.toggleEco());
+        document.getElementById('shareBtn')?.addEventListener('click', () => this.shareWhatsApp());
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -260,6 +264,7 @@ const B = {
                 age: parseInt(document.getElementById('editAge').value),
                 country: document.getElementById('editCountry').value,
                 city: document.getElementById('editCity').value.trim(),
+                phone: document.getElementById('editPhone')?.value?.trim() || '',
                 bio: document.getElementById('editBio').value.trim(),
                 photos
             })
@@ -285,7 +290,21 @@ const B = {
         setTimeout(() => el.classList.remove('show'), 2500);
     },
 
-    esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); },
+
+    ecoMode: false,
+    toggleEco() {
+        this.ecoMode = !this.ecoMode;
+        document.body.classList.toggle('eco-mode', this.ecoMode);
+        document.getElementById('ecoBtn').textContent = this.ecoMode ? '📵✅' : '📵';
+        this.toast(this.ecoMode ? 'Mode Éco ON — sans images' : 'Mode Éco OFF — avec images');
+    },
+
+    shareWhatsApp() {
+        const url = encodeURIComponent('https://solodesir.com');
+        const text = encodeURIComponent('Salut ! Découvre Solo — le site de rencontres africaines. Inscris-toi :');
+        window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
+    }
 };
 
 document.addEventListener('DOMContentLoaded', () => B.init());

@@ -41,6 +41,7 @@
                         <option value="couple">Couple</option>
                     </select>
                     <input type="number" id="regAge" placeholder="Âge" min="18" max="99" value="25">
+                    <input type="text" id="regPhone" placeholder="Téléphone (optionnel — ex: +223...)" style="font-size:0.85rem">
                     <select id="regCountry">
                         <option value="ML">Mali</option>
                         <option value="CI">Côte d'Ivoire</option>
@@ -63,6 +64,8 @@
             <header class="solo-header">
                 <span class="logo">🔥 Solo</span>
                 <div>
+                    <button id="ecoBtn" class="btn-ghost" title="Mode Éco — cacher les images">📵</button>
+                    <button id="shareBtn" class="btn-ghost" title="Inviter un ami">💬</button>
                     <span id="userPlan" class="plan-badge">Gratuit</span>
                     <button id="logoutBtn" class="btn-ghost"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
@@ -106,6 +109,7 @@
                     <input type="number" id="editAge" placeholder="Âge" min="18">
                     <select id="editCountry"><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="NG">Nigéria</option><option value="GH">Ghana</option></select>
                     <input type="text" id="editCity" placeholder="Ville">
+                    <input type="text" id="editPhone" placeholder="Téléphone (ex: +223...)" style="font-size:0.85rem">
                     <textarea id="editBio" placeholder="Parle de toi..." rows="3"></textarea>
                     <input type="text" id="editPhotos" placeholder="URLs photos (séparées par des virgules)">
                     <label class="private-photos-label"><input type="checkbox" id="editPhotosPrivate"> Mes photos sont privées (visibles après match seulement)</label>
