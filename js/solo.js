@@ -79,7 +79,7 @@ const B = {
         document.getElementById('editCity').value = d.user.city || '';
         document.getElementById('editBio').value = d.user.bio || '';
         document.getElementById('editPhotos').value = (d.user.photos || []).join(', ');
-        document.getElementById('editPhotosPrivate').checked = d.user.photos_private === true;
+        document.getElementById('editPhotosPrivate').checked = localStorage.getItem('solo_photos_private') === '1';
         this.updateScore();
     },
 
@@ -252,6 +252,7 @@ const B = {
     async saveProfile() {
         const photos = document.getElementById('editPhotos').value.split(',').map(s => s.trim()).filter(s => s);
         const photosPrivate = document.getElementById('editPhotosPrivate').checked;
+        localStorage.setItem('solo_photos_private', photosPrivate ? '1' : '0');
         const r = await fetch('/api/solo/me', {
             method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
             body: JSON.stringify({
@@ -260,8 +261,7 @@ const B = {
                 country: document.getElementById('editCountry').value,
                 city: document.getElementById('editCity').value.trim(),
                 bio: document.getElementById('editBio').value.trim(),
-                photos,
-                photos_private: photosPrivate
+                photos
             })
         });
         const d = await r.json();
