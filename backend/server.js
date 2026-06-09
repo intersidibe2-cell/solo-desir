@@ -63,6 +63,7 @@ async function initDB() {
             CREATE TABLE IF NOT EXISTS solo_messages (
                 id SERIAL PRIMARY KEY, match_id INTEGER, sender TEXT, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()
             );
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '';
         `);
         console.log('✅ PostgreSQL connected');
         return true;
