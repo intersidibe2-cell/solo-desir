@@ -104,9 +104,9 @@ app.post('/api/solo/register', async (req, res) => {
     };
     if (pool) {
         await pool.query(
-            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, photos, photos_private, bio, plan, messages_today, matches_today, last_message_date, created_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
-            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, JSON.stringify(user.photos), false, user.bio, user.plan, user.messages_today, user.matches_today, user.last_message_date, user.created_at]
+            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, photos, bio, plan, messages_today, matches_today, last_message_date, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, JSON.stringify(user.photos), user.bio, user.plan, user.messages_today, user.matches_today, user.last_message_date, user.created_at]
         );
     } else { USERS_MEM[user.email] = user; }
     const tokens = generateTokens(user);
