@@ -94,4 +94,4 @@ body{font-family:Inter,system-ui,sans-serif;background:#0a0a0f;color:#eee;min-he
 .profile-score span{color:#ff3b3b;font-weight:600}
 .private-photos-label{font-size:.8rem;color:#888;display:flex;align-items:center;gap:.5rem;cursor:pointer}
 .private-photos-label input{margin:0}
-.btn-block{background:1a1a2e;color:#ff3b3b;border:none;cursor:pointer;padding:.6rem;border-radius:8px;font-size:1rem}
+.btn-block{background:#1a1a2e;color:#ff3b3b;border:none;cursor:pointer;padding:.6rem;border-radius:8px;font-size:1rem}
