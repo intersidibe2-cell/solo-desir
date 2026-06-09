@@ -50,7 +50,7 @@ async function initDB() {
             CREATE TABLE IF NOT EXISTS solo_users (
                 id TEXT PRIMARY KEY, pseudo TEXT NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL,
                 gender TEXT DEFAULT 'homme', age INTEGER DEFAULT 25, country TEXT DEFAULT 'ML', city TEXT DEFAULT '',
-                photos JSONB DEFAULT '[]', photos_private BOOLEAN DEFAULT false, bio TEXT DEFAULT '', plan TEXT DEFAULT 'free',
+                photos JSONB DEFAULT '[]', bio TEXT DEFAULT '', plan TEXT DEFAULT 'free',
                 messages_today INTEGER DEFAULT 0, matches_today INTEGER DEFAULT 0, last_message_date TEXT DEFAULT '',
                 plan_expires_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW()
             );
@@ -62,8 +62,6 @@ async function initDB() {
             );
             CREATE TABLE IF NOT EXISTS solo_messages (
                 id SERIAL PRIMARY KEY, match_id INTEGER, sender TEXT, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS photos_private BOOLEAN DEFAULT false;
             );
         `);
         console.log('✅ PostgreSQL connected');
@@ -130,18 +128,17 @@ app.get('/api/solo/me', authMiddleware, async (req, res) => {
     const today = new Date().toDateString();
     const msgsLeft = user.plan === 'free' ? Math.max(0, 5 - (user.last_message_date === today ? user.messages_today : 0)) : 999;
     const matchesLeft = user.plan === 'free' ? Math.max(0, 3 - (user.last_message_date === today ? user.matches_today : 0)) : 999;
-    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, photos: user.photos, photos_private: user.photos_private, bio: user.bio, plan: user.plan, messagesLeft: msgsLeft, matchesLeft } });
+    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, photos: user.photos, bio: user.bio, plan: user.plan, messagesLeft: msgsLeft, matchesLeft } });
 });
 
 app.put('/api/solo/me', authMiddleware, async (req, res) => {
-    const { pseudo, age, country, city, photos, photos_private, bio } = req.body;
+    const { pseudo, age, country, city, photos, bio } = req.body;
     const updates = {};
     if (pseudo !== undefined) updates.pseudo = pseudo;
     if (age !== undefined) updates.age = parseInt(age);
     if (country !== undefined) updates.country = country;
     if (city !== undefined) updates.city = city;
     if (photos !== undefined) updates.photos = Array.isArray(photos) ? photos : photos.split(',').map(s => s.trim()).filter(s => s);
-    if (photos_private !== undefined) updates.photos_private = !!photos_private;
     if (bio !== undefined) updates.bio = bio;
     if (pool) {
         const keys = Object.keys(updates);
