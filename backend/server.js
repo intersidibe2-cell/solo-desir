@@ -64,14 +64,14 @@ async function initDB() {
             CREATE TABLE IF NOT EXISTS solo_messages (
                 id SERIAL PRIMARY KEY, match_id INTEGER, sender TEXT, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()
             );
-            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '';
-            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS profession TEXT DEFAULT '';
-            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS looking_for TEXT DEFAULT '';
-            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]';
         `);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS profession TEXT DEFAULT ''`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS looking_for TEXT DEFAULT ''`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]'`);
         console.log('✅ PostgreSQL connected');
         return true;
-    } finally { client.release(); }
+    } catch (e) { console.warn('DB init error:', e.message); return false; } finally { client.release(); }
 }
 
 // ─── Auth ────────────────────────────────────────────
