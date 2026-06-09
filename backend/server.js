@@ -262,7 +262,7 @@ app.get('/api/solo/messages/:matchId', authMiddleware, async (req, res) => {
 // ─── Health ──────────────────────────────────────────
 app.get('/health', async (req, res) => {
     const users = pool ? (await pool.query('SELECT COUNT(*) FROM solo_users')).rows[0].count : Object.keys(USERS_MEM).length;
-    res.json({ success: true, status: 'ok', uptime: process.uptime(), users, db: pool ? 'postgres' : 'memory' });
+    res.json({ success: true, status: 'ok', uptime: process.uptime(), users, db: pool ? 'postgres' : 'memory', version: '2.0' });
 });
 
 // ─── SPA fallback ────────────────────────────────────
