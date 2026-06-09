@@ -50,7 +50,8 @@ async function initDB() {
             CREATE TABLE IF NOT EXISTS solo_users (
                 id TEXT PRIMARY KEY, pseudo TEXT NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL,
                 gender TEXT DEFAULT 'homme', age INTEGER DEFAULT 25, country TEXT DEFAULT 'ML', city TEXT DEFAULT '',
-                phone TEXT DEFAULT '', photos JSONB DEFAULT '[]', bio TEXT DEFAULT '', plan TEXT DEFAULT 'free',
+                phone TEXT DEFAULT '', photos JSONB DEFAULT '[]', profession TEXT DEFAULT '',
+                looking_for TEXT DEFAULT '', interests JSONB DEFAULT '[]', bio TEXT DEFAULT '', plan TEXT DEFAULT 'free',
                 messages_today INTEGER DEFAULT 0, matches_today INTEGER DEFAULT 0, last_message_date TEXT DEFAULT '',
                 plan_expires_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW()
             );
@@ -64,6 +65,9 @@ async function initDB() {
                 id SERIAL PRIMARY KEY, match_id INTEGER, sender TEXT, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()
             );
             ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS profession TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS looking_for TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]';
         `);
         console.log('✅ PostgreSQL connected');
         return true;
@@ -98,14 +102,14 @@ app.post('/api/solo/register', async (req, res) => {
     const hash = await bcrypt.hash(password, salt);
     const user = {
         id: crypto.randomUUID(), pseudo, email: email.toLowerCase(), password: hash, gender, age: age || 25,
-        country: country || 'ML', city: city || '', phone: phone || '', photos: [], bio: '', plan: 'free',
+        country: country || 'ML', city: city || '', phone: phone || '', photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
         messages_today: 0, matches_today: 0, last_message_date: '', created_at: new Date().toISOString()
     };
     if (pool) {
         await pool.query(
-            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, bio, plan, messages_today, matches_today, last_message_date, created_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
-            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.bio, user.plan, user.messages_today, user.matches_today, user.last_message_date, user.created_at]
+            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, messages_today, matches_today, last_message_date, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.messages_today, user.matches_today, user.last_message_date, user.created_at]
         );
     } else { USERS_MEM[user.email] = user; }
     const tokens = generateTokens(user);
@@ -129,24 +133,30 @@ app.get('/api/solo/me', authMiddleware, async (req, res) => {
     const today = new Date().toDateString();
     const msgsLeft = user.plan === 'free' ? Math.max(0, 5 - (user.last_message_date === today ? user.messages_today : 0)) : 999;
     const matchesLeft = user.plan === 'free' ? Math.max(0, 3 - (user.last_message_date === today ? user.matches_today : 0)) : 999;
-    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, phone: user.phone, photos: user.photos, bio: user.bio, plan: user.plan, messagesLeft: msgsLeft, matchesLeft } });
+    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, phone: user.phone, photos: user.photos, profession: user.profession, looking_for: user.looking_for, interests: user.interests, bio: user.bio, plan: user.plan, messagesLeft: msgsLeft, matchesLeft } });
 });
 
 app.put('/api/solo/me', authMiddleware, async (req, res) => {
-    const { pseudo, age, country, city, phone, photos, bio } = req.body;
+    const { pseudo, age, country, city, phone, photos, profession, looking_for, interests, bio } = req.body;
     const updates = {};
     if (pseudo !== undefined) updates.pseudo = pseudo;
     if (age !== undefined) updates.age = parseInt(age);
     if (country !== undefined) updates.country = country;
     if (city !== undefined) updates.city = city;
-    if (photos !== undefined) updates.photos = Array.isArray(photos) ? photos : photos.split(',').map(s => s.trim()).filter(s => s);
     if (phone !== undefined) updates.phone = phone;
+    if (photos !== undefined) updates.photos = Array.isArray(photos) ? photos : photos.split(',').map(s => s.trim()).filter(s => s);
+    if (profession !== undefined) updates.profession = profession;
+    if (looking_for !== undefined) updates.looking_for = looking_for;
+    if (interests !== undefined) updates.interests = Array.isArray(interests) ? interests : (typeof interests === 'string' ? interests.split(',').map(s => s.trim()).filter(s => s) : []);
     if (bio !== undefined) updates.bio = bio;
     if (pool) {
         const keys = Object.keys(updates);
         if (keys.length > 0) {
-            const setClause = keys.map((k, i) => { const map = { photos: `photos = $${i + 2}::jsonb` }; return map[k] || `${k} = $${i + 2}`; }).join(', ');
-            await pool.query(`UPDATE solo_users SET ${setClause} WHERE email = $1`, [req.user.email, ...keys.map(k => k === 'photos' ? JSON.stringify(updates[k]) : updates[k])]);
+            const setClause = keys.map((k, i) => {
+                const map = { photos: `photos = $${i + 2}::jsonb`, interests: `interests = $${i + 2}::jsonb` };
+                return map[k] || `${k} = $${i + 2}`;
+            }).join(', ');
+            await pool.query(`UPDATE solo_users SET ${setClause} WHERE email = $1`, [req.user.email, ...keys.map(k => (k === 'photos' || k === 'interests') ? JSON.stringify(updates[k]) : updates[k])]);
         }
     } else {
         Object.assign(USERS_MEM[req.user.email], updates);

@@ -73,18 +73,42 @@
 
             <div class="tab-bar">
                 <button class="tab-btn active" data-page="browse"><i class="fas fa-users"></i> Découvrir</button>
-                <button class="tab-btn" data-page="matches"><i class="fas fa-heart"></i> Matchs</button>
+                <button class="tab-btn" data-page="swipe"><i class="fas fa-heart"></i> Quick Match</button>
+                <button class="tab-btn" data-page="matches"><i class="fas fa-star"></i> Matchs</button>
                 <button class="tab-btn" data-page="chat"><i class="fas fa-comments"></i> Chat</button>
                 <button class="tab-btn" data-page="profile"><i class="fas fa-user"></i> Profil</button>
             </div>
 
             <div id="pageBrowse" class="page active">
                 <div class="filters">
-                    <select id="filterGender"><option value="">Tous</option><option value="homme">Homme</option><option value="femme">Femme</option><option value="couple">Couple</option></select>
+                    <select id="filterGender"><option value="">Tous</option><option value="homme">Homme</option><option value="femme">Femme</option></select>
                     <select id="filterCountry"><option value="">Tous pays</option><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="BJ">Bénin</option><option value="TG">Togo</option><option value="NG">Nigéria</option><option value="GH">Ghana</option></select>
                     <input type="number" id="filterAgeMin" placeholder="Âge min" min="18">
                     <input type="number" id="filterAgeMax" placeholder="Âge max" min="18">
                 </div>
+                <div id="profilesGrid" class="profiles-grid"></div>
+            </div>
+
+            <div id="pageSwipe" class="page">
+                <div id="swipeContainer" class="swipe-container">
+                    <div id="swipeCard" class="swipe-card"></div>
+                    <div class="swipe-actions">
+                        <button id="swipePass" class="swipe-btn pass"><i class="fas fa-times"></i></button>
+                        <button id="swipeSuper" class="swipe-btn super">⚡</button>
+                        <button id="swipeLike" class="swipe-btn like"><i class="fas fa-heart"></i></button>
+                    </div>
+                    <div id="swipeCounter" class="swipe-counter">❤️ 10 aujourd'hui</div>
+                </div>
+                <div id="matchOverlay" class="match-overlay" style="display:none">
+                    <div class="match-content">
+                        <div class="match-hearts">💘</div>
+                        <h2>It's a Match !</h2>
+                        <p>Vous vous plaisez mutuellement</p>
+                        <button id="matchChatBtn" class="btn-primary">💬 Discuter</button>
+                        <button id="matchCloseBtn" class="btn-ghost">Continuer</button>
+                    </div>
+                </div>
+            </div>
                 <div id="profilesGrid" class="profiles-grid"></div>
             </div>
 
@@ -106,6 +130,15 @@
                     <h3>Mon profil</h3>
                     <div id="profileScore" class="profile-score">Profil complété à <span id="scoreValue">40</span>%</div>
                     <input type="text" id="editPseudo" placeholder="Pseudo">
+                    <input type="text" id="editProfession" placeholder="Profession (ex: Ingénieure)">
+                    <select id="editLooking">
+                        <option value="">Je cherche...</option>
+                        <option value="Mariage">Mariage</option>
+                        <option value="Relation sérieuse">Relation sérieuse</option>
+                        <option value="À voir">À voir</option>
+                        <option value="Amitié">Amitié</option>
+                    </select>
+                    <input type="text" id="editInterests" placeholder="Centres d'intérêt (séparés par des virgules)">
                     <input type="number" id="editAge" placeholder="Âge" min="18">
                     <select id="editCountry"><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="NG">Nigéria</option><option value="GH">Ghana</option></select>
                     <input type="text" id="editCity" placeholder="Ville">

@@ -4,6 +4,9 @@ const B = {
     profiles: [],
     matches: [],
     currentMatch: null,
+    swipeProfiles: [],
+    swipeIndex: 0,
+    dailyLikes: 0,
 
     init() {
         const saved = localStorage.getItem('solo_token');
@@ -75,6 +78,9 @@ const B = {
         this.user = d.user;
         document.getElementById('userPlan').textContent = d.user.plan === 'free' ? 'Gratuit' : d.user.plan;
         document.getElementById('editPseudo').value = d.user.pseudo || '';
+        document.getElementById('editProfession').value = d.user.profession || '';
+        document.getElementById('editLooking').value = d.user.looking_for || '';
+        document.getElementById('editInterests').value = (d.user.interests || []).join(', ');
         document.getElementById('editAge').value = d.user.age || '';
         document.getElementById('editCountry').value = d.user.country || 'ML';
         document.getElementById('editCity').value = d.user.city || '';
@@ -86,12 +92,14 @@ const B = {
     },
 
     updateScore() {
-        let pts = 20;
+        let pts = 10;
         if (this.user.pseudo) pts += 10;
-        if (this.user.bio) pts += 20;
+        if (this.user.profession) pts += 15;
+        if (this.user.looking_for) pts += 15;
+        if (this.user.interests && this.user.interests.length > 0) pts += 10;
+        if (this.user.bio) pts += 15;
         if (this.user.city) pts += 10;
-        if (this.user.photos && this.user.photos.length > 0) pts += 30;
-        if (this.user.age) pts += 10;
+        if (this.user.photos && this.user.photos.length > 0) pts += 15;
         document.getElementById('scoreValue').textContent = pts;
     },
 
@@ -99,6 +107,11 @@ const B = {
         document.getElementById('logoutBtn').addEventListener('click', () => this.logout());
         document.getElementById('ecoBtn')?.addEventListener('click', () => this.toggleEco());
         document.getElementById('shareBtn')?.addEventListener('click', () => this.shareWhatsApp());
+        document.getElementById('swipeLike')?.addEventListener('click', () => this.swipeAction(true));
+        document.getElementById('swipePass')?.addEventListener('click', () => this.swipeAction(false));
+        document.getElementById('swipeSuper')?.addEventListener('click', () => this.swipeAction(true, true));
+        document.getElementById('matchChatBtn')?.addEventListener('click', () => { document.getElementById('matchOverlay').style.display = 'none'; document.querySelector('.tab-btn[data-page="chat"]').click(); });
+        document.getElementById('matchCloseBtn')?.addEventListener('click', () => document.getElementById('matchOverlay').style.display = 'none');
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -106,6 +119,7 @@ const B = {
                 document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
                 document.getElementById('page' + btn.dataset.page.charAt(0).toUpperCase() + btn.dataset.page.slice(1)).classList.add('active');
                 if (btn.dataset.page === 'browse') this.loadProfiles();
+                if (btn.dataset.page === 'swipe') this.initSwipe();
                 if (btn.dataset.page === 'matches') this.loadMatches();
             });
         });
@@ -148,7 +162,8 @@ const B = {
                 ${img ? `<img class="profile-photo" src="${img}" onerror="this.innerHTML='📷'">` : '<div class="profile-photo">📷</div>'}
                 <div class="profile-info">
                     <div class="name">${p.pseudo}, ${p.age || '?'}</div>
-                    <div class="meta">${p.city || ''} ${p.country || ''}</div>
+                    <div class="meta">${p.profession ? p.profession + ' · ' : ''}${p.city || ''} ${p.country || ''}</div>
+                    ${p.looking_for ? `<div style="font-size:.7rem;color:#ff3b3b;margin-top:.2rem">❤️ ${p.looking_for}</div>` : ''}
                     <div class="actions"><button class="btn-like" onclick="B.like('${p.email}')">❤️ J'aime</button></div>
                 </div>
             </div>`;
@@ -171,7 +186,9 @@ const B = {
             ${photos.length > 0 ? photos.map(u => `<img src="${u}" onerror="this.style.display='none'">`).join('') : ''}
             <div class="detail-info">
                 <div class="detail-name">${p.pseudo}, ${p.age || '?'}</div>
-                <div class="detail-meta">${p.gender} · ${p.city || ''} ${p.country || ''}</div>
+                <div class="detail-meta">${p.gender} · ${p.profession ? p.profession + ' · ' : ''}${p.city || ''} ${p.country || ''}</div>
+                ${p.looking_for ? `<div style="color:#ff3b3b;font-size:.85rem;margin:.3rem 0">❤️ ${p.looking_for}</div>` : ''}
+                ${p.interests && p.interests.length > 0 ? `<div style="color:#999;font-size:.75rem;margin:.3rem 0">🏷️ ${p.interests.join(', ')}</div>` : ''}
                 ${p.bio ? `<div class="detail-bio">${p.bio}</div>` : ''}
                 <div class="detail-actions">
                     <button class="btn-like" onclick="B.like('${p.email}');document.querySelector('.modal-overlay').remove()">❤️ J'aime</button>
@@ -257,10 +274,14 @@ const B = {
         const photos = document.getElementById('editPhotos').value.split(',').map(s => s.trim()).filter(s => s);
         const photosPrivate = document.getElementById('editPhotosPrivate').checked;
         localStorage.setItem('solo_photos_private', photosPrivate ? '1' : '0');
+        const interests = document.getElementById('editInterests').value.split(',').map(s => s.trim()).filter(s => s);
         const r = await fetch('/api/solo/me', {
             method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
             body: JSON.stringify({
                 pseudo: document.getElementById('editPseudo').value.trim(),
+                profession: document.getElementById('editProfession').value.trim(),
+                looking_for: document.getElementById('editLooking').value,
+                interests,
                 age: parseInt(document.getElementById('editAge').value),
                 country: document.getElementById('editCountry').value,
                 city: document.getElementById('editCity').value.trim(),
@@ -291,6 +312,60 @@ const B = {
     },
 
     esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); },
+
+    async initSwipe() {
+        this.dailyLikes = parseInt(localStorage.getItem('solo_likes_today_' + new Date().toDateString()) || '0');
+        this.swipeIndex = 0;
+        document.getElementById('swipeCounter').textContent = '❤️ ' + (10 - this.dailyLikes) + ' aujourd\'hui';
+        const r = await fetch('/api/solo/profiles?' + new URLSearchParams({ limit: '20' }), { headers: { 'Authorization': `Bearer ${this.token}` } });
+        const d = await r.json();
+        this.swipeProfiles = d.profiles || [];
+        this.renderSwipeCard();
+    },
+
+    renderSwipeCard() {
+        const card = document.getElementById('swipeCard');
+        if (this.swipeIndex >= this.swipeProfiles.length) {
+            card.innerHTML = '<div class="swipe-empty"><p>🎉 Plus de profils !</p><p style="color:#888;font-size:.8rem">Reviens plus tard ou élargis tes filtres</p></div>';
+            return;
+        }
+        const p = this.swipeProfiles[this.swipeIndex];
+        const photos = Array.isArray(p.photos) ? p.photos : [];
+        card.innerHTML = `
+            <div class="swipe-photo">${photos[0] ? `<img src="${photos[0]}" onerror="this.parentElement.innerHTML='📷'">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;color:#555">📷</div>'}</div>
+            <div class="swipe-info">
+                <div class="swipe-name">${p.pseudo}, ${p.age || '?'}</div>
+                <div class="swipe-meta">${p.profession ? p.profession + ' · ' : ''}${p.city || ''} ${p.country || ''}</div>
+                ${p.looking_for ? `<div class="swipe-looking">❤️ ${p.looking_for}</div>` : ''}
+                ${p.interests && p.interests.length > 0 ? `<div class="swipe-interests">${p.interests.map(x => '#' + x).join(' ')}</div>` : ''}
+                ${p.bio ? `<div class="swipe-bio">${p.bio}</div>` : ''}
+            </div>
+        `;
+    },
+
+    async swipeAction(like, superLike = false) {
+        const p = this.swipeProfiles[this.swipeIndex];
+        if (!p) return;
+        if (like && this.dailyLikes >= 10 && this.user.plan === 'free') {
+            this.toast('⚠️ Limite de 10 likes/jour. Passe VIP pour plus !');
+            return;
+        }
+        if (like) {
+            this.dailyLikes++;
+            localStorage.setItem('solo_likes_today_' + new Date().toDateString(), this.dailyLikes);
+            document.getElementById('swipeCounter').textContent = '❤️ ' + (10 - this.dailyLikes) + ' aujourd\'hui';
+            const r = await fetch('/api/solo/like', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+                body: JSON.stringify({ targetEmail: p.email })
+            });
+            const d = await r.json();
+            if (d.matched) {
+                document.getElementById('matchOverlay').style.display = 'flex';
+            }
+        }
+        this.swipeIndex++;
+        this.renderSwipeCard();
+    },
 
     ecoMode: false,
     toggleEco() {
