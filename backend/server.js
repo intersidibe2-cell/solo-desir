@@ -26,6 +26,9 @@ app.use(express.static(path.join(__dirname, '..')));
 
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 100, message: { success: false, message: 'Trop de requêtes' } });
 app.use('/api/', globalLimiter);
+const authLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, message: { success: false, message: 'Trop de tentatives, réessaie dans 1 minute' } });
+app.use('/api/solo/login', authLimiter);
+app.use('/api/solo/register', authLimiter);
 
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || crypto.randomBytes(32).toString('hex');
@@ -60,13 +63,20 @@ async function initDB() {
                 id SERIAL PRIMARY KEY, from_user TEXT, to_user TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(from_user, to_user)
             );
             CREATE TABLE IF NOT EXISTS solo_matches (
-                id SERIAL PRIMARY KEY, user1 TEXT, user2 TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+                id SERIAL PRIMARY KEY, user1 TEXT, user2 TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(user1, user2)
             );
             CREATE TABLE IF NOT EXISTS solo_messages (
                 id SERIAL PRIMARY KEY, match_id INTEGER, sender TEXT, content TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()
             );
         `);
         console.log('✅ PostgreSQL tables created');
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_likes_from ON solo_likes(from_user)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_likes_to ON solo_likes(to_user)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_matches_user1 ON solo_matches(user1)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_matches_user2 ON solo_matches(user2)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_match ON solo_messages(match_id)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_users_phone ON solo_users(phone)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_users_country_gender ON solo_users(country, gender)`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS profession TEXT DEFAULT ''`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS looking_for TEXT DEFAULT ''`);
@@ -207,7 +217,7 @@ app.post('/api/solo/like', authMiddleware, async (req, res) => {
         await pool.query('INSERT INTO solo_likes (from_user, to_user) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.user.email, targetEmail]);
         const rev = (await pool.query('SELECT * FROM solo_likes WHERE from_user = $1 AND to_user = $2', [targetEmail, req.user.email])).rows[0];
         if (rev) {
-            await pool.query('INSERT INTO solo_matches (user1, user2) VALUES ($1,$2)', [req.user.email, targetEmail]);
+            await pool.query('INSERT INTO solo_matches (user1, user2) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.user.email, targetEmail]);
             const m = (await pool.query('SELECT * FROM solo_matches WHERE user1 = $1 AND user2 = $2', [req.user.email, targetEmail])).rows[0];
             return res.json({ success: true, matched: true, matchId: m.id });
         }
@@ -224,10 +234,16 @@ app.post('/api/solo/like', authMiddleware, async (req, res) => {
 });
 
 app.get('/api/solo/matches', authMiddleware, async (req, res) => {
-    const matches = pool
+    const rawMatches = pool
         ? (await pool.query('SELECT id, user1, user2, created_at FROM solo_matches WHERE user1 = $1 OR user2 = $1 ORDER BY created_at DESC', [req.user.email])).rows
         : MATCHES_MEM.filter(m => m.user1 === req.user.email || m.user2 === req.user.email);
-    res.json({ success: true, matches: matches.map(m => ({ id: m.id, with: m.user1 === req.user.email ? m.user2 : m.user1, created_at: m.created_at })) });
+    const result = [];
+    for (const m of rawMatches) {
+        const otherEmail = m.user1 === req.user.email ? m.user2 : m.user1;
+        const other = pool ? (await pool.query('SELECT pseudo FROM solo_users WHERE email = $1', [otherEmail])).rows[0] : Object.values(USERS_MEM).find(u => u.email === otherEmail);
+        result.push({ id: m.id, with: otherEmail, pseudo: other?.pseudo || otherEmail, created_at: m.created_at });
+    }
+    res.json({ success: true, matches: result });
 });
 
 app.post('/api/solo/message', authMiddleware, async (req, res) => {
@@ -330,6 +346,10 @@ app.post('/api/solo/admin/block', async (req, res) => {
 });
 
 app.get('/api/solo/messages/:matchId', authMiddleware, async (req, res) => {
+    const match = pool
+        ? (await pool.query('SELECT * FROM solo_matches WHERE id = $1 AND (user1 = $2 OR user2 = $2)', [req.params.matchId, req.user.email])).rows[0]
+        : MATCHES_MEM.find(m => m.id === req.params.matchId && (m.user1 === req.user.email || m.user2 === req.user.email));
+    if (!match) return res.status(403).json({ success: false, message: 'Accès non autorisé' });
     const msgs = pool
         ? (await pool.query('SELECT sender, content, created_at FROM solo_messages WHERE match_id = $1 ORDER BY created_at', [req.params.matchId])).rows
         : (MSGS_MEM[req.params.matchId] || []);

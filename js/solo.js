@@ -181,13 +181,13 @@ const B = {
         grid.innerHTML = this.profiles.map(p => {
             const photos = Array.isArray(p.photos) ? p.photos : typeof p.photos === 'string' ? p.photos.split(',').map(s => s.trim()).filter(s => s) : [];
             const img = photos[0] || '';
-            return `<div class="profile-card" data-email="${p.email}">
-                ${img ? `<img class="profile-photo" src="${img}" onerror="this.innerHTML='📷'">` : '<div class="profile-photo">📷</div>'}
+            return `<div class="profile-card" data-email="${this.esc(p.email)}">
+                ${img ? `<img class="profile-photo" src="${this.esc(img)}" onerror="this.innerHTML='📷'">` : '<div class="profile-photo">📷</div>'}
                 <div class="profile-info">
-                    <div class="name">${p.pseudo}, ${p.age || '?'}</div>
-                    <div class="meta">${p.profession ? p.profession + ' · ' : ''}${p.city || ''} ${p.country || ''}</div>
-                    ${p.looking_for ? `<div style="font-size:.7rem;color:#ff3b3b;margin-top:.2rem">❤️ ${p.looking_for}</div>` : ''}
-                    <div class="actions"><button class="btn-like" onclick="B.like('${p.email}')">❤️ J'aime</button></div>
+                    <div class="name">${this.esc(p.pseudo)}, ${p.age || '?'}</div>
+                    <div class="meta">${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}</div>
+                    ${p.looking_for ? `<div style="font-size:.7rem;color:#ff3b3b;margin-top:.2rem">❤️ ${this.esc(p.looking_for)}</div>` : ''}
+                    <div class="actions"><button class="btn-like" onclick="B.like('${this.esc(p.email)}')">❤️ J'aime</button></div>
                 </div>
             </div>`;
         }).join('');
@@ -206,17 +206,17 @@ const B = {
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.innerHTML = `<div class="modal-detail">
-            ${photos.length > 0 ? photos.map(u => `<img src="${u}" onerror="this.style.display='none'">`).join('') : ''}
+            ${photos.length > 0 ? photos.map(u => `<img src="${this.esc(u)}" onerror="this.style.display='none'">`).join('') : ''}
             <div class="detail-info">
-                <div class="detail-name">${p.pseudo}, ${p.age || '?'}</div>
-                <div class="detail-meta">${p.gender} · ${p.profession ? p.profession + ' · ' : ''}${p.city || ''} ${p.country || ''}</div>
-                ${p.looking_for ? `<div style="color:#ff3b3b;font-size:.85rem;margin:.3rem 0">❤️ ${p.looking_for}</div>` : ''}
-                ${p.interests && p.interests.length > 0 ? `<div style="color:#999;font-size:.75rem;margin:.3rem 0">🏷️ ${p.interests.join(', ')}</div>` : ''}
-                ${p.bio ? `<div class="detail-bio">${p.bio}</div>` : ''}
+                <div class="detail-name">${this.esc(p.pseudo)}, ${p.age || '?'}</div>
+                <div class="detail-meta">${this.esc(p.gender)} · ${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}</div>
+                ${p.looking_for ? `<div style="color:#ff3b3b;font-size:.85rem;margin:.3rem 0">❤️ ${this.esc(p.looking_for)}</div>` : ''}
+                ${p.interests && p.interests.length > 0 ? `<div style="color:#999;font-size:.75rem;margin:.3rem 0">🏷️ ${p.interests.map(i => this.esc(i)).join(', ')}</div>` : ''}
+                ${p.bio ? `<div class="detail-bio">${this.esc(p.bio)}</div>` : ''}
                 <div class="detail-actions">
-                    <button class="btn-like" onclick="B.like('${p.email}');document.querySelector('.modal-overlay').remove()">❤️ J'aime</button>
+                    <button class="btn-like" onclick="B.like('${this.esc(p.email)}');document.querySelector('.modal-overlay').remove()">❤️ J'aime</button>
                     <button class="btn-close-detail" onclick="this.closest('.modal-overlay').remove()">Fermer</button>
-                    <button class="btn-block" onclick="B.blockUser('${p.email}');document.querySelector('.modal-overlay').remove()" title="Bloquer">🚫</button>
+                    <button class="btn-block" onclick="B.blockUser('${this.esc(p.email)}');document.querySelector('.modal-overlay').remove()" title="Bloquer">🚫</button>
                 </div>
             </div>
         </div>`;
@@ -230,6 +230,8 @@ const B = {
             body: JSON.stringify({ targetEmail })
         });
         const d = await r.json();
+        const btns = document.querySelectorAll(`.profile-card[data-email="${targetEmail}"] .btn-like, .detail-actions .btn-like`);
+        btns.forEach(b => { b.classList.add('liked'); b.textContent = '❤️ Liké'; });
         if (d.matched) {
             this.toast('💘 Match ! Allez dans Chat pour discuter');
             this.loadMatches();
@@ -245,7 +247,7 @@ const B = {
         const list = document.getElementById('matchesList');
         if (!this.matches.length) { list.innerHTML = '<p style="text-align:center;color:#666;padding:2rem">Aucun match. Like des profils !</p>'; return; }
         list.innerHTML = this.matches.map(m => `<div class="match-item" data-match="${m.id}" data-with="${m.with}">
-            <div class="match-avatar">💘</div><span class="match-name">${m.with}</span>
+            <div class="match-avatar">💘</div><span class="match-name">${this.esc(m.pseudo || m.with)}</span>
         </div>`).join('');
         document.querySelectorAll('.match-item').forEach(item => {
             item.addEventListener('click', () => this.openChat(item.dataset.match, item.dataset.with));
@@ -370,13 +372,13 @@ const B = {
         const p = this.swipeProfiles[this.swipeIndex];
         const photos = Array.isArray(p.photos) ? p.photos : [];
         card.innerHTML = `
-            <div class="swipe-photo">${photos[0] ? `<img src="${photos[0]}" onerror="this.parentElement.innerHTML='📷'">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;color:#555">📷</div>'}</div>
+            <div class="swipe-photo">${photos[0] ? `<img src="${this.esc(photos[0])}" onerror="this.parentElement.innerHTML='📷'">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;color:#555">📷</div>'}</div>
             <div class="swipe-info">
-                <div class="swipe-name">${p.pseudo}, ${p.age || '?'}</div>
-                <div class="swipe-meta">${p.profession ? p.profession + ' · ' : ''}${p.city || ''} ${p.country || ''}</div>
-                ${p.looking_for ? `<div class="swipe-looking">❤️ ${p.looking_for}</div>` : ''}
-                ${p.interests && p.interests.length > 0 ? `<div class="swipe-interests">${p.interests.map(x => '#' + x).join(' ')}</div>` : ''}
-                ${p.bio ? `<div class="swipe-bio">${p.bio}</div>` : ''}
+                <div class="swipe-name">${this.esc(p.pseudo)}, ${p.age || '?'}</div>
+                <div class="swipe-meta">${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}</div>
+                ${p.looking_for ? `<div class="swipe-looking">❤️ ${this.esc(p.looking_for)}</div>` : ''}
+                ${p.interests && p.interests.length > 0 ? `<div class="swipe-interests">${p.interests.map(x => '#' + this.esc(x)).join(' ')}</div>` : ''}
+                ${p.bio ? `<div class="swipe-bio">${this.esc(p.bio)}</div>` : ''}
             </div>
         `;
     },
@@ -424,7 +426,7 @@ const B = {
             const r = await fetch('/api/solo/referral', { headers: { 'Authorization': `Bearer ${this.token}` } });
             const d = await r.json();
             if (!d.success) return;
-            const link = 'https://solodesir.com/solo.html?ref=' + d.referralCode;
+            const link = window.location.origin + '/solo.html?ref=' + d.referralCode;
             document.getElementById('refLink').value = link;
             document.getElementById('refCount').textContent = d.referralsCount + '/3';
             document.getElementById('refFill').style.width = Math.min(d.referralsCount / 3 * 100, 100) + '%';
@@ -440,8 +442,8 @@ const B = {
 
     copyRefLink() {
         var input = document.getElementById('refLink');
-        input.select(); document.execCommand('copy');
-        this.toast('Lien copie');
+        input.select(); navigator.clipboard.writeText(input.value).catch(() => document.execCommand('copy'));
+        this.toast('Lien copié ✅');
     },
 
     shareRefWhatsApp() {
