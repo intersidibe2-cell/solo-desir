@@ -71,6 +71,9 @@ async function initDB() {
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS looking_for TEXT DEFAULT ''`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]'`);
         console.log('✅ PostgreSQL migrations done');
+        console.log('✅ PostgreSQL connected');
+        return true;
+    } finally { client.release(); }
 }
 
 // ─── Auth ────────────────────────────────────────────
