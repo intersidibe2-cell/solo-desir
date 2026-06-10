@@ -27,21 +27,31 @@
                     <button class="tab" data-tab="register">Inscription</button>
                 </div>
                 <form id="loginForm" class="auth-form">
-                    <input type="text" id="loginField" placeholder="Téléphone" required style="font-size:1rem;font-weight:500;text-align:center">
-                    <input type="password" id="loginPassword" placeholder="Mot de passe" required>
+                    <div class="input-icon"><span>📱</span><input type="text" id="loginField" placeholder="Téléphone" required></div>
+                    <div class="input-icon"><span>🔒</span><input type="password" id="loginPassword" placeholder="Mot de passe" required></div>
                     <button type="submit">Se connecter</button>
                 </form>
                 <form id="registerForm" class="auth-form" style="display:none">
-                    <input type="text" id="regPhone" placeholder="Téléphone — ex: +223 70 00 00 00" required style="font-size:1.05rem;font-weight:600;text-align:center">
-                    <input type="text" id="regPseudo" placeholder="Choisis ton pseudo" required>
-                    <input type="password" id="regPassword" placeholder="Mot de passe" required>
+                    <div class="input-icon"><span>👤</span><input type="text" id="regPseudo" placeholder="Choisis ton pseudo" required></div>
+                    <div class="input-icon"><span>🔒</span><input type="password" id="regPassword" placeholder="Mot de passe" required></div>
+                    <div class="flag-row">
+                        <span class="flag" data-code="ML" data-prefix="+223" title="Mali">🇲🇱</span>
+                        <span class="flag" data-code="CI" data-prefix="+225" title="Côte d'Ivoire">🇨🇮</span>
+                        <span class="flag" data-code="SN" data-prefix="+221" title="Sénégal">🇸🇳</span>
+                        <span class="flag" data-code="BF" data-prefix="+226" title="Burkina Faso">🇧🇫</span>
+                        <span class="flag" data-code="GN" data-prefix="+224" title="Guinée">🇬🇳</span>
+                        <span class="flag" data-code="CM" data-prefix="+237" title="Cameroun">🇨🇲</span>
+                    </div>
+                    <div class="input-icon"><span id="phonePrefix">📱</span><input type="text" id="regPhone" placeholder="70 00 00 00" required></div>
                     <div class="gender-btns">
-                        <button type="button" id="genderMale" class="gender-btn" onclick="document.getElementById('regGender').value='homme';this.classList.add('active');document.getElementById('genderFemale').classList.remove('active')">👨 Homme</button>
-                        <button type="button" id="genderFemale" class="gender-btn" onclick="document.getElementById('regGender').value='femme';this.classList.add('active');document.getElementById('genderMale').classList.remove('active')">👩 Femme</button>
+                        <button type="button" class="gender-btn" data-val="homme">👨 Homme</button>
+                        <button type="button" class="gender-btn" data-val="femme">👩 Femme</button>
+                        <button type="button" class="gender-btn" data-val="couple">👥 Couple</button>
                         <input type="hidden" id="regGender" value="">
                     </div>
-                    <input type="number" id="regAge" placeholder="Âge (optionnel)" min="18" max="99" style="font-size:0.85rem">
+                    <div class="input-icon"><span>🎂</span><input type="number" id="regAge" placeholder="Âge (optionnel)" min="18" max="99"></div>
                     <button type="submit">Créer mon compte</button>
+                    <p class="auth-note">📱 Sans email · 100% discret</p>
                 </form>
                 <div id="authError" class="error-msg" style="display:none"></div>
             </div>

@@ -21,6 +21,23 @@ const B = {
                 document.getElementById(t.dataset.tab === 'login' ? 'registerForm' : 'loginForm').style.display = 'none';
             });
         });
+        document.querySelectorAll('.flag').forEach(f => {
+            f.addEventListener('click', () => {
+                document.querySelectorAll('.flag').forEach(x => x.classList.remove('active'));
+                f.classList.add('active');
+                document.getElementById('phonePrefix').textContent = f.dataset.prefix;
+                document.getElementById('regPhone').dataset.country = f.dataset.code;
+                document.getElementById('regPhone').focus();
+            });
+        });
+        document.querySelectorAll('.gender-btn').forEach(b => {
+            b.addEventListener('click', () => {
+                document.querySelectorAll('.gender-btn').forEach(x => x.classList.remove('active'));
+                b.classList.add('active');
+                document.getElementById('regGender').value = b.dataset.val;
+            });
+        });
+        document.querySelector('.flag:nth-child(1)')?.click();
     },
 
     async login() {
@@ -37,12 +54,17 @@ const B = {
 
     async register() {
         this.showErr('');
+        const prefixEl = document.getElementById('phonePrefix');
+        const prefix = prefixEl.textContent.replace(/[^0-9+]/g, '') || '+223';
+        const phoneRaw = document.getElementById('regPhone').value.trim();
+        const country = document.getElementById('regPhone').dataset.country || 'ML';
         const r = await fetch('/api/solo/register', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                phone: document.getElementById('regPhone').value.trim(),
                 pseudo: document.getElementById('regPseudo').value.trim(),
                 password: document.getElementById('regPassword').value,
+                phone: prefix + phoneRaw,
+                country: country,
                 gender: document.getElementById('regGender').value,
                 age: parseInt(document.getElementById('regAge').value) || 25
             })
