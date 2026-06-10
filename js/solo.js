@@ -41,12 +41,10 @@ const B = {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 phone: document.getElementById('regPhone').value.trim(),
-                email: document.getElementById('regEmail')?.value?.trim() || '',
                 pseudo: document.getElementById('regPseudo').value.trim(),
                 password: document.getElementById('regPassword').value,
                 gender: document.getElementById('regGender').value,
-                age: parseInt(document.getElementById('regAge').value),
-                country: document.getElementById('regCountry').value
+                age: parseInt(document.getElementById('regAge').value) || 25
             })
         });
         const d = await r.json();
@@ -84,7 +82,6 @@ const B = {
         document.getElementById('editAge').value = d.user.age || '';
         document.getElementById('editCountry').value = d.user.country || 'ML';
         document.getElementById('editCity').value = d.user.city || '';
-        document.getElementById('editPhone').value = d.user.phone || '';
         document.getElementById('editBio').value = d.user.bio || '';
         document.getElementById('editPhotos').value = (d.user.photos || []).join(', ');
         document.getElementById('editPhotosPrivate').checked = localStorage.getItem('solo_photos_private') === '1';
@@ -306,7 +303,6 @@ const B = {
                 age: parseInt(document.getElementById('editAge').value),
                 country: document.getElementById('editCountry').value,
                 city: document.getElementById('editCity').value.trim(),
-                phone: document.getElementById('editPhone')?.value?.trim() || '',
                 bio: document.getElementById('editBio').value.trim(),
                 photos
             })

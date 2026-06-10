@@ -98,9 +98,13 @@ function generateTokens(user) {
 
 // ─── Solo API ────────────────────────────────────────
 app.post('/api/solo/register', async (req, res) => {
-    const { pseudo, email, password, gender, age, country, city, phone, ref } = req.body;
+    const { pseudo, email, password, gender, age, phone, ref } = req.body;
     if (!pseudo || !password || !gender || !phone) return res.status(400).json({ success: false, message: 'Téléphone, pseudo, mot de passe et genre requis' });
     const userEmail = email || ('phone_' + phone.replace(/[^0-9+]/g, '') + '@solo.local');
+    let country = 'ML';
+    const p = phone.replace(/[^0-9+]/g, '');
+    const prefixMap = { '+223':'ML','+225':'CI','+221':'SN','+226':'BF','+224':'GN','+237':'CM','+229':'BJ','+228':'TG','+234':'NG','+233':'GH' };
+    for (const [pref, c] of Object.entries(prefixMap)) { if (p.startsWith(pref)) { country = c; break; } }
     const existing = pool
         ? (await pool.query('SELECT * FROM solo_users WHERE email = $1 OR phone = $2 OR pseudo = $3', [userEmail.toLowerCase(), phone, pseudo])).rows[0]
         : Object.values(USERS_MEM).find(u => u.email === userEmail.toLowerCase() || u.phone === phone || u.pseudo === pseudo);
@@ -110,7 +114,7 @@ app.post('/api/solo/register', async (req, res) => {
     const referralCode = crypto.randomBytes(4).toString('hex');
     const user = {
         id: crypto.randomUUID(), pseudo, email: userEmail.toLowerCase(), password: hash, gender, age: age || 25,
-        country: country || 'ML', city: city || '', phone: phone || '', photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
+        country: country, city: '', phone: phone || '', photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
         messages_today: 0, matches_today: 0, last_message_date: '', referral_code: referralCode, referred_by: ref || '', referrals_count: 0, created_at: new Date().toISOString()
     };
     if (pool) {

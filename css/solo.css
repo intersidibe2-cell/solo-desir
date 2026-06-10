@@ -166,3 +166,11 @@ body.eco-mode .profile-photo{width:50px;height:50px;border-radius:50%;display:fl
 .referral-link input{flex:1;padding:.5rem;border-radius:8px;border:1px solid #2a2a3e;background:#1a1a2e;color:#666;font-size:.7rem}
 .referral-link button{background:#1a1a2e;border:1px solid #2a2a3e;color:#eee;padding:.4rem .7rem;border-radius:8px;cursor:pointer;font-size:.75rem;white-space:nowrap}
 .referral-link button:hover{background:#2a2a3e}
+/* Auth improvements */
+.auth-card{padding:2.5rem 1.8rem;max-width:420px}
+.auth-form{gap:.9rem}
+.auth-form input{padding:.85rem 1rem;font-size:.9rem}
+.gender-btns{display:flex;gap:.7rem}
+.gender-btn{flex:1;padding:.7rem;border-radius:12px;border:2px solid #2a2a3e;background:#1a1a2e;color:#888;cursor:pointer;font-size:.9rem;font-weight:500;transition:.2s}
+.gender-btn.active{border-color:#ff3b3b;background:rgba(255,59,59,.1);color:#ff3b3b}
+.gender-btn:hover{border-color:#444}
