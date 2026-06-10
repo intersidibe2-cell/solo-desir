@@ -27,7 +27,7 @@ const B = {
         this.showErr('');
         const r = await fetch('/api/solo/login', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: document.getElementById('loginEmail').value.trim(), password: document.getElementById('loginPassword').value })
+            body: JSON.stringify({ login: document.getElementById('loginField').value.trim(), password: document.getElementById('loginPassword').value })
         });
         const d = await r.json();
         if (!d.success) return this.showErr(d.message);
@@ -40,13 +40,13 @@ const B = {
         const r = await fetch('/api/solo/register', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                phone: document.getElementById('regPhone').value.trim(),
+                email: document.getElementById('regEmail')?.value?.trim() || '',
                 pseudo: document.getElementById('regPseudo').value.trim(),
-                email: document.getElementById('regEmail').value.trim(),
                 password: document.getElementById('regPassword').value,
                 gender: document.getElementById('regGender').value,
                 age: parseInt(document.getElementById('regAge').value),
-                country: document.getElementById('regCountry').value,
-                phone: document.getElementById('regPhone')?.value?.trim() || ''
+                country: document.getElementById('regCountry').value
             })
         });
         const d = await r.json();

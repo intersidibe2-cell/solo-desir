@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Solo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:Inter,system-ui,sans-serif;background:#0a0a0f;color:#eee;padding:2rem}
+        .container{max-width:900px;margin:0 auto}
+        h1{font-size:1.5rem;margin-bottom:1.5rem}
+        h1 span{color:#ff3b3b}
+        .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:2rem}
+        .stat-card{background:#141420;border-radius:12px;padding:1.2rem;border:1px solid #1a1a2e;text-align:center}
+        .stat-num{font-size:2rem;font-weight:700;color:#ff3b3b}
+        .stat-label{color:#888;font-size:.8rem;margin-top:.3rem}
+        table{width:100%;border-collapse:collapse;background:#141420;border-radius:12px;overflow:hidden;border:1px solid #1a1a2e}
+        th{text-align:left;padding:.7rem 1rem;background:#1a1a2e;font-size:.75rem;color:#888;text-transform:uppercase}
+        td{padding:.6rem 1rem;font-size:.8rem;border-bottom:1px solid #1a1a2e}
+        td:last-child{text-align:right}
+        .btn-block{background:1a1a2e;color:#ff3b3b;border:1px solid #ff3b3b;padding:.3rem .7rem;border-radius:6px;cursor:pointer;font-size:.7rem}
+        .btn-block:hover{background:#ff3b3b;color:#fff}
+        .empty{text-align:center;color:#666;padding:2rem}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 <span>Solo</span> — Admin</h1>
+        <div class="stats">
+            <div class="stat-card"><div class="stat-num" id="statUsers">-</div><div class="stat-label">Utilisateurs</div></div>
+            <div class="stat-card"><div class="stat-num" id="statNew">-</div><div class="stat-label">Nouveaux (7j)</div></div>
+            <div class="stat-card"><div class="stat-num" id="statMatches">-</div><div class="stat-label">Matchs</div></div>
+            <div class="stat-card"><div class="stat-num" id="statPremium">-</div><div class="stat-label">Premium</div></div>
+        </div>
+        <h2>Utilisateurs récents</h2>
+        <table>
+            <thead><tr><th>Pseudo</th><th>Contact</th><th>Genre</th><th>Âge</th><th>Pays</th><th>Plan</th><th>Date</th><th></th></tr></thead>
+            <tbody id="userTable"></tbody>
+        </table>
+    </div>
+    <script>
+        const KEY = 'solo2025';
+        async function load() {
+            const s = await fetch('/api/solo/admin/stats?key=' + KEY).then(r => r.json());
+            document.getElementById('statUsers').textContent = s.users.total;
+            document.getElementById('statNew').textContent = s.users.new;
+            document.getElementById('statMatches').textContent = s.matches;
+            document.getElementById('statPremium').textContent = s.users.premium;
+            const u = await fetch('/api/solo/admin/users?key=' + KEY).then(r => r.json());
+            const tbody = document.getElementById('userTable');
+            if (!u.users.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Aucun utilisateur</td></tr>'; return; }
+            tbody.innerHTML = u.users.map(us => `<tr>
+                <td>${us.pseudo}</td>
+                <td>${us.phone || us.email}</td>
+                <td>${us.gender}</td>
+                <td>${us.age}</td>
+                <td>${us.country}</td>
+                <td>${us.plan}</td>
+                <td>${(us.created_at||'').substring(0,10)}</td>
+                <td><button class="btn-block" onclick="block('${us.email}')">🚫 Bloquer</button></td>
+            </tr>`).join('');
+        }
+        async function block(email) {
+            if (!confirm('Bloquer définitivement ' + email + ' ?')) return;
+            await fetch('/api/solo/admin/block', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY, email}) });
+            load();
+        }
+        load();
+    </script>
+</body>
+</html>

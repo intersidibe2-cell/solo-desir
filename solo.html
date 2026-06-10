@@ -27,13 +27,14 @@
                     <button class="tab" data-tab="register">Inscription</button>
                 </div>
                 <form id="loginForm" class="auth-form">
-                    <input type="text" id="loginEmail" placeholder="Email" required>
+                    <input type="text" id="loginField" placeholder="Téléphone ou email" required>
                     <input type="password" id="loginPassword" placeholder="Mot de passe" required>
                     <button type="submit">Se connecter</button>
                 </form>
                 <form id="registerForm" class="auth-form" style="display:none">
+                    <input type="text" id="regPhone" placeholder="Téléphone (ex: +223 70 00 00 00)" required style="font-size:1rem;font-weight:600">
+                    <input type="email" id="regEmail" placeholder="Email (optionnel)" style="font-size:0.8rem;color:#888">
                     <input type="text" id="regPseudo" placeholder="Pseudo" required>
-                    <input type="email" id="regEmail" placeholder="Email" required>
                     <input type="password" id="regPassword" placeholder="Mot de passe" required>
                     <select id="regGender" required>
                         <option value="">Genre</option>

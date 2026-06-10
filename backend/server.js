@@ -95,15 +95,16 @@ function generateTokens(user) {
 // ─── Solo API ────────────────────────────────────────
 app.post('/api/solo/register', async (req, res) => {
     const { pseudo, email, password, gender, age, country, city, phone } = req.body;
-    if (!pseudo || !email || !password || !gender) return res.status(400).json({ success: false, message: 'Pseudo, email, mot de passe et genre requis' });
+    if (!pseudo || !password || !gender || !phone) return res.status(400).json({ success: false, message: 'Téléphone, pseudo, mot de passe et genre requis' });
+    const userEmail = email || ('phone_' + phone.replace(/[^0-9+]/g, '') + '@solo.local');
     const existing = pool
-        ? (await pool.query('SELECT * FROM solo_users WHERE email = $1 OR pseudo = $2', [email.toLowerCase(), pseudo])).rows[0]
-        : Object.values(USERS_MEM).find(u => u.email === email.toLowerCase() || u.pseudo === pseudo);
-    if (existing) return res.status(409).json({ success: false, message: 'Email ou pseudo déjà utilisé' });
+        ? (await pool.query('SELECT * FROM solo_users WHERE email = $1 OR phone = $2 OR pseudo = $3', [userEmail.toLowerCase(), phone, pseudo])).rows[0]
+        : Object.values(USERS_MEM).find(u => u.email === userEmail.toLowerCase() || u.phone === phone || u.pseudo === pseudo);
+    if (existing) return res.status(409).json({ success: false, message: 'Téléphone, email ou pseudo déjà utilisé' });
     const salt = await bcrypt.genSalt(10);
     const hash = await bcrypt.hash(password, salt);
     const user = {
-        id: crypto.randomUUID(), pseudo, email: email.toLowerCase(), password: hash, gender, age: age || 25,
+        id: crypto.randomUUID(), pseudo, email: userEmail.toLowerCase(), password: hash, gender, age: age || 25,
         country: country || 'ML', city: city || '', phone: phone || '', photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
         messages_today: 0, matches_today: 0, last_message_date: '', created_at: new Date().toISOString()
     };
@@ -115,18 +116,19 @@ app.post('/api/solo/register', async (req, res) => {
         );
     } else { USERS_MEM[user.email] = user; }
     const tokens = generateTokens(user);
-    res.json({ success: true, token: tokens.accessToken, user: { pseudo, email: user.email, gender, plan: 'free' } });
+    res.json({ success: true, token: tokens.accessToken, user: { pseudo, email: user.email, phone, gender, plan: 'free' } });
 });
 
 app.post('/api/solo/login', async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ success: false, message: 'Email et mot de passe requis' });
+    const { login, password } = req.body;
+    if (!login || !password) return res.status(400).json({ success: false, message: 'Identifiant et mot de passe requis' });
+    const isEmail = login.includes('@');
     const user = pool
-        ? (await pool.query('SELECT * FROM solo_users WHERE email = $1', [email.toLowerCase().trim()])).rows[0]
-        : USERS_MEM[email.toLowerCase().trim()];
-    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ success: false, message: 'Email ou mot de passe incorrect' });
+        ? (await pool.query(isEmail ? 'SELECT * FROM solo_users WHERE email = $1' : 'SELECT * FROM solo_users WHERE phone = $1 OR email = $1', [login.trim()])).rows[0]
+        : (isEmail ? USERS_MEM[login.trim()] : Object.values(USERS_MEM).find(u => u.phone === login.trim()));
+    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ success: false, message: 'Identifiant ou mot de passe incorrect' });
     const tokens = generateTokens(user);
-    res.json({ success: true, token: tokens.accessToken, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, plan: user.plan } });
+    res.json({ success: true, token: tokens.accessToken, user: { pseudo: user.pseudo, email: user.email, phone: user.phone, gender: user.gender, plan: user.plan } });
 });
 
 app.get('/api/solo/me', authMiddleware, async (req, res) => {
@@ -247,12 +249,36 @@ app.get('/api/solo/likes-received', authMiddleware, async (req, res) => {
 });
 
 app.get('/api/solo/admin/stats', async (req, res) => {
-    const today = new Date().toDateString();
     const adminPass = req.query.key;
     if (adminPass !== 'solo2025') return res.json({ success: false });
-    const users = pool ? (await pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN created_at > NOW() - INTERVAL \'7 days\' THEN 1 END) as new, COUNT(CASE WHEN plan != \'free\' THEN 1 END) as premium FROM solo_users')).rows[0] : { total: Object.keys(USERS_MEM).length, new: 0, premium: 0 };
+    const users = pool ? (await pool.query("SELECT COUNT(*) as total, COUNT(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN 1 END) as new, COUNT(CASE WHEN plan != 'free' THEN 1 END) as premium FROM solo_users")).rows[0] : { total: Object.keys(USERS_MEM).length, new: 0, premium: 0 };
     const matches = pool ? (await pool.query('SELECT COUNT(*) as total FROM solo_matches')).rows[0].total : MATCHES_MEM.length;
     res.json({ success: true, users, matches });
+});
+
+app.get('/api/solo/admin/users', async (req, res) => {
+    if (req.query.key !== 'solo2025') return res.json({ success: false });
+    const list = pool
+        ? (await pool.query('SELECT pseudo, email, phone, gender, age, country, city, plan, created_at FROM solo_users ORDER BY created_at DESC LIMIT 200')).rows
+        : Object.values(USERS_MEM).map(u => ({ pseudo: u.pseudo, email: u.email, phone: u.phone, gender: u.gender, age: u.age, country: u.country, city: u.city, plan: u.plan, created_at: u.created_at }));
+    res.json({ success: true, users: list });
+});
+
+app.post('/api/solo/admin/block', async (req, res) => {
+    if (req.body.key !== 'solo2025') return res.json({ success: false });
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false });
+    if (pool) {
+        await pool.query('DELETE FROM solo_messages WHERE match_id IN (SELECT id FROM solo_matches WHERE user1 = $1 OR user2 = $1)', [email]);
+        await pool.query('DELETE FROM solo_matches WHERE user1 = $1 OR user2 = $1', [email]);
+        await pool.query('DELETE FROM solo_likes WHERE from_user = $1 OR to_user = $1', [email]);
+        await pool.query('DELETE FROM solo_users WHERE email = $1', [email]);
+    } else {
+        delete USERS_MEM[email];
+        for (let i = LIKES_MEM.length - 1; i >= 0; i--) { if (LIKES_MEM[i].from === email || LIKES_MEM[i].to === email) LIKES_MEM.splice(i, 1); }
+        for (let i = MATCHES_MEM.length - 1; i >= 0; i--) { if (MATCHES_MEM[i].user1 === email || MATCHES_MEM[i].user2 === email) MATCHES_MEM.splice(i, 1); }
+    }
+    res.json({ success: true, message: 'Utilisateur bloqué' });
 });
 
 app.get('/api/solo/messages/:matchId', authMiddleware, async (req, res) => {
