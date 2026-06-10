@@ -82,9 +82,8 @@
 
             <div class="tab-bar">
                 <button class="tab-btn active" data-page="browse"><i class="fas fa-users"></i> Découvrir</button>
-                <button class="tab-btn" data-page="swipe"><i class="fas fa-heart"></i> Quick Match</button>
-                <button class="tab-btn" data-page="likes"><i class="fas fa-eye"></i> Fans</button>
-                <button class="tab-btn" data-page="matches"><i class="fas fa-star"></i> Matchs</button>
+                <button class="tab-btn" data-page="swipe"><i class="fas fa-fire"></i> Quick</button>
+                <button class="tab-btn" data-page="matches"><i class="fas fa-heart"></i> Matchs</button>
                 <button class="tab-btn" data-page="chat"><i class="fas fa-comments"></i> Chat</button>
                 <button class="tab-btn" data-page="profile"><i class="fas fa-user"></i> Profil</button>
             </div>
@@ -121,6 +120,7 @@
             </div>
 
             <div id="pageMatches" class="page">
+                <div id="likesCount" style="font-size:.8rem;color:#ff3b3b;padding:.5rem 0;text-align:center;cursor:pointer" onclick="B.loadLikes()"></div>
                 <div id="matchesList" class="matches-list"></div>
             </div>
 
@@ -142,33 +142,51 @@
                 <div class="profile-edit">
                     <h3>Mon profil</h3>
                     <div id="profileScore" class="profile-score">Profil complété à <span id="scoreValue">40</span>%</div>
-                    <input type="text" id="editPseudo" placeholder="Pseudo">
-                    <input type="text" id="editProfession" placeholder="Profession (ex: Ingénieure)">
-                    <select id="editLooking">
-                        <option value="">Je cherche...</option>
-                        <option value="Mariage">Mariage</option>
-                        <option value="Relation sérieuse">Relation sérieuse</option>
-                        <option value="À voir">À voir</option>
-                        <option value="Amitié">Amitié</option>
-                    </select>
-                    <input type="text" id="editInterests" placeholder="Centres d'intérêt (séparés par des virgules)">
-                    <div class="profile-row">
-                        <select id="editStatus"><option value="">Statut marital</option><option value="Célibataire">Célibataire</option><option value="Divorcé(e)">Divorcé(e)</option><option value="Veuf(ve)">Veuf(ve)</option></select>
-                        <select id="editReligion"><option value="">Religion</option><option value="Musulman">Musulman</option><option value="Chrétien">Chrétien</option><option value="Animiste">Animiste</option><option value="Autre">Autre</option><option value="Sans">Sans</option></select>
+                    <div class="profile-fold">
+                        <button class="fold-header" onclick="this.parentElement.classList.toggle('open')">👤 Infos de base <span class="fold-arrow">▼</span></button>
+                        <div class="fold-body">
+                            <input type="text" id="editPseudo" placeholder="Pseudo">
+                            <input type="number" id="editAge" placeholder="Âge" min="18">
+                            <div class="profile-row">
+                                <select id="editStatus"><option value="">Statut marital</option><option value="Célibataire">Célibataire</option><option value="Divorcé(e)">Divorcé(e)</option><option value="Veuf(ve)">Veuf(ve)</option></select>
+                                <select id="editReligion"><option value="">Religion</option><option value="Musulman">Musulman</option><option value="Chrétien">Chrétien</option><option value="Animiste">Animiste</option><option value="Autre">Autre</option><option value="Sans">Sans</option></select>
+                        </div>
                     </div>
-                    <select id="editChildren"><option value="">Enfants</option><option value="A des enfants">A des enfants</option><option value="N'en a pas">N'en a pas</option><option value="En veut">En veut</option></select>
-                    <input type="number" id="editAge" placeholder="Âge" min="18">
-                    <select id="editCountry"><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="NG">Nigéria</option><option value="GH">Ghana</option></select>
-                    <input type="text" id="editCity" placeholder="Ville">
-                    <textarea id="editBio" placeholder="Parle de toi..." rows="3"></textarea>
-                    <div class="photos-section">
-                        <label class="photo-label">📸 Mes photos</label>
-                        <div id="photosPreview" class="photos-preview"></div>
-                        <input type="file" id="photoInput" accept="image/*" multiple style="display:none" onchange="B.uploadPhotos()">
-                        <button type="button" id="addPhotoBtn" class="btn-photo-add">+ Ajouter une photo</button>
-                        <p class="photo-hint">3 Mo max par photo. Formats JPG, PNG, WebP.</p>
+                    <div class="profile-fold open">
+                        <button class="fold-header" onclick="this.parentElement.classList.toggle('open')">🎯 Ce que je cherche <span class="fold-arrow">▼</span></button>
+                        <div class="fold-body">
+                            <input type="text" id="editProfession" placeholder="Profession (ex: Ingénieure)">
+                            <select id="editLooking">
+                                <option value="">Je cherche...</option>
+                                <option value="Mariage">Mariage</option>
+                                <option value="Relation sérieuse">Relation sérieuse</option>
+                                <option value="À voir">À voir</option>
+                                <option value="Amitié">Amitié</option>
+                            </select>
+                            <input type="text" id="editInterests" placeholder="Centres d'intérêt (séparés par des virgules)">
+                            <select id="editCountry"><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="NG">Nigéria</option><option value="GH">Ghana</option></select>
+                            <input type="text" id="editCity" placeholder="Ville">
+                        </div>
                     </div>
-                    <label class="private-photos-label"><input type="checkbox" id="editPhotosPrivate"> Mes photos sont privées (visibles après match seulement)</label>
+                    <div class="profile-fold open">
+                        <button class="fold-header" onclick="this.parentElement.classList.toggle('open')">📝 Bio <span class="fold-arrow">▼</span></button>
+                        <div class="fold-body">
+                            <textarea id="editBio" placeholder="Parle de toi..." rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="profile-fold open">
+                        <button class="fold-header" onclick="this.parentElement.classList.toggle('open')">📸 Photos <span class="fold-arrow">▼</span></button>
+                        <div class="fold-body">
+                            <div class="photos-section">
+                                <label class="photo-label">Mes photos</label>
+                                <div id="photosPreview" class="photos-preview"></div>
+                                <input type="file" id="photoInput" accept="image/*" multiple style="display:none" onchange="B.uploadPhotos()">
+                                <button type="button" id="addPhotoBtn" class="btn-photo-add">+ Ajouter une photo</button>
+                                <p class="photo-hint">3 Mo max par photo. Formats JPG, PNG, WebP.</p>
+                            </div>
+                            <label class="private-photos-label"><input type="checkbox" id="editPhotosPrivate"> Mes photos sont privées (visibles après match seulement)</label>
+                        </div>
+                    </div>
                     <button id="saveProfileBtn">Sauvegarder</button>
                     <button id="deleteAccountBtn" class="btn-delete">🗑️ Supprimer mon compte</button>
                     <div class="referral-section">

@@ -229,3 +229,10 @@ body.eco-mode .profile-photo{width:50px;height:50px;border-radius:50%;display:no
 .profile-row select{flex:1}
 .chat-time{font-size:.6rem;color:#666;margin-top:.15rem}
 .msg-time-right{text-align:right}
+.profile-fold{margin-bottom:.5rem;border-radius:12px;overflow:hidden;border:1px solid #1a1a2e}
+.fold-header{width:100%;padding:.8rem 1rem;background:#141420;border:none;color:#eee;cursor:pointer;text-align:left;font-size:.85rem;font-weight:500;display:flex;justify-content:space-between;align-items:center}
+.fold-arrow{font-size:.6rem;transition:.2s}
+.profile-fold.open .fold-arrow{transform:rotate(180deg)}
+.fold-body{display:none;padding:.8rem;display:flex;flex-direction:column;gap:.7rem}
+.profile-fold:not(.open) .fold-body{display:none}
+.profile-fold.open .fold-body{display:flex}

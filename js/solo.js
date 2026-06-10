@@ -407,6 +407,29 @@ const B = {
         const d = await r.json();
         this.swipeProfiles = d.profiles || [];
         this.renderSwipeCard();
+        this.bindSwipeTouch();
+    },
+
+    bindSwipeTouch() {
+        const card = document.getElementById('swipeCard');
+        if (!card) return;
+        let startX = 0, currentX = 0, dragging = false;
+        card.addEventListener('touchstart', e => { startX = e.touches[0].clientX; dragging = true; }, { passive: true });
+        card.addEventListener('touchmove', e => {
+            if (!dragging) return;
+            currentX = e.touches[0].clientX - startX;
+            card.style.transform = `translateX(${currentX}px) rotate(${currentX * 0.05}deg)`;
+            card.style.opacity = 1 - Math.abs(currentX) / 300;
+            if (currentX > 50) card.style.boxShadow = '0 0 20px rgba(76,175,80,.5)';
+            else if (currentX < -50) card.style.boxShadow = '0 0 20px rgba(255,59,59,.5)';
+        }, { passive: true });
+        card.addEventListener('touchend', () => {
+            dragging = false;
+            card.style.transform = ''; card.style.opacity = ''; card.style.boxShadow = '';
+            if (currentX > 80) this.swipeAction(true);
+            else if (currentX < -80) this.swipeAction(false);
+            currentX = 0;
+        });
     },
 
     renderSwipeCard() {
