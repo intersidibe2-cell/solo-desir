@@ -174,3 +174,8 @@ body.eco-mode .profile-photo{width:50px;height:50px;border-radius:50%;display:fl
 .gender-btn{flex:1;padding:.7rem;border-radius:12px;border:2px solid #2a2a3e;background:#1a1a2e;color:#888;cursor:pointer;font-size:.9rem;font-weight:500;transition:.2s}
 .gender-btn.active{border-color:#ff3b3b;background:rgba(255,59,59,.1);color:#ff3b3b}
 .gender-btn:hover{border-color:#444}
+@media(max-width:480px){
+    .gender-btns{gap:1rem}
+    .gender-btn{padding:.9rem .5rem;font-size:.95rem}
+    .auth-card{padding:2rem 1.2rem}
+}
