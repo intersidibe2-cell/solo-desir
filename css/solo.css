@@ -156,3 +156,13 @@ body.eco-mode .profile-photo{width:50px;height:50px;border-radius:50%;display:fl
 .likes-sub{color:#888;font-size:.75rem}
 .match-item{display:flex;align-items:center;gap:.8rem;padding:.8rem;background:#141420;border-radius:10px;border:1px solid #1a1a2e}
 .match-name{font-weight:600;font-size:.9rem}
+.referral-section{background:#141420;border-radius:16px;padding:1.2rem;margin-top:1rem;border:1px solid #1a1a2e}
+.referral-section h4{font-size:.95rem;margin-bottom:.8rem;color:#ff3b3b}
+.referral-progress{display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem}
+.ref-bar{flex:1;height:6px;background:#1a1a2e;border-radius:3px;overflow:hidden}
+.ref-fill{height:100%;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);border-radius:3px;transition:.3s;width:0}
+#refCount{font-weight:600;font-size:.8rem;color:#ff3b3b;min-width:35px;text-align:right}
+.referral-link{display:flex;gap:.5rem}
+.referral-link input{flex:1;padding:.5rem;border-radius:8px;border:1px solid #2a2a3e;background:#1a1a2e;color:#666;font-size:.7rem}
+.referral-link button{background:#1a1a2e;border:1px solid #2a2a3e;color:#eee;padding:.4rem .7rem;border-radius:8px;cursor:pointer;font-size:.75rem;white-space:nowrap}
+.referral-link button:hover{background:#2a2a3e}

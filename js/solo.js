@@ -89,6 +89,7 @@ const B = {
         document.getElementById('editPhotos').value = (d.user.photos || []).join(', ');
         document.getElementById('editPhotosPrivate').checked = localStorage.getItem('solo_photos_private') === '1';
         this.updateScore();
+        this.loadReferral();
     },
 
     updateScore() {
@@ -107,6 +108,9 @@ const B = {
         document.getElementById('logoutBtn').addEventListener('click', () => this.logout());
         document.getElementById('ecoBtn')?.addEventListener('click', () => this.toggleEco());
         document.getElementById('shareBtn')?.addEventListener('click', () => this.shareWhatsApp());
+        document.getElementById('refCopyBtn')?.addEventListener('click', () => this.copyRefLink());
+        document.getElementById('refShareBtn')?.addEventListener('click', () => this.shareRefWhatsApp());
+        document.getElementById('refClaimBtn')?.addEventListener('click', () => this.claimVIP());
         document.getElementById('swipeLike')?.addEventListener('click', () => this.swipeAction(true));
         document.getElementById('swipePass')?.addEventListener('click', () => this.swipeAction(false));
         document.getElementById('swipeSuper')?.addEventListener('click', () => this.swipeAction(true, true));
@@ -396,6 +400,46 @@ const B = {
         const url = encodeURIComponent('https://solodesir.com');
         const text = encodeURIComponent('Salut ! Découvre Solo — le site de rencontres africaines. Inscris-toi :');
         window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
+    },
+
+    async loadReferral() {
+        try {
+            const r = await fetch('/api/solo/referral', { headers: { 'Authorization': `Bearer ${this.token}` } });
+            const d = await r.json();
+            if (!d.success) return;
+            const link = 'https://solodesir.com/solo.html?ref=' + d.referralCode;
+            document.getElementById('refLink').value = link;
+            document.getElementById('refCount').textContent = d.referralsCount + '/3';
+            document.getElementById('refFill').style.width = Math.min(d.referralsCount / 3 * 100, 100) + '%';
+            if (d.referralsCount >= 3 && d.plan === 'free') {
+                document.getElementById('refClaimBtn').style.display = 'block';
+            }
+            if (d.plan !== 'free') {
+                document.getElementById('refClaimBtn').style.display = 'none';
+                document.getElementById('refCount').textContent = 'VIP actif';
+            }
+        } catch (e) {}
+    },
+
+    copyRefLink() {
+        var input = document.getElementById('refLink');
+        input.select(); document.execCommand('copy');
+        this.toast('Lien copie');
+    },
+
+    shareRefWhatsApp() {
+        var link = encodeURIComponent(document.getElementById('refLink').value);
+        var text = encodeURIComponent('Rejoins-moi sur Solo — rencontres africaines :');
+        window.open('https://wa.me/?text=' + text + '%20' + link, '_blank');
+    },
+
+    async claimVIP() {
+        var r = await fetch('/api/solo/referral/claim', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token }
+        });
+        var d = await r.json();
+        if (d.success) { this.toast('VIP active pour 24h'); this.loadUser(); this.loadReferral(); }
+        else { this.toast(d.message || 'Erreur'); }
     }
 };
 

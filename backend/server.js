@@ -53,6 +53,7 @@ async function initDB() {
                 phone TEXT DEFAULT '', photos JSONB DEFAULT '[]', profession TEXT DEFAULT '',
                 looking_for TEXT DEFAULT '', interests JSONB DEFAULT '[]', bio TEXT DEFAULT '', plan TEXT DEFAULT 'free',
                 messages_today INTEGER DEFAULT 0, matches_today INTEGER DEFAULT 0, last_message_date TEXT DEFAULT '',
+                referral_code TEXT DEFAULT '', referred_by TEXT DEFAULT '', referrals_count INTEGER DEFAULT 0,
                 plan_expires_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW()
             );
             CREATE TABLE IF NOT EXISTS solo_likes (
@@ -70,6 +71,9 @@ async function initDB() {
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS profession TEXT DEFAULT ''`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS looking_for TEXT DEFAULT ''`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]'`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS referral_code TEXT DEFAULT ''`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS referred_by TEXT DEFAULT ''`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS referrals_count INTEGER DEFAULT 0`);
         console.log('✅ PostgreSQL migrations done');
         console.log('✅ PostgreSQL connected');
         return true;
@@ -94,7 +98,7 @@ function generateTokens(user) {
 
 // ─── Solo API ────────────────────────────────────────
 app.post('/api/solo/register', async (req, res) => {
-    const { pseudo, email, password, gender, age, country, city, phone } = req.body;
+    const { pseudo, email, password, gender, age, country, city, phone, ref } = req.body;
     if (!pseudo || !password || !gender || !phone) return res.status(400).json({ success: false, message: 'Téléphone, pseudo, mot de passe et genre requis' });
     const userEmail = email || ('phone_' + phone.replace(/[^0-9+]/g, '') + '@solo.local');
     const existing = pool
@@ -103,18 +107,27 @@ app.post('/api/solo/register', async (req, res) => {
     if (existing) return res.status(409).json({ success: false, message: 'Téléphone, email ou pseudo déjà utilisé' });
     const salt = await bcrypt.genSalt(10);
     const hash = await bcrypt.hash(password, salt);
+    const referralCode = crypto.randomBytes(4).toString('hex');
     const user = {
         id: crypto.randomUUID(), pseudo, email: userEmail.toLowerCase(), password: hash, gender, age: age || 25,
         country: country || 'ML', city: city || '', phone: phone || '', photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
-        messages_today: 0, matches_today: 0, last_message_date: '', created_at: new Date().toISOString()
+        messages_today: 0, matches_today: 0, last_message_date: '', referral_code: referralCode, referred_by: ref || '', referrals_count: 0, created_at: new Date().toISOString()
     };
     if (pool) {
         await pool.query(
-            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, messages_today, matches_today, last_message_date, created_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
-            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.messages_today, user.matches_today, user.last_message_date, user.created_at]
+            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, messages_today, matches_today, last_message_date, referral_code, referred_by, referrals_count, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
+            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.messages_today, user.matches_today, user.last_message_date, user.referral_code, ref || '', 0, user.created_at]
         );
     } else { USERS_MEM[user.email] = user; }
+    if (ref) {
+        if (pool) {
+            await pool.query('UPDATE solo_users SET referrals_count = referrals_count + 1 WHERE referral_code = $1', [ref]);
+        } else {
+            const refUser = Object.values(USERS_MEM).find(u => u.referral_code === ref);
+            if (refUser) refUser.referrals_count = (refUser.referrals_count || 0) + 1;
+        }
+    }
     const tokens = generateTokens(user);
     res.json({ success: true, token: tokens.accessToken, user: { pseudo, email: user.email, phone, gender, plan: 'free' } });
 });
@@ -137,7 +150,7 @@ app.get('/api/solo/me', authMiddleware, async (req, res) => {
     const today = new Date().toDateString();
     const msgsLeft = user.plan === 'free' ? Math.max(0, 5 - (user.last_message_date === today ? user.messages_today : 0)) : 999;
     const matchesLeft = user.plan === 'free' ? Math.max(0, 3 - (user.last_message_date === today ? user.matches_today : 0)) : 999;
-    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, phone: user.phone, photos: user.photos, profession: user.profession, looking_for: user.looking_for, interests: user.interests, bio: user.bio, plan: user.plan, messagesLeft: msgsLeft, matchesLeft } });
+    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, phone: user.phone, photos: user.photos, profession: user.profession, looking_for: user.looking_for, interests: user.interests, bio: user.bio, plan: user.plan, referralCode: user.referral_code, referralsCount: user.referrals_count || 0, messagesLeft: msgsLeft, matchesLeft } });
 });
 
 app.put('/api/solo/me', authMiddleware, async (req, res) => {
@@ -246,6 +259,35 @@ app.get('/api/solo/likes-received', authMiddleware, async (req, res) => {
         if (p) profiles.push({ email: em, pseudo: p.pseudo, age: p.age, country: p.country, city: p.city, photos: (p.photos || [])[0] || null });
     }
     res.json({ success: true, likes: profiles });
+});
+
+app.get('/api/solo/referral', authMiddleware, async (req, res) => {
+    const user = pool ? (await pool.query('SELECT referral_code, referrals_count, plan, plan_expires_at FROM solo_users WHERE email = $1', [req.user.email])).rows[0] : USERS_MEM[req.user.email];
+    if (!user) return res.status(404).json({ success: false });
+    res.json({
+        success: true,
+        referralCode: user.referral_code,
+        referralsCount: user.referrals_count || 0,
+        needed: 3,
+        plan: user.plan
+    });
+});
+
+app.post('/api/solo/referral/claim', authMiddleware, async (req, res) => {
+    const user = pool ? (await pool.query('SELECT * FROM solo_users WHERE email = $1', [req.user.email])).rows[0] : USERS_MEM[req.user.email];
+    if (!user) return res.status(404).json({ success: false });
+    const count = user.referrals_count || 0;
+    if (count < 3) return res.status(400).json({ success: false, message: 'Pas assez de filleuls (3 requis)' });
+    if (user.plan !== 'free') return res.status(400).json({ success: false, message: 'Déjà premium' });
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    if (pool) {
+        await pool.query('UPDATE solo_users SET plan = $1, plan_expires_at = $2, referrals_count = 0 WHERE email = $3', ['vip', expiresAt, req.user.email]);
+    } else {
+        user.plan = 'vip';
+        user.referrals_count = 0;
+        USERS_MEM[req.user.email] = user;
+    }
+    res.json({ success: true, message: '🎉 VIP activé pour 24h ! Profites-en.', plan: 'vip' });
 });
 
 app.get('/api/solo/admin/stats', async (req, res) => {

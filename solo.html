@@ -155,6 +155,19 @@
                     <input type="text" id="editPhotos" placeholder="URLs photos (séparées par des virgules)">
                     <label class="private-photos-label"><input type="checkbox" id="editPhotosPrivate"> Mes photos sont privées (visibles après match seulement)</label>
                     <button id="saveProfileBtn">Sauvegarder</button>
+                    <div class="referral-section">
+                        <h4>🔥 Invite 3 amis → 1 jour VIP</h4>
+                        <div class="referral-progress">
+                            <div class="ref-bar"><div class="ref-fill" id="refFill"></div></div>
+                            <span id="refCount">0/3</span>
+                        </div>
+                        <div class="referral-link">
+                            <input type="text" id="refLink" readonly onclick="this.select()">
+                            <button id="refCopyBtn">📋 Copier</button>
+                            <button id="refShareBtn">💬 WhatsApp</button>
+                        </div>
+                        <button id="refClaimBtn" class="btn-primary" style="display:none;width:100%">🎁 Activer mon VIP</button>
+                    </div>
                 </div>
             </div>
         </div>
