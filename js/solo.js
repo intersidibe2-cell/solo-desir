@@ -21,7 +21,7 @@ const B = {
                 document.getElementById(t.dataset.tab === 'login' ? 'registerForm' : 'loginForm').style.display = 'none';
             });
         });
-        const prefixMap = { ML:'+223',CI:'+225',SN:'+221',BF:'+226',GN:'+224',CM:'+237',BJ:'+229',TG:'+228',NG:'+234',GH:'+233' };
+        const prefixMap = { ML:'+223',CI:'+225',SN:'+221',BF:'+226',GN:'+224',CM:'+237',BJ:'+229',TG:'+228',NG:'+234',GH:'+233',NE:'+227',TD:'+235',CD:'+243',CG:'+242',GA:'+241' };
         document.getElementById('regCountry').addEventListener('change', function() {
             const p = prefixMap[this.value] || '+223';
             document.getElementById('phonePrefix').textContent = p;

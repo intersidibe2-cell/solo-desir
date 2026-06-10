@@ -114,7 +114,7 @@ app.post('/api/solo/register', async (req, res) => {
     let country = formCountry || 'ML';
     if (!formCountry) {
         const p = phone.replace(/[^0-9+]/g, '');
-        const prefixMap = { '+223':'ML','+225':'CI','+221':'SN','+226':'BF','+224':'GN','+237':'CM','+229':'BJ','+228':'TG','+234':'NG','+233':'GH' };
+        const prefixMap = { '+223':'ML','+225':'CI','+221':'SN','+226':'BF','+224':'GN','+237':'CM','+229':'BJ','+228':'TG','+234':'NG','+233':'GH','+227':'NE','+235':'TD','+243':'CD','+242':'CG','+241':'GA' };
         for (const [pref, c] of Object.entries(prefixMap)) { if (p.startsWith(pref)) { country = c; break; } }
     }
     const existing = pool
