@@ -180,17 +180,19 @@ body.eco-mode .profile-photo{width:50px;height:50px;border-radius:50%;display:no
     .auth-card{padding:2rem 1.2rem}
 }
 /* Auth redesign */
-.auth-card{padding:2.5rem 1.5rem;max-width:440px;border-radius:20px}
-.logo{font-size:2.2rem;margin-bottom:.2rem}
-.subtitle{color:#888;margin-bottom:1.2rem;font-size:.85rem}
-.tabs{border-radius:12px;overflow:hidden;margin-bottom:1.5rem}
-.tab{padding:.7rem;font-size:.9rem;font-weight:600}
-.tab.active{background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff}
-.auth-form{gap:1rem}
-.input-icon{position:relative;display:flex;align-items:center}
-.input-icon span{position:absolute;left:14px;font-size:.95rem;z-index:1;pointer-events:none}
-.input-icon input{width:100%;padding:.75rem 1rem .75rem 2.4rem;border-radius:12px;border:2px solid #2a2a3e;background:#1a1a2e;color:#eee;font-size:.9rem;transition:border-color .2s}
-.input-icon input:focus{border-color:#ff3b3b;outline:none;box-shadow:0 0 0 3px rgba(255,59,59,.1)}
+.auth-card{padding:3rem 1.5rem 2.5rem;max-width:440px;border-radius:24px;background:linear-gradient(180deg,#141420 0%,#0d0d14 100%);border:1px solid #1a1a2e;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.logo{font-size:2.5rem;margin-bottom:0;letter-spacing:-1px}
+.subtitle{color:#888;margin-bottom:1.5rem;font-size:.8rem;letter-spacing:.5px;text-transform:uppercase}
+.tabs{border-radius:14px;overflow:hidden;margin-bottom:1.8rem;background:#0d0d14;padding:4px;display:flex}
+.tab{flex:1;padding:.65rem;font-size:.85rem;font-weight:500;border-radius:10px;background:transparent;color:#888;cursor:pointer;border:none;transition:.2s}
+.tab.active{background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff;box-shadow:0 4px 15px rgba(255,59,59,.25)}
+.auth-form{gap:.85rem}
+.input-icon input,.input-icon select{padding:.8rem 1rem .8rem 2.5rem;border-radius:14px;border:1px solid #1a1a2e;background:#0a0a14;color:#eee;font-size:.9rem;transition:all .2s}
+.input-icon input:focus,.input-icon select:focus{border-color:#ff3b3b;box-shadow:0 0 0 4px rgba(255,59,59,.08);background:#0d0d14}
+.input-icon span{left:14px;font-size:.9rem;color:#666}
+.auth-form button[type=submit]{padding:.9rem;border-radius:14px;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff;font-weight:700;font-size:.95rem;border:none;cursor:pointer;transition:.2s;letter-spacing:.3px}
+.auth-form button[type=submit]:hover{transform:translateY(-1px);box-shadow:0 8px 25px rgba(255,59,59,.3)}
+.auth-note{text-align:center;color:#555;font-size:.7rem;margin-top:.3rem}
 
 .flag-row{display:flex;justify-content:center;gap:.6rem;padding:.3rem 0;flex-wrap:wrap}
 .flag{font-size:1.3rem;cursor:pointer;padding:.2rem;border-radius:8px;border:2px solid transparent;transition:.2s;filter:grayscale(30%)}
@@ -236,3 +238,12 @@ body.eco-mode .profile-photo{width:50px;height:50px;border-radius:50%;display:no
 .fold-body{display:none;padding:.8rem;display:flex;flex-direction:column;gap:.7rem}
 .profile-fold:not(.open) .fold-body{display:none}
 .profile-fold.open .fold-body{display:flex}
+.input-icon{position:relative;display:flex;align-items:center}
+.input-icon span{position:absolute;left:14px;font-size:.9rem;z-index:1;pointer-events:none;color:#666}
+.gender-btns{gap:.8rem}
+.gender-btn{flex:1;padding:.7rem .3rem;border-radius:14px;border:1px solid #1a1a2e;background:#0a0a14;color:#888;cursor:pointer;font-size:.82rem;font-weight:500;transition:.2s}
+.gender-btn.active{border-color:#ff3b3b;background:rgba(255,59,59,.1);color:#ff3b3b}
+.gender-btn:hover{border-color:#444}
+.gender-row{align-items:stretch}
+.gender-row .gender-btns{flex:1;display:flex;gap:.5rem}
+.gender-row .gender-btns .gender-btn{flex:1}

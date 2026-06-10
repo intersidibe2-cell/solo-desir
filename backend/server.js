@@ -177,8 +177,8 @@ app.post('/api/solo/login', async (req, res) => {
     if (!login || !password) return res.status(400).json({ success: false, message: 'Identifiant et mot de passe requis' });
     const isEmail = login.includes('@');
     const user = pool
-        ? (await pool.query(isEmail ? 'SELECT * FROM solo_users WHERE email = $1' : 'SELECT * FROM solo_users WHERE phone = $1 OR email = $1', [login.trim()])).rows[0]
-        : (isEmail ? USERS_MEM[login.trim()] : Object.values(USERS_MEM).find(u => u.phone === login.trim()));
+        ? (await pool.query(isEmail ? 'SELECT * FROM solo_users WHERE email = $1' : 'SELECT * FROM solo_users WHERE phone = $1 OR email = $1 OR pseudo = $1', [login.trim()])).rows[0]
+        : (isEmail ? USERS_MEM[login.trim()] : Object.values(USERS_MEM).find(u => u.phone === login.trim() || u.pseudo === login.trim()));
     if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ success: false, message: 'Identifiant ou mot de passe incorrect' });
     const tokens = generateTokens(user);
     res.json({ success: true, token: tokens.accessToken, user: { pseudo: user.pseudo, email: user.email, phone: user.phone, gender: user.gender, plan: user.plan } });
