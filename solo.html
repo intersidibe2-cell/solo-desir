@@ -130,7 +130,7 @@
             </div>
 
             <div id="pageChat" class="page">
-                <div id="chatHeader" class="chat-header">Sélectionne un match</div>
+                <div id="chatHeader" class="chat-header">Sélectionne un match <button id="deleteChatBtn" class="btn-ghost" style="float:right;font-size:.7rem" title="Supprimer">🗑️</button></div>
                 <div id="chatMessages" class="chat-messages"></div>
                 <div class="chat-input-bar">
                     <input type="text" id="chatInput" placeholder="Écris ici..." disabled>
@@ -152,6 +152,11 @@
                         <option value="Amitié">Amitié</option>
                     </select>
                     <input type="text" id="editInterests" placeholder="Centres d'intérêt (séparés par des virgules)">
+                    <div class="profile-row">
+                        <select id="editStatus"><option value="">Statut marital</option><option value="Célibataire">Célibataire</option><option value="Divorcé(e)">Divorcé(e)</option><option value="Veuf(ve)">Veuf(ve)</option></select>
+                        <select id="editReligion"><option value="">Religion</option><option value="Musulman">Musulman</option><option value="Chrétien">Chrétien</option><option value="Animiste">Animiste</option><option value="Autre">Autre</option><option value="Sans">Sans</option></select>
+                    </div>
+                    <select id="editChildren"><option value="">Enfants</option><option value="A des enfants">A des enfants</option><option value="N'en a pas">N'en a pas</option><option value="En veut">En veut</option></select>
                     <input type="number" id="editAge" placeholder="Âge" min="18">
                     <select id="editCountry"><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="NG">Nigéria</option><option value="GH">Ghana</option></select>
                     <input type="text" id="editCity" placeholder="Ville">
@@ -165,6 +170,7 @@
                     </div>
                     <label class="private-photos-label"><input type="checkbox" id="editPhotosPrivate"> Mes photos sont privées (visibles après match seulement)</label>
                     <button id="saveProfileBtn">Sauvegarder</button>
+                    <button id="deleteAccountBtn" class="btn-delete">🗑️ Supprimer mon compte</button>
                     <div class="referral-section">
                         <h4>🔥 Invite 3 amis → 1 jour VIP</h4>
                         <div class="referral-progress">

@@ -223,3 +223,9 @@ body.eco-mode .profile-photo{width:50px;height:50px;border-radius:50%;display:no
 .btn-photo-add{background:#1a1a2e;border:1px dashed #2a2a3e;color:#888;padding:.7rem;border-radius:10px;cursor:pointer;font-size:.8rem;width:100%;text-align:center}
 .btn-photo-add:hover{border-color:#ff3b3b;color:#ff3b3b}
 .photo-hint{color:#555;font-size:.65rem;margin-top:.3rem}
+.btn-delete{background:transparent;border:1px solid #ff3b3b22;color:#ff3b3b88;padding:.7rem;border-radius:10px;cursor:pointer;font-size:.8rem;margin-top:1rem;width:100%}
+.btn-delete:hover{background:rgba(255,59,59,.1);color:#ff3b3b}
+.profile-row{display:flex;gap:.7rem}
+.profile-row select{flex:1}
+.chat-time{font-size:.6rem;color:#666;margin-top:.15rem}
+.msg-time-right{text-align:right}

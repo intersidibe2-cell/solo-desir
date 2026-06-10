@@ -105,6 +105,9 @@ const B = {
         document.getElementById('editCountry').value = d.user.country || 'ML';
         document.getElementById('editCity').value = d.user.city || '';
         document.getElementById('editBio').value = d.user.bio || '';
+        document.getElementById('editStatus').value = d.user.status || '';
+        document.getElementById('editReligion').value = d.user.religion || '';
+        document.getElementById('editChildren').value = d.user.children || '';
         this.photoUrls = (d.user.photos || []).slice();
         document.getElementById('editPhotosPrivate').checked = localStorage.getItem('solo_photos_private') === '1';
         this.renderPhotoPreviews();
@@ -166,6 +169,8 @@ const B = {
         document.getElementById('refShareBtn')?.addEventListener('click', () => this.shareRefWhatsApp());
         document.getElementById('refClaimBtn')?.addEventListener('click', () => this.claimVIP());
         document.getElementById('addPhotoBtn')?.addEventListener('click', () => document.getElementById('photoInput').click());
+        document.getElementById('deleteAccountBtn')?.addEventListener('click', () => this.deleteAccount());
+        document.getElementById('deleteChatBtn')?.addEventListener('click', () => this.deleteConversation());
         document.getElementById('swipeLike')?.addEventListener('click', () => this.swipeAction(true));
         document.getElementById('swipePass')?.addEventListener('click', () => this.swipeAction(false));
         document.getElementById('swipeSuper')?.addEventListener('click', () => this.swipeAction(true, true));
@@ -320,7 +325,8 @@ const B = {
         const container = document.getElementById('chatMessages');
         container.innerHTML = (d.messages || []).map(m => {
             const isMine = m.sender === this.user.email;
-            return `<div class="chat-msg ${isMine ? 'mine' : 'theirs'}">${this.esc(m.content)}</div>`;
+            const time = (m.created_at || m.time || '').substring(11, 16) || '';
+            return `<div class="chat-msg ${isMine ? 'mine' : 'theirs'}">${this.esc(m.content)}<div class="chat-time ${isMine ? 'msg-time-right' : ''}">${time}</div></div>`;
         }).join('');
         container.scrollTop = container.scrollHeight;
     },
@@ -364,6 +370,9 @@ const B = {
                 country: document.getElementById('editCountry').value,
                 city: document.getElementById('editCity').value.trim(),
                 bio: document.getElementById('editBio').value.trim(),
+                status: document.getElementById('editStatus').value,
+                religion: document.getElementById('editReligion').value,
+                children: document.getElementById('editChildren').value,
                 photos
             })
         });
@@ -496,6 +505,21 @@ const B = {
         var d = await r.json();
         if (d.success) { this.toast('VIP active pour 24h'); this.loadUser(); this.loadReferral(); }
         else { this.toast(d.message || 'Erreur'); }
+    },
+
+    async deleteAccount() {
+        if (!confirm('Supprimer définitivement ton compte ? Tous les messages, matchs et donnees seront effaces.')) return;
+        await fetch('/api/solo/me', { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + this.token } });
+        this.logout();
+    },
+
+    async deleteConversation() {
+        if (!this.currentMatch || !confirm('Effacer cette conversation ?')) return;
+        await fetch('/api/solo/conversation/' + this.currentMatch.id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + this.token } });
+        document.getElementById('chatMessages').innerHTML = '';
+        this.toast('Conversation effacee');
+        document.querySelector('.tab-btn[data-page="matches"]').click();
+        this.loadMatches();
     }
 };
 

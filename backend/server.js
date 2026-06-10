@@ -74,6 +74,7 @@ async function initDB() {
                 gender TEXT DEFAULT 'homme', age INTEGER DEFAULT 25, country TEXT DEFAULT 'ML', city TEXT DEFAULT '',
                 phone TEXT DEFAULT '', photos JSONB DEFAULT '[]', profession TEXT DEFAULT '',
                 looking_for TEXT DEFAULT '', interests JSONB DEFAULT '[]', bio TEXT DEFAULT '', plan TEXT DEFAULT 'free',
+                status TEXT DEFAULT '', religion TEXT DEFAULT '', children TEXT DEFAULT '',
                 messages_today INTEGER DEFAULT 0, matches_today INTEGER DEFAULT 0, last_message_date TEXT DEFAULT '',
                 referral_code TEXT DEFAULT '', referred_by TEXT DEFAULT '', referrals_count INTEGER DEFAULT 0,
                 plan_expires_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW()
@@ -103,6 +104,9 @@ async function initDB() {
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS referral_code TEXT DEFAULT ''`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS referred_by TEXT DEFAULT ''`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS referrals_count INTEGER DEFAULT 0`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT ''`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS religion TEXT DEFAULT ''`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS children TEXT DEFAULT ''`);
         console.log('✅ PostgreSQL migrations done');
         console.log('✅ PostgreSQL connected');
         return true;
@@ -146,13 +150,14 @@ app.post('/api/solo/register', async (req, res) => {
     const user = {
         id: crypto.randomUUID(), pseudo, email: userEmail.toLowerCase(), password: hash, gender, age: age || 25,
         country: country, city: '', phone: phone || '', photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
+        status: '', religion: '', children: '',
         messages_today: 0, matches_today: 0, last_message_date: '', referral_code: referralCode, referred_by: ref || '', referrals_count: 0, created_at: new Date().toISOString()
     };
     if (pool) {
         await pool.query(
-            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, messages_today, matches_today, last_message_date, referral_code, referred_by, referrals_count, created_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
-            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.messages_today, user.matches_today, user.last_message_date, user.referral_code, ref || '', 0, user.created_at]
+            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, status, religion, children, messages_today, matches_today, last_message_date, referral_code, referred_by, referrals_count, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`,
+            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.status, user.religion, user.children, user.messages_today, user.matches_today, user.last_message_date, user.referral_code, ref || '', 0, user.created_at]
         );
     } else { USERS_MEM[user.email] = user; }
     if (ref) {
@@ -185,11 +190,11 @@ app.get('/api/solo/me', authMiddleware, async (req, res) => {
     const today = new Date().toDateString();
     const msgsLeft = user.plan === 'free' ? Math.max(0, 5 - (user.last_message_date === today ? user.messages_today : 0)) : 999;
     const matchesLeft = user.plan === 'free' ? Math.max(0, 3 - (user.last_message_date === today ? user.matches_today : 0)) : 999;
-    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, phone: user.phone, photos: user.photos, profession: user.profession, looking_for: user.looking_for, interests: user.interests, bio: user.bio, plan: user.plan, referralCode: user.referral_code, referralsCount: user.referrals_count || 0, messagesLeft: msgsLeft, matchesLeft } });
+    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, phone: user.phone, photos: user.photos, profession: user.profession, looking_for: user.looking_for, interests: user.interests, bio: user.bio, plan: user.plan, status: user.status, religion: user.religion, children: user.children, referralCode: user.referral_code, referralsCount: user.referrals_count || 0, messagesLeft: msgsLeft, matchesLeft } });
 });
 
 app.put('/api/solo/me', authMiddleware, async (req, res) => {
-    const { pseudo, age, country, city, phone, photos, profession, looking_for, interests, bio } = req.body;
+    const { pseudo, age, country, city, phone, photos, profession, looking_for, interests, bio, status, religion, children } = req.body;
     const updates = {};
     if (pseudo !== undefined) updates.pseudo = pseudo;
     if (age !== undefined) updates.age = parseInt(age);
@@ -201,6 +206,9 @@ app.put('/api/solo/me', authMiddleware, async (req, res) => {
     if (looking_for !== undefined) updates.looking_for = looking_for;
     if (interests !== undefined) updates.interests = Array.isArray(interests) ? interests : (typeof interests === 'string' ? interests.split(',').map(s => s.trim()).filter(s => s) : []);
     if (bio !== undefined) updates.bio = bio;
+    if (status !== undefined) updates.status = status;
+    if (religion !== undefined) updates.religion = religion;
+    if (children !== undefined) updates.children = children;
     if (pool) {
         const keys = Object.keys(updates);
         if (keys.length > 0) {
@@ -214,6 +222,34 @@ app.put('/api/solo/me', authMiddleware, async (req, res) => {
         Object.assign(USERS_MEM[req.user.email], updates);
     }
     res.json({ success: true, message: 'Profil mis à jour' });
+});
+
+app.delete('/api/solo/me', authMiddleware, async (req, res) => {
+    const email = req.user.email;
+    if (pool) {
+        await pool.query('DELETE FROM solo_messages WHERE match_id IN (SELECT id FROM solo_matches WHERE user1 = $1 OR user2 = $1)', [email]);
+        await pool.query('DELETE FROM solo_matches WHERE user1 = $1 OR user2 = $1', [email]);
+        await pool.query('DELETE FROM solo_likes WHERE from_user = $1 OR to_user = $1', [email]);
+        await pool.query('DELETE FROM solo_users WHERE email = $1', [email]);
+    } else {
+        delete USERS_MEM[email];
+        for (let i = LIKES_MEM.length - 1; i >= 0; i--) { if (LIKES_MEM[i].from === email || LIKES_MEM[i].to === email) LIKES_MEM.splice(i, 1); }
+        for (let i = MATCHES_MEM.length - 1; i >= 0; i--) { if (MATCHES_MEM[i].user1 === email || MATCHES_MEM[i].user2 === email) MATCHES_MEM.splice(i, 1); }
+    }
+    res.json({ success: true, message: 'Compte et toutes les données supprimés' });
+});
+
+app.delete('/api/solo/conversation/:matchId', authMiddleware, async (req, res) => {
+    const matchId = req.params.matchId;
+    const email = req.user.email;
+    if (pool) {
+        const match = (await pool.query('SELECT * FROM solo_matches WHERE id = $1 AND (user1 = $2 OR user2 = $2)', [matchId, email])).rows[0];
+        if (!match) return res.status(403).json({ success: false });
+        await pool.query('DELETE FROM solo_messages WHERE match_id = $1', [matchId]);
+    } else {
+        if (MSGS_MEM[matchId]) delete MSGS_MEM[matchId];
+    }
+    res.json({ success: true, message: 'Conversation effacée' });
 });
 
 app.get('/api/solo/profiles', authMiddleware, async (req, res) => {
