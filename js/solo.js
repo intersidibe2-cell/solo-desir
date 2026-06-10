@@ -21,15 +21,14 @@ const B = {
                 document.getElementById(t.dataset.tab === 'login' ? 'registerForm' : 'loginForm').style.display = 'none';
             });
         });
-        document.querySelectorAll('.flag').forEach(f => {
-            f.addEventListener('click', () => {
-                document.querySelectorAll('.flag').forEach(x => x.classList.remove('active'));
-                f.classList.add('active');
-                document.getElementById('phonePrefix').textContent = f.dataset.prefix;
-                document.getElementById('regPhone').dataset.country = f.dataset.code;
-                document.getElementById('regPhone').focus();
-            });
+        const prefixMap = { ML:'+223',CI:'+225',SN:'+221',BF:'+226',GN:'+224',CM:'+237',BJ:'+229',TG:'+228',NG:'+234',GH:'+233' };
+        document.getElementById('regCountry').addEventListener('change', function() {
+            const p = prefixMap[this.value] || '+223';
+            document.getElementById('phonePrefix').textContent = p;
+            document.getElementById('regPhone').dataset.country = this.value;
+            document.getElementById('regPhone').focus();
         });
+        document.getElementById('regCountry').dispatchEvent(new Event('change'));
         document.querySelectorAll('.gender-btn').forEach(b => {
             b.addEventListener('click', () => {
                 document.querySelectorAll('.gender-btn').forEach(x => x.classList.remove('active'));

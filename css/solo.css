@@ -209,3 +209,8 @@ body.eco-mode .profile-photo{width:50px;height:50px;border-radius:50%;display:fl
     .flag-row{gap:.8rem}
     .flag{font-size:1.5rem;padding:.3rem}
 }
+.input-icon select{width:100%;padding:.75rem 1rem .75rem 2.4rem;border-radius:12px;border:2px solid #2a2a3e;background:#1a1a2e;color:#eee;font-size:.9rem;appearance:none;cursor:pointer}
+.input-icon select:focus{border-color:#ff3b3b;outline:none;box-shadow:0 0 0 3px rgba(255,59,59,.1)}
+.gender-row{align-items:stretch}
+.gender-row .gender-btns{flex:1;display:flex;gap:.5rem}
+.gender-row .gender-btns .gender-btn{flex:1}
