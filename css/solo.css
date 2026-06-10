@@ -247,3 +247,5 @@ body.eco-mode .profile-photo{width:50px;height:50px;border-radius:50%;display:no
 .gender-row{align-items:stretch}
 .gender-row .gender-btns{flex:1;display:flex;gap:.5rem}
 .gender-row .gender-btns .gender-btn{flex:1}
+.phone-input{padding-left:2.8rem!important;font-size:.95rem!important;letter-spacing:.5px;font-weight:500}
+.age-input{width:120px;text-align:center;font-size:.95rem!important}
