@@ -30,14 +30,6 @@ const B = {
             document.getElementById('regPhone').focus();
         });
         document.getElementById('regCountry').dispatchEvent(new Event('change'));
-        document.querySelectorAll('.gender-btn').forEach(b => {
-            b.addEventListener('click', () => {
-                document.querySelectorAll('.gender-btn').forEach(x => x.classList.remove('active'));
-                b.classList.add('active');
-                document.getElementById('regGender').value = b.dataset.val;
-            });
-        });
-        document.querySelector('.flag:nth-child(1)')?.click();
     },
 
     async login() {
@@ -64,6 +56,7 @@ const B = {
                 pseudo: document.getElementById('regPseudo').value.trim(),
                 password: document.getElementById('regPassword').value,
                 phone: prefix + phoneRaw,
+                email: document.getElementById('regEmail').value.trim() || '',
                 country: country,
                 gender: document.getElementById('regGender').value,
                 age: parseInt(document.getElementById('regAge').value) || 25

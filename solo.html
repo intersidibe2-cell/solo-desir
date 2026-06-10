@@ -54,13 +54,15 @@
                         </select>
                     </div>
                     <div class="input-icon"><span id="phonePrefix">📱</span><input type="text" id="regPhone" placeholder="70 00 00 00" required></div>
-                    <div class="input-icon gender-row"><span>⚧</span>
-                        <div class="gender-btns">
-                        <button type="button" class="gender-btn" data-val="homme">👨 Homme</button>
-                        <button type="button" class="gender-btn" data-val="femme">👩 Femme</button>
-                        <button type="button" class="gender-btn" data-val="couple">👥 Couple</button>
-                        <input type="hidden" id="regGender" value="">
-                    </div></div>
+                    <div class="input-icon"><span>📧</span><input type="email" id="regEmail" placeholder="Email (optionnel)"></div>
+                    <div class="input-icon"><span>⚧</span>
+                        <select id="regGender" required>
+                            <option value="">Choisis ton genre</option>
+                            <option value="homme">👨 Homme</option>
+                            <option value="femme">👩 Femme</option>
+                            <option value="couple">👥 Couple</option>
+                        </select>
+                    </div>
                     <div class="input-icon"><span>🎂</span><input type="number" id="regAge" placeholder="Âge (optionnel)" min="18" max="99"></div>
                     <button type="submit">Créer mon compte</button>
                     <p class="auth-note">📱 Sans email · 100% discret</p>
