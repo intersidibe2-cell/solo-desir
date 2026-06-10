@@ -7,6 +7,7 @@ const B = {
     swipeProfiles: [],
     swipeIndex: 0,
     dailyLikes: 0,
+    photoUrls: [],
 
     init() {
         const saved = localStorage.getItem('solo_token');
@@ -104,10 +105,45 @@ const B = {
         document.getElementById('editCountry').value = d.user.country || 'ML';
         document.getElementById('editCity').value = d.user.city || '';
         document.getElementById('editBio').value = d.user.bio || '';
-        document.getElementById('editPhotos').value = (d.user.photos || []).join(', ');
+        this.photoUrls = (d.user.photos || []).slice();
         document.getElementById('editPhotosPrivate').checked = localStorage.getItem('solo_photos_private') === '1';
+        this.renderPhotoPreviews();
         this.updateScore();
-        this.loadReferral();
+    },
+
+    renderPhotoPreviews() {
+        const container = document.getElementById('photosPreview');
+        container.innerHTML = this.photoUrls.map((url, i) => `
+            <div class="photo-thumb" style="background-image:url('${url}')">
+                <button class="remove-photo" onclick="B.removePhoto(${i})">✕</button>
+            </div>
+        `).join('');
+    },
+
+    removePhoto(index) {
+        this.photoUrls.splice(index, 1);
+        this.renderPhotoPreviews();
+    },
+
+    async uploadPhotos() {
+        const files = document.getElementById('photoInput').files;
+        for (const file of files) {
+            if (file.size > 3 * 1024 * 1024) { this.toast('Photo trop lourde (max 3MB)'); continue; }
+            const reader = new FileReader();
+            await new Promise(resolve => {
+                reader.onload = async () => {
+                    const r = await fetch('/api/solo/upload-photo', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+                        body: JSON.stringify({ image: reader.result })
+                    });
+                    const d = await r.json();
+                    if (d.success) { this.photoUrls.push(d.url); this.renderPhotoPreviews(); }
+                    resolve();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+        document.getElementById('photoInput').value = '';
     },
 
     updateScore() {
@@ -129,6 +165,7 @@ const B = {
         document.getElementById('refCopyBtn')?.addEventListener('click', () => this.copyRefLink());
         document.getElementById('refShareBtn')?.addEventListener('click', () => this.shareRefWhatsApp());
         document.getElementById('refClaimBtn')?.addEventListener('click', () => this.claimVIP());
+        document.getElementById('addPhotoBtn')?.addEventListener('click', () => document.getElementById('photoInput').click());
         document.getElementById('swipeLike')?.addEventListener('click', () => this.swipeAction(true));
         document.getElementById('swipePass')?.addEventListener('click', () => this.swipeAction(false));
         document.getElementById('swipeSuper')?.addEventListener('click', () => this.swipeAction(true, true));
@@ -312,7 +349,7 @@ const B = {
     },
 
     async saveProfile() {
-        const photos = document.getElementById('editPhotos').value.split(',').map(s => s.trim()).filter(s => s);
+        const photos = this.photoUrls;
         const photosPrivate = document.getElementById('editPhotosPrivate').checked;
         localStorage.setItem('solo_photos_private', photosPrivate ? '1' : '0');
         const interests = document.getElementById('editInterests').value.split(',').map(s => s.trim()).filter(s => s);

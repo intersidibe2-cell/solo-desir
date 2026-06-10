@@ -21,8 +21,27 @@ app.use(cors({
         : [/localhost:/],
     credentials: true
 }));
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '..')));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// ─── Upload photo ───────────────────────────────────
+app.post('/api/solo/upload-photo', authMiddleware, async (req, res) => {
+    const { image } = req.body;
+    if (!image || typeof image !== 'string') return res.status(400).json({ success: false, message: 'Image requise' });
+    const matches = image.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (!matches) return res.status(400).json({ success: false, message: 'Format image invalide' });
+    const ext = matches[1].split('/')[1].replace('jpeg', 'jpg');
+    const data = matches[2];
+    const buf = Buffer.from(data, 'base64');
+    if (buf.length > 5 * 1024 * 1024) return res.status(400).json({ success: false, message: 'Image trop lourde (max 5MB)' });
+    const filename = 'solo_' + crypto.randomBytes(8).toString('hex') + '.' + ext;
+    const fs = require('fs');
+    const dir = path.join(__dirname, '..', 'uploads');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, filename), buf);
+    res.json({ success: true, url: '/uploads/' + filename });
+});
 
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 100, message: { success: false, message: 'Trop de requêtes' } });
 app.use('/api/', globalLimiter);

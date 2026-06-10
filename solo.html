@@ -156,7 +156,13 @@
                     <select id="editCountry"><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="NG">Nigéria</option><option value="GH">Ghana</option></select>
                     <input type="text" id="editCity" placeholder="Ville">
                     <textarea id="editBio" placeholder="Parle de toi..." rows="3"></textarea>
-                    <input type="text" id="editPhotos" placeholder="URLs photos (séparées par des virgules)">
+                    <div class="photos-section">
+                        <label class="photo-label">📸 Mes photos</label>
+                        <div id="photosPreview" class="photos-preview"></div>
+                        <input type="file" id="photoInput" accept="image/*" multiple style="display:none" onchange="B.uploadPhotos()">
+                        <button type="button" id="addPhotoBtn" class="btn-photo-add">+ Ajouter une photo</button>
+                        <p class="photo-hint">3 Mo max par photo. Formats JPG, PNG, WebP.</p>
+                    </div>
                     <label class="private-photos-label"><input type="checkbox" id="editPhotosPrivate"> Mes photos sont privées (visibles après match seulement)</label>
                     <button id="saveProfileBtn">Sauvegarder</button>
                     <div class="referral-section">
