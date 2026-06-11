@@ -9,12 +9,15 @@ const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
 const crypto = require('crypto');
 const http = require('http');
+const fs = require('fs').promises;
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({
+    contentSecurityPolicy: false
+}));
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
         ? [/\.solodesir\.com$/, /\.onrender\.com$/]
@@ -29,17 +32,17 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.post('/api/solo/upload-photo', authMiddleware, async (req, res) => {
     const { image } = req.body;
     if (!image || typeof image !== 'string') return res.status(400).json({ success: false, message: 'Image requise' });
-    const matches = image.match(/^data:(image\/\w+);base64,(.+)$/);
-    if (!matches) return res.status(400).json({ success: false, message: 'Format image invalide' });
+    const allowedMime = ['image/jpeg', 'image/png', 'image/webp'];
+    const matches = image.match(/^data:(\w+\/\w+);base64,(.+)$/);
+    if (!matches || !allowedMime.includes(matches[1])) return res.status(400).json({ success: false, message: 'Format non autorisé (JPG, PNG, WebP)' });
     const ext = matches[1].split('/')[1].replace('jpeg', 'jpg');
     const data = matches[2];
     const buf = Buffer.from(data, 'base64');
-    if (buf.length > 5 * 1024 * 1024) return res.status(400).json({ success: false, message: 'Image trop lourde (max 5MB)' });
+    if (buf.length > 3 * 1024 * 1024) return res.status(400).json({ success: false, message: 'Image trop lourde (max 3MB)' });
     const filename = 'solo_' + crypto.randomBytes(8).toString('hex') + '.' + ext;
-    const fs = require('fs');
     const dir = path.join(__dirname, '..', 'uploads');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, filename), buf);
+    try { await fs.mkdir(dir, { recursive: true }); } catch (e) {}
+    await fs.writeFile(path.join(dir, filename), buf);
     res.json({ success: true, url: '/uploads/' + filename });
 });
 
@@ -75,7 +78,7 @@ async function initDB() {
                 phone TEXT DEFAULT '', photos JSONB DEFAULT '[]', profession TEXT DEFAULT '',
                 looking_for TEXT DEFAULT '', interests JSONB DEFAULT '[]', bio TEXT DEFAULT '', plan TEXT DEFAULT 'free',
                 status TEXT DEFAULT '', religion TEXT DEFAULT '', children TEXT DEFAULT '',
-                messages_today INTEGER DEFAULT 0, matches_today INTEGER DEFAULT 0, last_message_date TEXT DEFAULT '',
+                messages_today INTEGER DEFAULT 0, likes_today INTEGER DEFAULT 0, last_like_date TEXT DEFAULT '', matches_today INTEGER DEFAULT 0, last_message_date TEXT DEFAULT '',
                 referral_code TEXT DEFAULT '', referred_by TEXT DEFAULT '', referrals_count INTEGER DEFAULT 0,
                 plan_expires_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW()
             );
@@ -107,6 +110,8 @@ async function initDB() {
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT ''`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS religion TEXT DEFAULT ''`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS children TEXT DEFAULT ''`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS likes_today INTEGER DEFAULT 0`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS last_like_date TEXT DEFAULT ''`);
         console.log('✅ PostgreSQL migrations done');
         console.log('✅ PostgreSQL connected');
         return true;
@@ -151,16 +156,16 @@ app.post('/api/solo/register', async (req, res) => {
         id: crypto.randomUUID(), pseudo, email: userEmail.toLowerCase(), password: hash, gender, age: age || 25,
         country: country, city: '', phone: phone || '', photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
         status: '', religion: '', children: '',
-        messages_today: 0, matches_today: 0, last_message_date: '', referral_code: referralCode, referred_by: ref || '', referrals_count: 0, created_at: new Date().toISOString()
+        messages_today: 0, likes_today: 0, last_like_date: '', matches_today: 0, last_message_date: '', referral_code: referralCode, referred_by: ref || '', referrals_count: 0, created_at: new Date().toISOString()
     };
     if (pool) {
         await pool.query(
-            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, status, religion, children, messages_today, matches_today, last_message_date, referral_code, referred_by, referrals_count, created_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`,
-            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.status, user.religion, user.children, user.messages_today, user.matches_today, user.last_message_date, user.referral_code, ref || '', 0, user.created_at]
+            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, status, religion, children, messages_today, likes_today, last_like_date, matches_today, last_message_date, referral_code, referred_by, referrals_count, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)`,
+            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.status, user.religion, user.children, user.messages_today, user.likes_today, user.last_like_date, user.matches_today, user.last_message_date, user.referral_code, ref || '', 0, user.created_at]
         );
     } else { USERS_MEM[user.email] = user; }
-    if (ref) {
+    if (ref && ref !== referralCode) {
         if (pool) {
             await pool.query('UPDATE solo_users SET referrals_count = referrals_count + 1 WHERE referral_code = $1', [ref]);
         } else {
@@ -278,6 +283,14 @@ app.get('/api/solo/profiles', authMiddleware, async (req, res) => {
 app.post('/api/solo/like', authMiddleware, async (req, res) => {
     const { targetEmail } = req.body;
     if (!targetEmail) return res.status(400).json({ success: false, message: 'Cible requise' });
+    const likeUser = pool ? (await pool.query('SELECT plan, likes_today, last_like_date FROM solo_users WHERE email = $1', [req.user.email])).rows[0] : USERS_MEM[req.user.email];
+    if (likeUser) {
+        const today = new Date().toDateString();
+        const likeCount = likeUser.last_like_date === today ? (likeUser.likes_today || 0) : 0;
+        if (likeUser.plan === 'free' && likeCount >= 30) return res.status(429).json({ success: false, message: 'Limite de 30 likes/jour. Passe VIP !' });
+        if (pool) await pool.query('UPDATE solo_users SET likes_today = likes_today + 1, last_like_date = $2 WHERE email = $1', [req.user.email, today]);
+        else { likeUser.likes_today = (likeUser.likes_today || 0) + 1; likeUser.last_like_date = today; }
+    }
     if (pool) {
         await pool.query('INSERT INTO solo_likes (from_user, to_user) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.user.email, targetEmail]);
         const rev = (await pool.query('SELECT * FROM solo_likes WHERE from_user = $1 AND to_user = $2', [targetEmail, req.user.email])).rows[0];
@@ -320,7 +333,7 @@ app.post('/api/solo/message', authMiddleware, async (req, res) => {
     const accountAge = (Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24);
     const today = new Date().toDateString();
     const msgsToday = user.last_message_date === today ? (user.messages_today || 0) : 0;
-    const maxMsgs = accountAge < 7 ? 10 : 999;
+    const maxMsgs = user.plan === 'free' ? 5 : 999;
     if (msgsToday >= maxMsgs) return res.status(429).json({ success: false, message: 'Limite de messages atteinte. Passe VIP !' });
     const suspiciousKeywords = /(envoie.*argent|OM.*code|moMo.*code|wester.*union|money.*gram|envoie.*ton.*code|donne.*code|num[eé]ro.*carte)/i;
     const hasSuspicious = suspiciousKeywords.test(content);
@@ -383,14 +396,14 @@ app.post('/api/solo/referral/claim', authMiddleware, async (req, res) => {
 
 app.all('/api/solo/admin/stats', async (req, res) => {
     const adminPass = (req.method === 'POST' ? req.body.key : req.query.key);
-    if (adminPass !== 'solo2025') return res.json({ success: false });
+    if (adminPass !== ADMIN_KEY) return res.json({ success: false });
     const users = pool ? (await pool.query("SELECT COUNT(*) as total, COUNT(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN 1 END) as new, COUNT(CASE WHEN plan != 'free' THEN 1 END) as premium FROM solo_users")).rows[0] : { total: Object.keys(USERS_MEM).length, new: 0, premium: 0 };
     const matches = pool ? (await pool.query('SELECT COUNT(*) as total FROM solo_matches')).rows[0].total : MATCHES_MEM.length;
     res.json({ success: true, users, matches });
 });
 
 app.all('/api/solo/admin/users', async (req, res) => {
-    if ((req.method === 'POST' ? req.body.key : req.query.key) !== 'solo2025') return res.json({ success: false });
+    if ((req.method === 'POST' ? req.body.key : req.query.key) !== ADMIN_KEY) return res.json({ success: false });
     const list = pool
         ? (await pool.query('SELECT pseudo, email, phone, gender, age, country, city, plan, created_at FROM solo_users ORDER BY created_at DESC LIMIT 200')).rows
         : Object.values(USERS_MEM).map(u => ({ pseudo: u.pseudo, email: u.email, phone: u.phone, gender: u.gender, age: u.age, country: u.country, city: u.city, plan: u.plan, created_at: u.created_at }));
@@ -398,7 +411,7 @@ app.all('/api/solo/admin/users', async (req, res) => {
 });
 
 app.post('/api/solo/admin/block', async (req, res) => {
-    if (req.body.key !== 'solo2025') return res.json({ success: false });
+    if (req.body.key !== ADMIN_KEY) return res.json({ success: false });
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false });
     if (pool) {
@@ -444,7 +457,7 @@ app.use((err, req, res, next) => {
     console.error('Unhandled error:', err.message);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
 });
-process.on('unhandledRejection', (err) => console.error('Unhandled promise:', err));
+const ADMIN_KEY = process.env.ADMIN_KEY || 'solo2025';
 process.on('uncaughtException', (err) => console.error('Uncaught exception:', err));
 
 // ─── Start ───────────────────────────────────────────

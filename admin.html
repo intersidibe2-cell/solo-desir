@@ -53,38 +53,29 @@
         var KEY = '';
         async function init() {
             KEY = document.getElementById('adminKeyInput').value.trim();
-            var test = await fetch('/api/solo/admin/stats', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY}) }).then(r => r.json());
-            if (!test.success) { document.getElementById('loginErr').style.display = 'block'; document.getElementById('loginErr').textContent = 'Clé incorrecte'; return; }
+            var test = await fetch('/api/solo/admin/stats', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY}) }).then(function(r){return r.json();}).catch(function(){return{success:false};});
+            if (!test || !test.success) { document.getElementById('loginErr').style.display = 'block'; document.getElementById('loginErr').textContent = 'Clé incorrecte'; return; }
             document.getElementById('loginGate').style.display = 'none';
             document.getElementById('adminPanel').style.display = 'block';
             load();
         }
         async function load() {
-            var s = await fetch('/api/solo/admin/stats', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY}) }).then(r => r.json());
-            document.getElementById('statUsers').textContent = s.users.total;
-            document.getElementById('statNew').textContent = s.users.new;
-            document.getElementById('statMatches').textContent = s.matches;
-            document.getElementById('statPremium').textContent = s.users.premium;
-            var u = await fetch('/api/solo/admin/users', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY}) }).then(r => r.json());
+            var s = await fetch('/api/solo/admin/stats', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY}) }).then(function(r){return r.json();}).catch(function(){return{users:{total:0,new:0,premium:0},matches:0};});
+            if (!s || !s.success) return;
+            document.getElementById('statUsers').textContent = s.users.total || 0;
+            document.getElementById('statNew').textContent = s.users.new || 0;
+            document.getElementById('statMatches').textContent = s.matches || 0;
+            document.getElementById('statPremium').textContent = s.users.premium || 0;
+            var u = await fetch('/api/solo/admin/users', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY}) }).then(function(r){return r.json();}).catch(function(){return{users:[]};});
             var tbody = document.getElementById('userTable');
-            if (!u.users.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Aucun utilisateur</td></tr>'; return; }
-            tbody.innerHTML = u.users.map(us => `<tr>
-                <td>${us.pseudo}</td>
-                <td>${us.phone || us.email}</td>
-                <td>${us.gender}</td>
-                <td>${us.age}</td>
-                <td>${us.country}</td>
-                <td>${us.plan}</td>
-                <td>${(us.created_at||'').substring(0,10)}</td>
-                <td><button class="btn-block" onclick="block('${us.email}')">🚫 Bloquer</button></td>
-            </tr>`).join('');
+            if (!u.users || !u.users.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Aucun utilisateur</td></tr>'; return; }
+            tbody.innerHTML = u.users.map(function(us){return '<tr><td>'+(us.pseudo||'')+'</td><td>'+(us.phone||us.email||'')+'</td><td>'+(us.gender||'')+'</td><td>'+(us.age||'')+'</td><td>'+(us.country||'')+'</td><td>'+(us.plan||'')+'</td><td>'+((us.created_at||'').substring(0,10))+'</td><td><button class="btn-block" onclick="block(\''+us.email+'\')">🚫 Bloquer</button></td></tr>';}).join('');
         }
         async function block(email) {
             if (!confirm('Bloquer définitivement ' + email + ' ?')) return;
             await fetch('/api/solo/admin/block', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY, email}) });
             load();
         }
-        load();
     </script>
 </body>
 </html>

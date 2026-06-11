@@ -298,16 +298,19 @@ const B = {
     },
 
     async loadLikes() {
-        const r = await fetch('/api/solo/likes-received', { headers: { 'Authorization': `Bearer ${this.token}` } });
-        const d = await r.json();
-        const list = document.getElementById('likesList');
+        var r = await this.safeFetch('/api/solo/likes-received', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (!r.ok) return;
+        var d = await r.resp.json();
+        var list = document.getElementById('likesList');
         if (!d.likes || !d.likes.length) { list.innerHTML = '<p style="text-align:center;color:#666;padding:2rem">Personne ne t\'a encore liké</p>'; return; }
-        list.innerHTML = d.likes.map(l => {
-            const blur = this.user.plan === 'free' ? 'filter:blur(8px)' : '';
-            const name = this.user.plan === 'free' ? '?????' : l.pseudo;
-            const meta = this.user.plan === 'free' ? 'Passe VIP pour voir' : `${l.age || '?'} · ${l.country || ''}`;
-            return `<div class="match-item"><div class="match-avatar" style="background:#1a1a2e;${blur}">👤</div><span class="match-name">${name}</span><br><span style="color:#888;font-size:.7rem">${meta}</span></div>`;
+        list.innerHTML = d.likes.map(function(l) {
+            var blur = B.user.plan === 'free' ? 'filter:blur(8px)' : '';
+            var name = B.user.plan === 'free' ? '?????' : (l.pseudo || '?');
+            var meta = B.user.plan === 'free' ? 'Passe VIP pour voir' : (l.age + ' · ' + (l.country || ''));
+            return '<div class="match-item"><div class="match-avatar" style="background:#1a1a2e;' + blur + '">👤</div><span class="match-name">' + B.esc(name) + '</span><br><span style="color:#888;font-size:.7rem">' + B.esc(meta) + '</span></div>';
         }).join('');
+        document.getElementById('pageLikes').classList.add('active');
+        document.querySelectorAll('.page').forEach(function(p) { if (p.id !== 'pageLikes') p.classList.remove('active'); });
     },
 
     openChat(matchId, withUser) {
@@ -355,17 +358,15 @@ const B = {
     },
 
     async saveProfile() {
-        const photos = this.photoUrls;
-        const photosPrivate = document.getElementById('editPhotosPrivate').checked;
+        var photos = this.photoUrls;
+        var photosPrivate = document.getElementById('editPhotosPrivate').checked;
         localStorage.setItem('solo_photos_private', photosPrivate ? '1' : '0');
-        const interests = document.getElementById('editInterests').value.split(',').map(s => s.trim()).filter(s => s);
-        const r = await fetch('/api/solo/me', {
-            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
-            body: JSON.stringify({
+        var interests = document.getElementById('editInterests').value.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+        var r = await this.safeFetch('/api/solo/me', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token }, body: JSON.stringify({
                 pseudo: document.getElementById('editPseudo').value.trim(),
                 profession: document.getElementById('editProfession').value.trim(),
                 looking_for: document.getElementById('editLooking').value,
-                interests,
+                interests: interests,
                 age: parseInt(document.getElementById('editAge').value),
                 country: document.getElementById('editCountry').value,
                 city: document.getElementById('editCity').value.trim(),
@@ -373,13 +374,12 @@ const B = {
                 status: document.getElementById('editStatus').value,
                 religion: document.getElementById('editReligion').value,
                 children: document.getElementById('editChildren').value,
-                photos
-            })
-        });
-        const d = await r.json();
+                photos: photos
+            }), timeout: 10000 });
+        if (!r.ok) return this.toast('❌ Erreur réseau');
+        var d = await r.resp.json();
         if (d.success) { this.toast('✅ Profil sauvegardé'); this.updateScore(); }
-        else this.toast('❌ Erreur');
-        this.loadUser();
+        else this.toast('❌ ' + (d.message || 'Erreur'));
     },
 
     blockUser(email) {
@@ -492,10 +492,10 @@ const B = {
     },
 
     async loadReferral() {
-        try {
-            const r = await fetch('/api/solo/referral', { headers: { 'Authorization': `Bearer ${this.token}` } });
-            const d = await r.json();
-            if (!d.success) return;
+        var r = await this.safeFetch('/api/solo/referral', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (!r.ok) return;
+        var d = await r.resp.json();
+        if (!d.success) return;
             const link = window.location.origin + '/solo.html?ref=' + d.referralCode;
             document.getElementById('refLink').value = link;
             document.getElementById('refCount').textContent = d.referralsCount + '/3';
@@ -523,23 +523,21 @@ const B = {
     },
 
     async claimVIP() {
-        var r = await fetch('/api/solo/referral/claim', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token }
-        });
-        var d = await r.json();
+        var r = await this.safeFetch('/api/solo/referral/claim', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token } });
+        var d = r.ok ? await r.resp.json() : {};
         if (d.success) { this.toast('VIP active pour 24h'); this.loadUser(); this.loadReferral(); }
-        else { this.toast(d.message || 'Erreur'); }
+        else { this.toast((d && d.message) || 'Erreur'); }
     },
 
     async deleteAccount() {
         if (!confirm('Supprimer définitivement ton compte ? Tous les messages, matchs et donnees seront effaces.')) return;
-        await fetch('/api/solo/me', { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + this.token } });
+        await this.safeFetch('/api/solo/me', { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + this.token } });
         this.logout();
     },
 
     async deleteConversation() {
         if (!this.currentMatch || !confirm('Effacer cette conversation ?')) return;
-        await fetch('/api/solo/conversation/' + this.currentMatch.id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + this.token } });
+        await this.safeFetch('/api/solo/conversation/' + this.currentMatch.id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + this.token } });
         document.getElementById('chatMessages').innerHTML = '';
         this.toast('Conversation effacee');
         document.querySelector('.tab-btn[data-page="matches"]').click();
