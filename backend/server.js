@@ -448,12 +448,11 @@ process.on('unhandledRejection', (err) => console.error('Unhandled promise:', er
 process.on('uncaughtException', (err) => console.error('Uncaught exception:', err));
 
 // ─── Start ───────────────────────────────────────────
-initDB().catch(e => console.error('DB init failed:', e));
-    if (!ok) console.log('⚠️ No DATABASE_URL, using in-memory storage');
+initDB().then(() => {
     server.listen(PORT, '0.0.0.0', () => {
         console.log('━━━━━━━━━━━━━━━━━━━━━━');
         console.log(`🔥 Solo  : http://localhost:${PORT}`);
         console.log(`📊 DB    : ${pool ? 'PostgreSQL' : 'Memory'}`);
         console.log('━━━━━━━━━━━━━━━━━━━━━━');
     });
-});
+}).catch(e => console.error('DB init failed:', e));
