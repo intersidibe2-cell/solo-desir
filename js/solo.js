@@ -69,7 +69,7 @@ const B = {
     },
 
     setToken(t) { this.token = t; localStorage.setItem('solo_token', t); },
-    showErr(msg) { const el = document.getElementById('authError'); el.textContent = msg; el.style.display = msg ? 'block' : 'none'; },
+    showErr(msg) { const el = document.getElementById('authError'); el.textContent = msg || ''; },
 
     async loadMain() {
         document.getElementById('soloLogin').style.display = 'none';

@@ -1,17 +1,11 @@
 #!/bin/bash
 # Deploy — Met à jour Solo depuis GitHub
-# Usage : bash deploy.sh
-
 set -e
-echo "=== Solo — Deploy ==="
-
+echo "=== Solo Deploy ==="
 cd /opt/solo
 git pull origin master
-
-cd backend
-npm install
-
+cd backend && npm install
 pm2 restart solo
+nginx -t && systemctl reload nginx 2>/dev/null || true
 pm2 status
-
-echo "=== Deploy terminé ==="
+echo "=== Done ==="

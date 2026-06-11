@@ -251,3 +251,4 @@ body.eco-mode .profile-photo{width:50px;height:50px;border-radius:50%;display:no
 .gender-row 
 
 .age-input{text-align:center;font-size:.95rem!important}
+.error-msg{color:#ff3b3b;text-align:center;font-size:.8rem;margin-top:.5rem;min-height:1.2rem}

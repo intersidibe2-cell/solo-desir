@@ -21,19 +21,19 @@
         <div id="soloLogin" class="solo-auth">
             <div class="auth-card">
                 <div class="logo">🔥 Solo</div>
-                <p class="subtitle">Rencontres africaines</p>
+                <p class="subtitle">RENCONTRES AFRICAINES</p>
                 <div class="tabs">
                     <button class="tab active" data-tab="login">Connexion</button>
                     <button class="tab" data-tab="register">Inscription</button>
                 </div>
                 <form id="loginForm" class="auth-form">
-                    <div class="input-icon"><span>📱</span><input type="text" id="loginField" placeholder="Téléphone ou pseudo" required></div>
+                    <div class="input-icon"><span>📱</span><input type="text" id="loginField" placeholder="Téléphone, email ou pseudo" required autocomplete="tel"></div>
                     <div class="input-icon"><span>🔒</span><input type="password" id="loginPassword" placeholder="Mot de passe" required></div>
-                    <button type="submit">Se connecter</button>
+                    <button type="submit" id="loginSubmit">Se connecter</button>
                 </form>
                 <form id="registerForm" class="auth-form" style="display:none">
                     <div class="input-icon"><span>👤</span><input type="text" id="regPseudo" placeholder="Choisis ton pseudo" required></div>
-                    <div class="input-icon"><span>🔒</span><input type="password" id="regPassword" placeholder="Mot de passe" required></div>
+                    <div class="input-icon"><span>🔒</span><input type="password" id="regPassword" placeholder="Mot de passe (6+ caractères)" required minlength="6"></div>
                     <div class="input-icon"><span>🌍</span>
                         <select id="regCountry">
                             <option value="ML">🇲🇱 Mali (+223)</option>
@@ -63,11 +63,11 @@
                             <option value="couple">👥 Couple</option>
                         </select>
                     </div>
-                    <div class="input-icon"><span>🎂</span><input type="number" id="regAge" placeholder="Âge (optionnel)" min="18" max="99" class="age-input"></div>
-                    <button type="submit">Créer mon compte</button>
-                    <p class="auth-note">📱 Sans email · 100% discret</p>
+                    <div class="input-icon"><span>🎂</span><input type="number" id="regAge" placeholder="Âge" min="18" max="99" class="age-input"></div>
+                    <button type="submit" id="regSubmit">Créer mon compte</button>
+                    <p class="auth-note">📱 Sans email obligatoire · 100% discret</p>
                 </form>
-                <div id="authError" class="error-msg" style="display:none"></div>
+                <div id="authError" class="error-msg"></div>
             </div>
         </div>
 
