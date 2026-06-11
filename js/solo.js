@@ -83,11 +83,29 @@ const B = {
         await this.loadUser();
         this.bindEvents();
         this.loadProfiles();
+        this.saveGeoLocation();
         const visited = localStorage.getItem('solo_visited');
         if (!visited) {
             localStorage.setItem('solo_visited', '1');
             setTimeout(() => this.toast('👋 Bienvenue ! Complète ton profil pour attirer plus de matchs'), 500);
         }
+    },
+
+    saveGeoLocation() {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                var lat = pos.coords.latitude;
+                var lng = pos.coords.longitude;
+                await this.safeFetch('/api/solo/location', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token },
+                    body: JSON.stringify({ lat: lat, lng: lng })
+                });
+            },
+            function(err) { console.warn('Geolocation denied:', err.message); },
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+        );
     },
 
     async loadUser() {
@@ -246,7 +264,7 @@ const B = {
                 ${img ? `<img class="profile-photo" src="${this.esc(img)}" onerror="this.innerHTML='📷'">` : '<div class="profile-photo">📷</div>'}
                 <div class="profile-info">
                     <div class="name">${this.esc(p.pseudo)}, ${p.age || '?'}${p.verified ? '<span class="verified-badge">✓</span>' : ''}</div>
-                    <div class="meta">${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}</div>
+                    <div class="meta">${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}${p.distanceKm != null ? ' · <span style="color:#ff3b3b">📍 ' + p.distanceKm + ' km</span>' : ''}</div>
                     ${p.looking_for ? `<div style="font-size:.7rem;color:#ff3b3b;margin-top:.2rem">❤️ ${this.esc(p.looking_for)}</div>` : ''}
                     <div class="actions"><button class="btn-like" onclick="B.like('${this.esc(p.email)}')">❤️ J'aime</button></div>
                 </div>
@@ -336,6 +354,20 @@ const B = {
         document.getElementById('sendChatBtn').disabled = false;
         document.querySelector('.tab-btn[data-page="chat"]').click();
         this.loadMessages();
+        this.startSSE(matchId);
+    },
+
+    startSSE(matchId) {
+        if (this.sseSource) { try { this.sseSource.close(); } catch(e) {} }
+        var self = this;
+        this.sseSource = new EventSource('/api/solo/chat/stream/' + matchId, { headers: { 'Authorization': 'Bearer ' + this.token } });
+        this.sseSource.onmessage = function(e) {
+            if (!self.currentMatch || self.currentMatch.id !== matchId) return;
+            try { self.loadMessages(); } catch(err) {}
+        };
+        this.sseSource.onerror = function() {
+            setTimeout(function() { if (self.currentMatch && self.currentMatch.id === matchId) self.startSSE(matchId); }, 5000);
+        };
     },
 
     async loadMessages() {
