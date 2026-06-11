@@ -78,6 +78,7 @@ async function initDB() {
                 phone TEXT DEFAULT '', photos JSONB DEFAULT '[]', profession TEXT DEFAULT '',
                 looking_for TEXT DEFAULT '', interests JSONB DEFAULT '[]', bio TEXT DEFAULT '', plan TEXT DEFAULT 'free',
                 status TEXT DEFAULT '', religion TEXT DEFAULT '', children TEXT DEFAULT '',
+                verified BOOLEAN DEFAULT false, lat DOUBLE PRECISION DEFAULT 0, lng DOUBLE PRECISION DEFAULT 0,
                 messages_today INTEGER DEFAULT 0, likes_today INTEGER DEFAULT 0, last_like_date TEXT DEFAULT '', matches_today INTEGER DEFAULT 0, last_message_date TEXT DEFAULT '',
                 referral_code TEXT DEFAULT '', referred_by TEXT DEFAULT '', referrals_count INTEGER DEFAULT 0,
                 plan_expires_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW()
@@ -112,6 +113,10 @@ async function initDB() {
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS children TEXT DEFAULT ''`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS likes_today INTEGER DEFAULT 0`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS last_like_date TEXT DEFAULT ''`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION DEFAULT 0`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION DEFAULT 0`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS push_sub TEXT DEFAULT ''`);
         console.log('✅ PostgreSQL migrations done');
         console.log('✅ PostgreSQL connected');
         return true;
@@ -155,14 +160,14 @@ app.post('/api/solo/register', async (req, res) => {
     const user = {
         id: crypto.randomUUID(), pseudo, email: userEmail.toLowerCase(), password: hash, gender, age: age || 25,
         country: country, city: '', phone: phone || '', photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
-        status: '', religion: '', children: '',
+        status: '', religion: '', children: '', verified: false, lat: 0, lng: 0,
         messages_today: 0, likes_today: 0, last_like_date: '', matches_today: 0, last_message_date: '', referral_code: referralCode, referred_by: ref || '', referrals_count: 0, created_at: new Date().toISOString()
     };
     if (pool) {
         await pool.query(
-            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, status, religion, children, messages_today, likes_today, last_like_date, matches_today, last_message_date, referral_code, referred_by, referrals_count, created_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)`,
-            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.status, user.religion, user.children, user.messages_today, user.likes_today, user.last_like_date, user.matches_today, user.last_message_date, user.referral_code, ref || '', 0, user.created_at]
+            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, status, religion, children, verified, messages_today, likes_today, last_like_date, matches_today, last_message_date, lat, lng, referral_code, referred_by, referrals_count, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)`,
+            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.status, user.religion, user.children, user.verified, user.messages_today, user.likes_today, user.last_like_date, user.matches_today, user.last_message_date, user.lat, user.lng, user.referral_code, ref || '', 0, user.created_at]
         );
     } else { USERS_MEM[user.email] = user; }
     if (ref && ref !== referralCode) {
@@ -195,7 +200,7 @@ app.get('/api/solo/me', authMiddleware, async (req, res) => {
     const today = new Date().toDateString();
     const msgsLeft = user.plan === 'free' ? Math.max(0, 5 - (user.last_message_date === today ? user.messages_today : 0)) : 999;
     const matchesLeft = user.plan === 'free' ? Math.max(0, 3 - (user.last_message_date === today ? user.matches_today : 0)) : 999;
-    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, phone: user.phone, photos: user.photos, profession: user.profession, looking_for: user.looking_for, interests: user.interests, bio: user.bio, plan: user.plan, status: user.status, religion: user.religion, children: user.children, referralCode: user.referral_code, referralsCount: user.referrals_count || 0, messagesLeft: msgsLeft, matchesLeft } });
+    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, phone: user.phone, photos: user.photos, profession: user.profession, looking_for: user.looking_for, interests: user.interests, bio: user.bio, plan: user.plan, status: user.status, religion: user.religion, children: user.children, verified: user.verified, referralCode: user.referral_code, referralsCount: user.referrals_count || 0, messagesLeft: msgsLeft, matchesLeft } });
 });
 
 app.put('/api/solo/me', authMiddleware, async (req, res) => {
@@ -268,7 +273,7 @@ app.get('/api/solo/profiles', authMiddleware, async (req, res) => {
         if (ageMin) { conditions.push(`age >= $${idx++}`); params.push(parseInt(ageMin)); }
         if (ageMax) { conditions.push(`age <= $${idx++}`); params.push(parseInt(ageMax)); }
         const where = conditions.join(' AND ');
-        const profiles = (await pool.query(`SELECT pseudo, email, gender, age, country, city, photos, bio, created_at FROM solo_users WHERE ${where} ORDER BY created_at DESC LIMIT 50`, params)).rows;
+        const profiles = (await pool.query(`SELECT pseudo, email, gender, age, country, city, photos, bio, verified, created_at FROM solo_users WHERE ${where} ORDER BY created_at DESC LIMIT 50`, params)).rows;
         res.json({ success: true, profiles });
     } else {
         let filtered = Object.values(USERS_MEM).filter(u => u.email !== req.user.email).map(p => ({ pseudo: p.pseudo, email: p.email, gender: p.gender, age: p.age, country: p.country, city: p.city, photos: p.photos, bio: p.bio, created_at: p.created_at }));
@@ -323,6 +328,51 @@ app.get('/api/solo/matches', authMiddleware, async (req, res) => {
         pseudo: m.pseudo || (m.user1 === email ? m.user2 : m.user1), created_at: m.created_at
     }));
     res.json({ success: true, matches: result });
+});
+
+// ─── Verification ────────────────────────────────────
+const VERIFICATION_CODES = {};
+
+app.post('/api/solo/verify/send', authMiddleware, async (req, res) => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    VERIFICATION_CODES[req.user.email] = { code, time: Date.now() };
+    console.log('📱 Verification code for', req.user.email, ':', code);
+    res.json({ success: true, message: 'Code de vérification envoyé par SMS' });
+});
+
+app.post('/api/solo/verify/confirm', authMiddleware, async (req, res) => {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ success: false, message: 'Code requis' });
+    const stored = VERIFICATION_CODES[req.user.email];
+    if (!stored || stored.code !== code) return res.status(400).json({ success: false, message: 'Code incorrect ou expiré' });
+    if (Date.now() - stored.time > 300000) return res.status(400).json({ success: false, message: 'Code expiré' });
+    delete VERIFICATION_CODES[req.user.email];
+    if (pool) await pool.query('UPDATE solo_users SET verified = true WHERE email = $1', [req.user.email]);
+    else if (USERS_MEM[req.user.email]) USERS_MEM[req.user.email].verified = true;
+    res.json({ success: true, message: '✅ Compte vérifié', verified: true });
+});
+
+// ─── SSE Chat Stream ──────────────────────────────────
+app.get('/api/solo/chat/stream/:matchId', authMiddleware, async (req, res) => {
+    const matchId = req.params.matchId;
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'Access-Control-Allow-Origin': '*' });
+    res.write('event: connected\ndata: {}\n\n');
+    const interval = setInterval(async () => {
+        try {
+            const msgs = pool ? (await pool.query('SELECT sender, content, created_at FROM solo_messages WHERE match_id = $1 ORDER BY created_at DESC LIMIT 1', [matchId])).rows : (MSGS_MEM[matchId] || []).slice(-1);
+            if (msgs.length > 0) res.write('event: message\ndata: ' + JSON.stringify(msgs[0]) + '\n\n');
+        } catch(e) {}
+    }, 2000);
+    req.on('close', () => { clearInterval(interval); });
+});
+
+// ─── Push Notification Subscription ──────────────────
+app.post('/api/solo/subscribe-push', authMiddleware, async (req, res) => {
+    const { subscription } = req.body;
+    if (!subscription) return res.status(400).json({ success: false });
+    if (pool) await pool.query('UPDATE solo_users SET push_sub = $1 WHERE email = $2', [JSON.stringify(subscription), req.user.email]);
+    else if (USERS_MEM[req.user.email]) USERS_MEM[req.user.email].push_sub = JSON.stringify(subscription);
+    res.json({ success: true });
 });
 
 app.post('/api/solo/message', authMiddleware, async (req, res) => {

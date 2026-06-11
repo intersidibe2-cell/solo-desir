@@ -9,7 +9,7 @@ const B = {
     dailyLikes: 0,
     photoUrls: [],
     ecoMode: false,
-    pollInterval: null,
+    pollInterval: null,    sseSource: null,
 
     async safeFetch(url, opts = {}) {
         var timeout = opts.timeout || 15000;
@@ -110,6 +110,20 @@ const B = {
         document.getElementById('editChildren').value = d.user.children || '';
         this.photoUrls = (d.user.photos || []).slice();
         document.getElementById('editPhotosPrivate').checked = localStorage.getItem('solo_photos_private') === '1';
+        var verifyBtn = document.getElementById('verifyBtn');
+        var verifyStatus = document.getElementById('verifyStatus');
+        if (d.user.verified) {
+            verifyBtn.textContent = '✅ Vérifié';
+            verifyBtn.style.borderColor = '#4caf50';
+            verifyBtn.style.color = '#4caf50';
+            verifyBtn.disabled = true;
+            verifyStatus.textContent = '';
+        } else {
+            verifyBtn.textContent = '✅ Vérifier mon compte';
+            verifyBtn.style.borderColor = '#ff3b3b';
+            verifyBtn.style.color = '#ff3b3b';
+            verifyBtn.disabled = false;
+        }
         this.renderPhotoPreviews();
         this.updateScore();
     },
@@ -168,9 +182,11 @@ const B = {
         document.getElementById('refCopyBtn')?.addEventListener('click', () => this.copyRefLink());
         document.getElementById('refShareBtn')?.addEventListener('click', () => this.shareRefWhatsApp());
         document.getElementById('refClaimBtn')?.addEventListener('click', () => this.claimVIP());
-        document.getElementById('addPhotoBtn')?.addEventListener('click', () => document.getElementById('photoInput').click());
-        document.getElementById('deleteAccountBtn')?.addEventListener('click', () => this.deleteAccount());
-        document.getElementById('deleteChatBtn')?.addEventListener('click', () => this.deleteConversation());
+        document.getElementById('addPhotoBtn')?.addEventListener('click', function() { document.getElementById('photoInput').click(); });
+        document.getElementById('deleteAccountBtn')?.addEventListener('click', function() { B.deleteAccount(); });
+        document.getElementById('deleteChatBtn')?.addEventListener('click', function() { B.deleteConversation(); });
+        document.getElementById('verifyBtn')?.addEventListener('click', function() { B.sendVerifyCode(); });
+        document.getElementById('verifyConfirmBtn')?.addEventListener('click', function() { B.confirmVerifyCode(); });
         document.getElementById('swipeLike')?.addEventListener('click', () => this.swipeAction(true));
         document.getElementById('swipePass')?.addEventListener('click', () => this.swipeAction(false));
         document.getElementById('swipeSuper')?.addEventListener('click', () => this.swipeAction(true, true));
@@ -229,7 +245,7 @@ const B = {
             return `<div class="profile-card" data-email="${this.esc(p.email)}">
                 ${img ? `<img class="profile-photo" src="${this.esc(img)}" onerror="this.innerHTML='📷'">` : '<div class="profile-photo">📷</div>'}
                 <div class="profile-info">
-                    <div class="name">${this.esc(p.pseudo)}, ${p.age || '?'}</div>
+                    <div class="name">${this.esc(p.pseudo)}, ${p.age || '?'}${p.verified ? '<span class="verified-badge">✓</span>' : ''}</div>
                     <div class="meta">${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}</div>
                     ${p.looking_for ? `<div style="font-size:.7rem;color:#ff3b3b;margin-top:.2rem">❤️ ${this.esc(p.looking_for)}</div>` : ''}
                     <div class="actions"><button class="btn-like" onclick="B.like('${this.esc(p.email)}')">❤️ J'aime</button></div>
@@ -476,8 +492,6 @@ const B = {
         this.renderSwipeCard();
     },
 
-    ecoMode: false,
-    pollInterval: null,
     toggleEco() {
         this.ecoMode = !this.ecoMode;
         document.body.classList.toggle('eco-mode', this.ecoMode);
@@ -542,6 +556,29 @@ const B = {
         this.toast('Conversation effacee');
         document.querySelector('.tab-btn[data-page="matches"]').click();
         this.loadMatches();
+    },
+
+    async sendVerifyCode() {
+        var r = await this.safeFetch('/api/solo/verify/send', { method: 'POST', headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (!r.ok) return this.toast('Erreur envoi code');
+        document.getElementById('verifyBtn').style.display = 'none';
+        document.getElementById('verifyCode').style.display = 'block';
+        document.getElementById('verifyConfirmBtn').style.display = 'block';
+        document.getElementById('verifyCode').focus();
+        this.toast('Code envoyé (vérifie la console serveur)');
+    },
+
+    async confirmVerifyCode() {
+        var code = document.getElementById('verifyCode').value.trim();
+        if (code.length < 6) return this.toast('Code incomplet');
+        var r = await this.safeFetch('/api/solo/verify/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token }, body: JSON.stringify({ code: code }) });
+        var d = r.ok ? await r.resp.json() : {};
+        if (d.success) {
+            this.toast('Compte verifie');
+            this.loadUser();
+            document.getElementById('verifyCode').style.display = 'none';
+            document.getElementById('verifyConfirmBtn').style.display = 'none';
+        } else { this.toast(d.message || 'Code invalide'); }
     }
 };
 
