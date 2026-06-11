@@ -510,18 +510,17 @@ const B = {
         if (!r.ok) return;
         var d = await r.resp.json();
         if (!d.success) return;
-            const link = window.location.origin + '/solo.html?ref=' + d.referralCode;
-            document.getElementById('refLink').value = link;
-            document.getElementById('refCount').textContent = d.referralsCount + '/3';
-            document.getElementById('refFill').style.width = Math.min(d.referralsCount / 3 * 100, 100) + '%';
-            if (d.referralsCount >= 3 && d.plan === 'free') {
-                document.getElementById('refClaimBtn').style.display = 'block';
-            }
-            if (d.plan !== 'free') {
-                document.getElementById('refClaimBtn').style.display = 'none';
-                document.getElementById('refCount').textContent = 'VIP actif';
-            }
-        } catch (e) {}
+        var link = window.location.origin + '/solo.html?ref=' + d.referralCode;
+        document.getElementById('refLink').value = link;
+        document.getElementById('refCount').textContent = d.referralsCount + '/3';
+        document.getElementById('refFill').style.width = Math.min(d.referralsCount / 3 * 100, 100) + '%';
+        if (d.referralsCount >= 3 && d.plan === 'free') {
+            document.getElementById('refClaimBtn').style.display = 'block';
+        }
+        if (d.plan !== 'free') {
+            document.getElementById('refClaimBtn').style.display = 'none';
+            document.getElementById('refCount').textContent = 'VIP actif';
+        }
     },
 
     copyRefLink() {
