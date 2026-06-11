@@ -350,7 +350,6 @@ const B = {
         this.pollInterval = setInterval(function() {
             if (B.currentMatch && !document.hidden) {
                 if (document.getElementById('pageChat').classList.contains('active')) B.loadMessages();
-                this.loadMessages();
             }
         }, 3000);
     },
