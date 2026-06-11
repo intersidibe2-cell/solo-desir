@@ -8,6 +8,16 @@ const B = {
     swipeIndex: 0,
     dailyLikes: 0,
     photoUrls: [],
+    ecoMode: false,
+    pollInterval: null,
+
+    async safeFetch(url, opts = {}) {
+        var timeout = opts.timeout || 15000;
+        var ctrl = new AbortController();
+        var timer = setTimeout(function() { ctrl.abort(); }, timeout);
+        try { var r = await fetch(url, Object.assign({}, opts, { signal: ctrl.signal })); clearTimeout(timer); return { ok: true, resp: r }; }
+        catch (e) { clearTimeout(timer); return { ok: false, error: e.name === 'AbortError' ? 'Timeout' : e.message }; }
+    },
 
     init() {
         const saved = localStorage.getItem('solo_token');
@@ -34,11 +44,9 @@ const B = {
 
     async login() {
         this.showErr('');
-        const r = await fetch('/api/solo/login', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ login: document.getElementById('loginField').value.trim(), password: document.getElementById('loginPassword').value })
-        });
-        const d = await r.json();
+        var r = await this.safeFetch('/api/solo/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: document.getElementById('loginField').value.trim(), password: document.getElementById('loginPassword').value }), timeout: 10000 });
+        if (!r.ok) { this.showErr('Erreur réseau'); return; }
+        var d = await r.resp.json();
         if (!d.success) return this.showErr(d.message);
         this.setToken(d.token);
         this.loadMain();
@@ -46,23 +54,21 @@ const B = {
 
     async register() {
         this.showErr('');
-        const prefixEl = document.getElementById('phonePrefix');
-        const prefix = prefixEl.textContent.replace(/[^0-9+]/g, '') || '+223';
-        const phoneRaw = document.getElementById('regPhone').value.trim();
-        const country = document.getElementById('regPhone').dataset.country || 'ML';
-        const r = await fetch('/api/solo/register', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                pseudo: document.getElementById('regPseudo').value.trim(),
-                password: document.getElementById('regPassword').value,
-                phone: prefix + phoneRaw,
-                email: document.getElementById('regEmail').value.trim() || '',
-                country: country,
-                gender: document.getElementById('regGender').value,
-                age: parseInt(document.getElementById('regAge').value) || 25
-            })
+        var prefixEl = document.getElementById('phonePrefix');
+        var prefix = prefixEl.textContent.replace(/[^0-9+]/g, '') || '+223';
+        var phoneRaw = document.getElementById('regPhone').value.trim();
+        var country = document.getElementById('regPhone').dataset.country || 'ML';
+        var body = JSON.stringify({
+            pseudo: document.getElementById('regPseudo').value.trim(),
+            password: document.getElementById('regPassword').value,
+            phone: prefix + phoneRaw, country: country,
+            email: (document.getElementById('regEmail').value || '').trim(),
+            gender: document.getElementById('regGender').value,
+            age: parseInt(document.getElementById('regAge').value) || 25
         });
-        const d = await r.json();
+        var r = await this.safeFetch('/api/solo/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, timeout: 10000 });
+        if (!r.ok) { this.showErr('Erreur réseau'); return; }
+        var d = await r.resp.json();
         if (!d.success) return this.showErr(d.message);
         this.setToken(d.token);
         this.loadMain();
@@ -85,8 +91,9 @@ const B = {
     },
 
     async loadUser() {
-        const r = await fetch('/api/solo/me', { headers: { 'Authorization': `Bearer ${this.token}` } });
-        const d = await r.json();
+        var r = await this.safeFetch('/api/solo/me', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (!r.ok) return this.logout();
+        var d = await r.resp.json();
         if (!d.success) return this.logout();
         this.user = d.user;
         document.getElementById('userPlan').textContent = d.user.plan === 'free' ? 'Gratuit' : d.user.plan;
@@ -205,9 +212,10 @@ const B = {
         if (c) params.set('country', c);
         if (min) params.set('ageMin', min);
         if (max) params.set('ageMax', max);
-        const r = await fetch('/api/solo/profiles?' + params, { headers: { 'Authorization': `Bearer ${this.token}` } });
-        const d = await r.json();
-        const blocked = JSON.parse(localStorage.getItem('solo_blocked') || '[]');
+        var r = await this.safeFetch('/api/solo/profiles?' + params, { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (!r.ok) return;
+        var d = await r.resp.json();
+        var blocked = JSON.parse(localStorage.getItem('solo_blocked') || '[]');
         this.profiles = (d.profiles || []).filter(p => !blocked.includes(p.email));
         this.renderProfiles();
     },
@@ -262,13 +270,11 @@ const B = {
     },
 
     async like(targetEmail) {
-        const r = await fetch('/api/solo/like', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
-            body: JSON.stringify({ targetEmail })
-        });
-        const d = await r.json();
-        const btns = document.querySelectorAll(`.profile-card[data-email="${targetEmail}"] .btn-like, .detail-actions .btn-like`);
-        btns.forEach(b => { b.classList.add('liked'); b.textContent = '❤️ Liké'; });
+        var r = await this.safeFetch('/api/solo/like', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token }, body: JSON.stringify({ targetEmail }), timeout: 8000 });
+        if (!r.ok) return this.toast('Erreur réseau');
+        var d = await r.resp.json();
+        var btns = document.querySelectorAll('[data-email="' + targetEmail + '"] .btn-like, .detail-actions .btn-like');
+        btns.forEach(function(b) { b.classList.add('liked'); b.textContent = '❤️ Liké'; });
         if (d.matched) {
             this.toast('💘 Match ! Allez dans Chat pour discuter');
             this.loadMatches();
@@ -315,9 +321,10 @@ const B = {
 
     async loadMessages() {
         if (!this.currentMatch) return;
-        const r = await fetch('/api/solo/messages/' + this.currentMatch.id, { headers: { 'Authorization': `Bearer ${this.token}` } });
-        const d = await r.json();
-        const container = document.getElementById('chatMessages');
+        var r = await this.safeFetch('/api/solo/messages/' + this.currentMatch.id, { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (!r.ok) return;
+        var d = await r.resp.json();
+        var container = document.getElementById('chatMessages');
         container.innerHTML = (d.messages || []).map(m => {
             const isMine = m.sender === this.user.email;
             const time = (m.created_at || m.time || '').substring(11, 16) || '';
@@ -327,24 +334,22 @@ const B = {
     },
 
     async sendMessage() {
-        const input = document.getElementById('chatInput');
-        const content = input.value.trim();
+        var input = document.getElementById('chatInput');
+        var content = input.value.trim();
         if (!content || !this.currentMatch) return;
         input.value = '';
-        const r = await fetch('/api/solo/message', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
-            body: JSON.stringify({ matchId: this.currentMatch.id, content })
-        });
-        const d = await r.json();
+        var r = await this.safeFetch('/api/solo/message', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token }, body: JSON.stringify({ matchId: this.currentMatch.id, content }), timeout: 8000 });
+        if (!r.ok) return this.toast('Erreur envoi');
+        var d = await r.resp.json();
         if (d.warning) this.toast(d.warning);
-        if (r.status === 429) this.toast('⚠️ ' + (d.message || 'Limite atteinte'));
         this.loadMessages();
     },
 
     startChatPoll() {
         if (this.pollInterval) clearInterval(this.pollInterval);
-        this.pollInterval = setInterval(() => {
-            if (this.currentMatch && document.getElementById('pageChat').classList.contains('active')) {
+        this.pollInterval = setInterval(function() {
+            if (B.currentMatch && !document.hidden) {
+                if (document.getElementById('pageChat').classList.contains('active')) B.loadMessages();
                 this.loadMessages();
             }
         }, 3000);
