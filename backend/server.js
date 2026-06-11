@@ -254,15 +254,25 @@ app.delete('/api/solo/conversation/:matchId', authMiddleware, async (req, res) =
 
 app.get('/api/solo/profiles', authMiddleware, async (req, res) => {
     const { country, gender, ageMin, ageMax } = req.query;
-    const profiles = pool
-        ? (await pool.query('SELECT pseudo, email, gender, age, country, city, photos, bio, created_at FROM solo_users WHERE email != $1', [req.user.email])).rows
-        : Object.values(USERS_MEM).filter(u => u.email !== req.user.email);
-    let filtered = profiles.map(p => ({ ...p, password: undefined, id: undefined }));
-    if (gender) filtered = filtered.filter(p => p.gender === gender);
-    if (country) filtered = filtered.filter(p => p.country === country);
-    if (ageMin) filtered = filtered.filter(p => p.age >= parseInt(ageMin));
-    if (ageMax) filtered = filtered.filter(p => p.age <= parseInt(ageMax));
-    res.json({ success: true, profiles: filtered.slice(0, 50) });
+    if (pool) {
+        const conditions = ['email != $1'];
+        const params = [req.user.email];
+        let idx = 2;
+        if (gender) { conditions.push(`gender = $${idx++}`); params.push(gender); }
+        if (country) { conditions.push(`country = $${idx++}`); params.push(country); }
+        if (ageMin) { conditions.push(`age >= $${idx++}`); params.push(parseInt(ageMin)); }
+        if (ageMax) { conditions.push(`age <= $${idx++}`); params.push(parseInt(ageMax)); }
+        const where = conditions.join(' AND ');
+        const profiles = (await pool.query(`SELECT pseudo, email, gender, age, country, city, photos, bio, created_at FROM solo_users WHERE ${where} ORDER BY created_at DESC LIMIT 50`, params)).rows;
+        res.json({ success: true, profiles });
+    } else {
+        let filtered = Object.values(USERS_MEM).filter(u => u.email !== req.user.email).map(p => ({ pseudo: p.pseudo, email: p.email, gender: p.gender, age: p.age, country: p.country, city: p.city, photos: p.photos, bio: p.bio, created_at: p.created_at }));
+        if (gender) filtered = filtered.filter(p => p.gender === gender);
+        if (country) filtered = filtered.filter(p => p.country === country);
+        if (ageMin) filtered = filtered.filter(p => p.age >= parseInt(ageMin));
+        if (ageMax) filtered = filtered.filter(p => p.age <= parseInt(ageMax));
+        res.json({ success: true, profiles: filtered.slice(0, 50) });
+    }
 });
 
 app.post('/api/solo/like', authMiddleware, async (req, res) => {
@@ -289,15 +299,16 @@ app.post('/api/solo/like', authMiddleware, async (req, res) => {
 });
 
 app.get('/api/solo/matches', authMiddleware, async (req, res) => {
+    const email = req.user.email;
     const rawMatches = pool
-        ? (await pool.query('SELECT id, user1, user2, created_at FROM solo_matches WHERE user1 = $1 OR user2 = $1 ORDER BY created_at DESC', [req.user.email])).rows
-        : MATCHES_MEM.filter(m => m.user1 === req.user.email || m.user2 === req.user.email);
-    const result = [];
-    for (const m of rawMatches) {
-        const otherEmail = m.user1 === req.user.email ? m.user2 : m.user1;
-        const other = pool ? (await pool.query('SELECT pseudo FROM solo_users WHERE email = $1', [otherEmail])).rows[0] : Object.values(USERS_MEM).find(u => u.email === otherEmail);
-        result.push({ id: m.id, with: otherEmail, pseudo: other?.pseudo || otherEmail, created_at: m.created_at });
-    }
+        ? (await pool.query(`SELECT m.id, m.user1, m.user2, m.created_at, COALESCE(u.pseudo, CASE WHEN m.user1 != $1 THEN m.user1 ELSE m.user2 END) as pseudo
+             FROM solo_matches m LEFT JOIN solo_users u ON (CASE WHEN m.user1 = $1 THEN u.email = m.user2 ELSE u.email = m.user1 END)
+             WHERE m.user1 = $1 OR m.user2 = $1 ORDER BY m.created_at DESC`, [email])).rows
+        : MATCHES_MEM.filter(m => m.user1 === email || m.user2 === email);
+    const result = rawMatches.map(m => ({
+        id: m.id, with: m.user1 === email ? m.user2 : m.user1,
+        pseudo: m.pseudo || (m.user1 === email ? m.user2 : m.user1), created_at: m.created_at
+    }));
     res.json({ success: true, matches: result });
 });
 
@@ -326,15 +337,18 @@ app.post('/api/solo/message', authMiddleware, async (req, res) => {
 });
 
 app.get('/api/solo/likes-received', authMiddleware, async (req, res) => {
+    const email = req.user.email;
     const likes = pool
-        ? (await pool.query("SELECT from_user, created_at FROM solo_likes WHERE to_user = $1 AND from_user NOT IN (SELECT user2 FROM solo_matches WHERE user1 = $1 UNION SELECT user1 FROM solo_matches WHERE user2 = $1) ORDER BY created_at DESC LIMIT 20", [req.user.email])).rows
-        : LIKES_MEM.filter(l => l.to === req.user.email && !MATCHES_MEM.find(m => (m.user1 === req.user.email && m.user2 === l.from) || (m.user2 === req.user.email && m.user1 === l.from)));
-    const profiles = [];
-    for (const l of likes) {
-        const em = l.from_user || l.from;
-        const p = pool ? (await pool.query('SELECT pseudo, gender, age, country, city, photos FROM solo_users WHERE email = $1', [em])).rows[0] : Object.values(USERS_MEM).find(u => u.email === em);
-        if (p) profiles.push({ email: em, pseudo: p.pseudo, age: p.age, country: p.country, city: p.city, photos: (p.photos || [])[0] || null });
-    }
+        ? (await pool.query(`SELECT l.from_user, l.created_at, u.pseudo, u.age, u.country, u.city, u.photos
+             FROM solo_likes l JOIN solo_users u ON l.from_user = u.email
+             WHERE l.to_user = $1 AND l.from_user NOT IN
+             (SELECT user2 FROM solo_matches WHERE user1 = $1 UNION SELECT user1 FROM solo_matches WHERE user2 = $1)
+             ORDER BY l.created_at DESC LIMIT 20`, [email])).rows
+        : LIKES_MEM.filter(l => l.to === email && !MATCHES_MEM.find(m => (m.user1 === email && m.user2 === l.from) || (m.user2 === email && m.user1 === l.from)));
+    const profiles = likes.map(l => ({
+        email: l.from_user || l.from, pseudo: l.pseudo, age: l.age,
+        country: l.country, city: l.city, photos: (l.photos || [])[0] || null
+    }));
     res.json({ success: true, likes: profiles });
 });
 
@@ -367,16 +381,16 @@ app.post('/api/solo/referral/claim', authMiddleware, async (req, res) => {
     res.json({ success: true, message: '🎉 VIP activé pour 24h ! Profites-en.', plan: 'vip' });
 });
 
-app.get('/api/solo/admin/stats', async (req, res) => {
-    const adminPass = req.query.key;
+app.all('/api/solo/admin/stats', async (req, res) => {
+    const adminPass = (req.method === 'POST' ? req.body.key : req.query.key);
     if (adminPass !== 'solo2025') return res.json({ success: false });
     const users = pool ? (await pool.query("SELECT COUNT(*) as total, COUNT(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN 1 END) as new, COUNT(CASE WHEN plan != 'free' THEN 1 END) as premium FROM solo_users")).rows[0] : { total: Object.keys(USERS_MEM).length, new: 0, premium: 0 };
     const matches = pool ? (await pool.query('SELECT COUNT(*) as total FROM solo_matches')).rows[0].total : MATCHES_MEM.length;
     res.json({ success: true, users, matches });
 });
 
-app.get('/api/solo/admin/users', async (req, res) => {
-    if (req.query.key !== 'solo2025') return res.json({ success: false });
+app.all('/api/solo/admin/users', async (req, res) => {
+    if ((req.method === 'POST' ? req.body.key : req.query.key) !== 'solo2025') return res.json({ success: false });
     const list = pool
         ? (await pool.query('SELECT pseudo, email, phone, gender, age, country, city, plan, created_at FROM solo_users ORDER BY created_at DESC LIMIT 200')).rows
         : Object.values(USERS_MEM).map(u => ({ pseudo: u.pseudo, email: u.email, phone: u.phone, gender: u.gender, age: u.age, country: u.country, city: u.city, plan: u.plan, created_at: u.created_at }));
@@ -425,8 +439,16 @@ app.get('*', (req, res) => {
     });
 });
 
+// ─── Global error handler ────────────────────────────
+app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err.message);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+});
+process.on('unhandledRejection', (err) => console.error('Unhandled promise:', err));
+process.on('uncaughtException', (err) => console.error('Uncaught exception:', err));
+
 // ─── Start ───────────────────────────────────────────
-initDB().then(ok => {
+initDB().catch(e => console.error('DB init failed:', e));
     if (!ok) console.log('⚠️ No DATABASE_URL, using in-memory storage');
     server.listen(PORT, '0.0.0.0', () => {
         console.log('━━━━━━━━━━━━━━━━━━━━━━');

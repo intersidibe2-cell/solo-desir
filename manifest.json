@@ -2,7 +2,7 @@
     "name": "Solo — Rencontres Africaines",
     "short_name": "Solo",
     "description": "Trouve ta moitié",
-    "start_url": "/",
+    "start_url": "/solo.html",
     "display": "standalone",
     "background_color": "#0a0a0f",
     "theme_color": "#ff3b3b",

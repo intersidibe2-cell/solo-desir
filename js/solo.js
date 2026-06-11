@@ -191,7 +191,9 @@ const B = {
         this.startChatPoll();
     },
 
-    logout() { localStorage.removeItem('solo_token'); location.reload(); },
+    logout() {
+        if (this.pollInterval) clearInterval(this.pollInterval);
+        localStorage.removeItem('solo_token'); location.reload(); },
 
     async loadProfiles() {
         const params = new URLSearchParams();
@@ -340,7 +342,8 @@ const B = {
     },
 
     startChatPoll() {
-        setInterval(() => {
+        if (this.pollInterval) clearInterval(this.pollInterval);
+        this.pollInterval = setInterval(() => {
             if (this.currentMatch && document.getElementById('pageChat').classList.contains('active')) {
                 this.loadMessages();
             }
@@ -470,6 +473,7 @@ const B = {
     },
 
     ecoMode: false,
+    pollInterval: null,
     toggleEco() {
         this.ecoMode = !this.ecoMode;
         document.body.classList.toggle('eco-mode', this.ecoMode);

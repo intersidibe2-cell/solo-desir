@@ -27,7 +27,14 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <div id="loginGate" style="text-align:center;padding:4rem 1rem">
+        <h2>🔐 Admin Solo</h2>
+        <input type="password" id="adminKeyInput" placeholder="Clé d'accès" style="padding:.7rem 1rem;border-radius:10px;border:1px solid #2a2a3e;background:#1a1a2e;color:#eee;margin:1rem 0;width:250px;text-align:center;font-size:1rem">
+        <br><button onclick="init()" style="padding:.7rem 2rem;border-radius:10px;border:none;background:#ff3b3b;color:#fff;cursor:pointer;font-weight:600">Accéder</button>
+        <p id="loginErr" style="color:#ff3b3b;font-size:.8rem;margin-top:.5rem;display:none"></p>
+    </div>
+    <div id="adminPanel" style="display:none">
+        <div class="container">
         <h1>🔥 <span>Solo</span> — Admin</h1>
         <div class="stats">
             <div class="stat-card"><div class="stat-num" id="statUsers">-</div><div class="stat-label">Utilisateurs</div></div>
@@ -40,45 +47,26 @@
             <thead><tr><th>Pseudo</th><th>Contact</th><th>Genre</th><th>Âge</th><th>Pays</th><th>Plan</th><th>Date</th><th></th></tr></thead>
             <tbody id="userTable"></tbody>
         </table>
-    </div>
-    <div id="loginGate" style="text-align:center;padding:4rem 1rem">
-        <h2>🔐 Admin Solo</h2>
-        <input type="password" id="adminKeyInput" placeholder="Clé d'accès" style="padding:.7rem 1rem;border-radius:10px;border:1px solid #2a2a3e;background:#1a1a2e;color:#eee;margin:1rem 0;width:250px;text-align:center;font-size:1rem">
-        <br><button onclick="init()" style="padding:.7rem 2rem;border-radius:10px;border:none;background:#ff3b3b;color:#fff;cursor:pointer;font-weight:600">Accéder</button>
-        <p id="loginErr" style="color:#ff3b3b;font-size:.8rem;margin-top:.5rem;display:none"></p>
-    </div>
-    <div id="adminPanel" style="display:none">
-    <h1>🔥 <span>Solo</span> — Admin</h1>
-    <div class="stats">
-        <div class="stat-card"><div class="stat-num" id="statUsers">-</div><div class="stat-label">Utilisateurs</div></div>
-        <div class="stat-card"><div class="stat-num" id="statNew">-</div><div class="stat-label">Nouveaux (7j)</div></div>
-        <div class="stat-card"><div class="stat-num" id="statMatches">-</div><div class="stat-label">Matchs</div></div>
-        <div class="stat-card"><div class="stat-num" id="statPremium">-</div><div class="stat-label">Premium</div></div>
-    </div>
-    <h2>Utilisateurs récents</h2>
-    <table>
-        <thead><tr><th>Pseudo</th><th>Contact</th><th>Genre</th><th>Âge</th><th>Pays</th><th>Plan</th><th>Date</th><th></th></tr></thead>
-        <tbody id="userTable"></tbody>
-    </table>
+        </div>
     </div>
     <script>
         var KEY = '';
         async function init() {
             KEY = document.getElementById('adminKeyInput').value.trim();
-            var test = await fetch('/api/solo/admin/stats?key=' + KEY).then(r => r.json());
+            var test = await fetch('/api/solo/admin/stats', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY}) }).then(r => r.json());
             if (!test.success) { document.getElementById('loginErr').style.display = 'block'; document.getElementById('loginErr').textContent = 'Clé incorrecte'; return; }
             document.getElementById('loginGate').style.display = 'none';
             document.getElementById('adminPanel').style.display = 'block';
             load();
         }
         async function load() {
-            const s = await fetch('/api/solo/admin/stats?key=' + KEY).then(r => r.json());
+            var s = await fetch('/api/solo/admin/stats', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY}) }).then(r => r.json());
             document.getElementById('statUsers').textContent = s.users.total;
             document.getElementById('statNew').textContent = s.users.new;
             document.getElementById('statMatches').textContent = s.matches;
             document.getElementById('statPremium').textContent = s.users.premium;
-            const u = await fetch('/api/solo/admin/users?key=' + KEY).then(r => r.json());
-            const tbody = document.getElementById('userTable');
+            var u = await fetch('/api/solo/admin/users', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY}) }).then(r => r.json());
+            var tbody = document.getElementById('userTable');
             if (!u.users.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Aucun utilisateur</td></tr>'; return; }
             tbody.innerHTML = u.users.map(us => `<tr>
                 <td>${us.pseudo}</td>
