@@ -739,6 +739,8 @@ app.get('/api/solo/likes-received', authMiddleware, async (req, res) => {
     }));
     res.json({ success: true, likes: profiles, isVip });
 });
+
+app.get('/api/solo/referral', authMiddleware, async (req, res) => {
     const user = pool ? (await pool.query('SELECT referral_code, referrals_count, plan, plan_expires_at FROM solo_users WHERE email = $1', [req.user.email])).rows[0] : USERS_MEM[req.user.email];
     if (!user) return res.status(404).json({ success: false });
     res.json({
