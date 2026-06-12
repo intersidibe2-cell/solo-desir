@@ -3,79 +3,536 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin — Solo</title>
+    <title>Solo Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:Inter,system-ui,sans-serif;background:#0a0a0f;color:#eee;padding:2rem}
-        .container{max-width:900px;margin:0 auto}
-        h1{font-size:1.5rem;margin-bottom:1.5rem}
-        h1 span{color:#ff3b3b}
-        .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:2rem}
-        .stat-card{background:#141420;border-radius:12px;padding:1.2rem;border:1px solid #1a1a2e;text-align:center}
-        .stat-num{font-size:2rem;font-weight:700;color:#ff3b3b}
-        .stat-label{color:#888;font-size:.8rem;margin-top:.3rem}
-        table{width:100%;border-collapse:collapse;background:#141420;border-radius:12px;overflow:hidden;border:1px solid #1a1a2e}
-        th{text-align:left;padding:.7rem 1rem;background:#1a1a2e;font-size:.75rem;color:#888;text-transform:uppercase}
-        td{padding:.6rem 1rem;font-size:.8rem;border-bottom:1px solid #1a1a2e}
-        td:last-child{text-align:right}
-        .btn-block{background:#1a1a2e;color:#ff3b3b;border:1px solid #ff3b3b;padding:.3rem .7rem;border-radius:6px;cursor:pointer;font-size:.7rem}
-        .btn-block:hover{background:#ff3b3b;color:#fff}
-        .empty{text-align:center;color:#666;padding:2rem}
+        body{font-family:Inter,system-ui,sans-serif;background:#0a0a0f;color:#eee;min-height:100dvh}
+
+        /* Sidebar */
+        .sidebar{position:fixed;left:0;top:0;bottom:0;width:250px;background:rgba(15,15,25,.95);backdrop-filter:blur(20px);border-right:1px solid rgba(255,255,255,.06);padding:1.5rem 0;z-index:100;transition:.3s}
+        .sidebar-brand{padding:0 1.5rem 1.5rem;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:1rem}
+        .sidebar-brand h2{font-size:1.3rem;font-weight:700;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .sidebar-brand p{color:#666;font-size:.7rem;margin-top:.2rem}
+        .nav-item{display:flex;align-items:center;gap:.8rem;padding:.8rem 1.5rem;color:#888;cursor:pointer;transition:.2s;font-size:.85rem;border-left:3px solid transparent}
+        .nav-item:hover{color:#eee;background:rgba(255,255,255,.03)}
+        .nav-item.active{color:#ff3b3b;background:rgba(255,59,59,.05);border-left-color:#ff3b3b}
+        .nav-item i{width:20px;text-align:center}
+        .nav-badge{background:#ff3b3b;color:#fff;font-size:.6rem;padding:.15rem .4rem;border-radius:6px;margin-left:auto}
+
+        /* Main */
+        .main{margin-left:250px;padding:1.5rem;min-height:100dvh}
+
+        /* Header */
+        .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem}
+        .header h1{font-size:1.5rem;font-weight:700}
+        .header-actions{display:flex;gap:.5rem;align-items:center}
+        .btn-logout{background:rgba(255,59,59,.1);border:1px solid rgba(255,59,59,.2);color:#ff3b3b;padding:.5rem 1rem;border-radius:8px;cursor:pointer;font-size:.8rem;transition:.2s}
+        .btn-logout:hover{background:rgba(255,59,59,.2)}
+
+        /* Stats Grid */
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:2rem}
+        .stat-card{background:rgba(20,20,32,.7);backdrop-filter:blur(15px);border-radius:16px;padding:1.2rem;border:1px solid rgba(255,255,255,.06);transition:.3s}
+        .stat-card:hover{border-color:rgba(255,59,59,.2);transform:translateY(-2px)}
+        .stat-icon{font-size:1.5rem;margin-bottom:.5rem}
+        .stat-value{font-size:2rem;font-weight:700;color:#ff3b3b}
+        .stat-label{color:#888;font-size:.75rem;margin-top:.2rem}
+        .stat-change{font-size:.7rem;margin-top:.3rem}
+        .stat-change.up{color:#4caf50}
+        .stat-change.down{color:#ff3b3b}
+
+        /* Charts */
+        .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem}
+        .chart-card{background:rgba(20,20,32,.7);backdrop-filter:blur(15px);border-radius:16px;padding:1.2rem;border:1px solid rgba(255,255,255,.06)}
+        .chart-card h3{font-size:.9rem;margin-bottom:1rem;color:#aaa}
+        .chart-container{position:relative;height:250px}
+
+        /* Tables */
+        .table-card{background:rgba(20,20,32,.7);backdrop-filter:blur(15px);border-radius:16px;border:1px solid rgba(255,255,255,.06);overflow:hidden;margin-bottom:2rem}
+        .table-header{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.2rem;border-bottom:1px solid rgba(255,255,255,.06)}
+        .table-header h3{font-size:.9rem}
+        .table-actions{display:flex;gap:.5rem}
+        .search-input{padding:.5rem .8rem;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eee;font-size:.8rem;outline:none;width:200px}
+        .search-input:focus{border-color:#ff3b3b}
+        .filter-select{padding:.5rem .8rem;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eee;font-size:.8rem;outline:none}
+        table{width:100%;border-collapse:collapse}
+        th{text-align:left;padding:.7rem 1rem;background:rgba(255,255,255,.03);font-size:.7rem;color:#888;text-transform:uppercase;letter-spacing:.5px}
+        td{padding:.6rem 1rem;font-size:.8rem;border-bottom:1px solid rgba(255,255,255,.04)}
+        tr:hover{background:rgba(255,255,255,.02)}
+        .badge{padding:.2rem .5rem;border-radius:6px;font-size:.65rem;font-weight:600}
+        .badge-free{background:rgba(255,255,255,.06);color:#888}
+        .badge-vip{background:rgba(255,215,0,.15);color:#ffd700}
+        .badge-banned{background:rgba(255,59,59,.15);color:#ff3b3b}
+        .badge-pending{background:rgba(255,165,0,.15);color:#ffa500}
+        .badge-resolved{background:rgba(76,175,80,.15);color:#4caf50}
+        .btn-sm{padding:.3rem .6rem;border-radius:6px;border:none;cursor:pointer;font-size:.7rem;transition:.2s}
+        .btn-primary{background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff}
+        .btn-danger{background:rgba(255,59,59,.15);color:#ff3b3b;border:1px solid rgba(255,59,59,.2)}
+        .btn-success{background:rgba(76,175,80,.15);color:#4caf50;border:1px solid rgba(76,175,80,.2)}
+        .btn-sm:hover{opacity:.8;transform:scale(1.02)}
+        .pagination{display:flex;justify-content:center;gap:.5rem;padding:1rem}
+        .page-btn{padding:.4rem .8rem;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#888;cursor:pointer;font-size:.75rem}
+        .page-btn.active{background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff;border:none}
+
+        /* Modal */
+        .modal{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);z-index:200;display:none;align-items:center;justify-content:center;padding:1rem}
+        .modal.show{display:flex}
+        .modal-content{background:rgba(20,20,32,.95);backdrop-filter:blur(20px);border-radius:20px;width:100%;max-width:500px;max-height:80dvh;overflow-y:auto;border:1px solid rgba(255,255,255,.08)}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;padding:1.2rem;border-bottom:1px solid rgba(255,255,255,.06)}
+        .modal-header h3{font-size:1rem}
+        .modal-close{background:none;border:none;color:#888;cursor:pointer;font-size:1.2rem}
+        .modal-body{padding:1.2rem}
+        .modal-body .row{display:flex;gap:1rem;margin-bottom:.8rem}
+        .modal-body .label{color:#888;font-size:.75rem;min-width:100px}
+        .modal-body .value{font-size:.85rem}
+
+        /* Pages */
+        .page{display:none}
+        .page.active{display:block}
+
+        /* Toast */
+        .toast{position:fixed;bottom:2rem;right:2rem;background:rgba(20,20,32,.95);backdrop-filter:blur(20px);color:#eee;padding:.8rem 1.2rem;border-radius:12px;font-size:.8rem;z-index:300;opacity:0;transition:opacity .3s;border:1px solid rgba(255,255,255,.08)}
+        .toast.show{opacity:1}
+
+        /* Responsive */
+        @media(max-width:768px){
+            .sidebar{width:60px;padding:1rem 0}
+            .sidebar-brand h2,.sidebar-brand p,.nav-item span,.nav-badge{display:none}
+            .nav-item{justify-content:center;padding:.8rem}
+            .main{margin-left:60px;padding:1rem}
+            .charts-grid{grid-template-columns:1fr}
+            .stats-grid{grid-template-columns:repeat(2,1fr)}
+        }
     </style>
 </head>
 <body>
-    <div id="loginGate" style="text-align:center;padding:4rem 1rem">
-        <h2>🔐 Admin Solo</h2>
-        <input type="password" id="adminKeyInput" placeholder="Clé d'accès" style="padding:.7rem 1rem;border-radius:10px;border:1px solid #2a2a3e;background:#1a1a2e;color:#eee;margin:1rem 0;width:250px;text-align:center;font-size:1rem">
-        <br><button onclick="init()" style="padding:.7rem 2rem;border-radius:10px;border:none;background:#ff3b3b;color:#fff;cursor:pointer;font-weight:600">Accéder</button>
-        <p id="loginErr" style="color:#ff3b3b;font-size:.8rem;margin-top:.5rem;display:none"></p>
+    <!-- Login Gate -->
+    <div id="loginGate" style="display:flex;align-items:center;justify-content:center;min-height:100dvh;padding:1rem">
+        <div style="text-align:center;max-width:400px;width:100%">
+            <h2 style="font-size:2rem;margin-bottom:.5rem;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);-webkit-background-clip:text;-webkit-text-fill-color:transparent">🔐 Solo Admin</h2>
+            <p style="color:#888;font-size:.8rem;margin-bottom:1.5rem">Accès réservé à l'administration</p>
+            <input type="password" id="adminKeyInput" placeholder="Clé d'accès" style="width:100%;padding:.8rem 1rem;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eee;font-size:1rem;text-align:center;outline:none;margin-bottom:1rem">
+            <br><button onclick="init()" style="width:100%;padding:.8rem;border-radius:12px;border:none;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff;cursor:pointer;font-weight:600;font-size:1rem">Accéder</button>
+            <p id="loginErr" style="color:#ff3b3b;font-size:.8rem;margin-top:.5rem;display:none"></p>
+        </div>
     </div>
+
+    <!-- Admin Panel -->
     <div id="adminPanel" style="display:none">
-        <div class="container">
-        <h1>🔥 <span>Solo</span> — Admin</h1>
-        <div class="stats">
-            <div class="stat-card"><div class="stat-num" id="statUsers">-</div><div class="stat-label">Utilisateurs</div></div>
-            <div class="stat-card"><div class="stat-num" id="statNew">-</div><div class="stat-label">Nouveaux (7j)</div></div>
-            <div class="stat-card"><div class="stat-num" id="statMatches">-</div><div class="stat-label">Matchs</div></div>
-            <div class="stat-card"><div class="stat-num" id="statPremium">-</div><div class="stat-label">Premium</div></div>
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <h2>🔥 Solo</h2>
+                <p>Administration</p>
+            </div>
+            <div class="nav-item active" data-page="dashboard"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></div>
+            <div class="nav-item" data-page="users"><i class="fas fa-users"></i> <span>Utilisateurs</span></div>
+            <div class="nav-item" data-page="reports"><i class="fas fa-flag"></i> <span>Signalements</span> <span class="nav-badge" id="reportsBadge" style="display:none">0</span></div>
+            <div class="nav-item" data-page="annonces"><i class="fas fa-bullhorn"></i> <span>Annonces</span></div>
+            <div class="nav-item" data-page="messages"><i class="fas fa-exclamation-triangle"></i> <span>Messages suspects</span></div>
+            <div class="nav-item" data-page="boosts"><i class="fas fa-rocket"></i> <span>Boosts</span></div>
         </div>
-        <h2>Utilisateurs récents</h2>
-        <table>
-            <thead><tr><th>Pseudo</th><th>Contact</th><th>Genre</th><th>Âge</th><th>Pays</th><th>Plan</th><th>Date</th><th></th></tr></thead>
-            <tbody id="userTable"></tbody>
-        </table>
+
+        <!-- Main Content -->
+        <div class="main">
+            <div class="header">
+                <h1 id="pageTitle">Dashboard</h1>
+                <div class="header-actions">
+                    <button class="btn-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Déconnexion</button>
+                </div>
+            </div>
+
+            <!-- Dashboard Page -->
+            <div id="pageDashboard" class="page active">
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-value" id="sTotal">-</div><div class="stat-label">Utilisateurs</div></div>
+                    <div class="stat-card"><div class="stat-icon">🆕</div><div class="stat-value" id="sNew24h">-</div><div class="stat-label">Nouveaux (24h)</div></div>
+                    <div class="stat-card"><div class="stat-icon">💚</div><div class="stat-value" id="sOnline">-</div><div class="stat-label">En ligne</div></div>
+                    <div class="stat-card"><div class="stat-icon">💘</div><div class="stat-value" id="sMatches">-</div><div class="stat-label">Matchs</div></div>
+                    <div class="stat-card"><div class="stat-icon">💬</div><div class="stat-value" id="sMessages">-</div><div class="stat-label">Messages</div></div>
+                    <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value" id="sPremium">-</div><div class="stat-label">Premium</div></div>
+                    <div class="stat-card"><div class="stat-icon">📢</div><div class="stat-value" id="sAnnonces">-</div><div class="stat-label">Annonces</div></div>
+                    <div class="stat-card"><div class="stat-icon">🚩</div><div class="stat-value" id="sReports">-</div><div class="stat-label">Signalements</div></div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Inscriptions (7 jours)</h3>
+                        <div class="chart-container"><canvas id="chartSignups"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Top pays</h3>
+                        <div class="chart-container"><canvas id="chartCountries"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Répartition genre</h3>
+                        <div class="chart-container"><canvas id="chartGender"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Activité récente</h3>
+                        <div id="recentActivity" style="font-size:.8rem;color:#888;max-height:250px;overflow-y:auto"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Page -->
+            <div id="pageUsers" class="page">
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3>Utilisateurs (<span id="usersTotal">0</span>)</h3>
+                        <div class="table-actions">
+                            <input type="text" class="search-input" id="userSearch" placeholder="Rechercher..." oninput="searchUsers()">
+                            <select class="filter-select" id="filterGender" onchange="searchUsers()"><option value="">Tous</option><option value="homme">Homme</option><option value="femme">Femme</option></select>
+                            <select class="filter-select" id="filterCountry" onchange="searchUsers()"><option value="">Tous pays</option><option value="ML">Mali</option><option value="CI">CI</option><option value="SN">Sénégal</option><option value="BF">Burkina</option></select>
+                            <select class="filter-select" id="filterPlan" onchange="searchUsers()"><option value="">Tous plans</option><option value="free">Free</option><option value="vip">VIP</option><option value="banned">Banni</option></select>
+                        </div>
+                    </div>
+                    <table>
+                        <thead><tr><th>Pseudo</th><th>Contact</th><th>Genre</th><th>Âge</th><th>Pays</th><th>Plan</th><th>Inscrit</th><th>Actions</th></tr></thead>
+                        <tbody id="userTable"></tbody>
+                    </table>
+                    <div class="pagination" id="userPagination"></div>
+                </div>
+            </div>
+
+            <!-- Reports Page -->
+            <div id="pageReports" class="page">
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3>Signalements</h3>
+                        <div class="table-actions">
+                            <select class="filter-select" id="reportStatus" onchange="loadReports()"><option value="">Tous</option><option value="pending">En attente</option><option value="resolved">Traité</option></select>
+                        </div>
+                    </div>
+                    <table>
+                        <thead><tr><th>Signalé par</th><th>Utilisateur</th><th>Raison</th><th>Détails</th><th>Date</th><th>Statut</th><th>Actions</th></tr></thead>
+                        <tbody id="reportTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Annonces Page -->
+            <div id="pageAnnonces" class="page">
+                <div class="table-card">
+                    <div class="table-header"><h3>Annonces</h3></div>
+                    <table>
+                        <thead><tr><th>Auteur</th><th>Titre</th><th>Description</th><th>Pays</th><th>Date</th><th>Actions</th></tr></thead>
+                        <tbody id="annonceTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Messages Page -->
+            <div id="pageMessages" class="page">
+                <div class="table-card">
+                    <div class="table-header"><h3>Messages suspects</h3></div>
+                    <table>
+                        <thead><tr><th>Expéditeur</th><th>Message</th><th>Date</th><th>Actions</th></tr></thead>
+                        <tbody id="messageTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Boosts Page -->
+            <div id="pageBoosts" class="page">
+                <div class="table-card">
+                    <div class="table-header"><h3>Boosts actifs</h3></div>
+                    <table>
+                        <thead><tr><th>Utilisateur</th><th>Début</th><th>Expire</th><th>Actions</th></tr></thead>
+                        <tbody id="boostTable"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
+
+    <!-- User Detail Modal -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Détails utilisateur</h3>
+                <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="userModalBody"></div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
     <script>
         var KEY = '';
+        var currentPage = 'dashboard';
+        var charts = {};
+
+        // Check URL secret
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('key')) {
+                document.getElementById('adminKeyInput').value = params.get('key');
+                init();
+            }
+        })();
+
         async function init() {
             KEY = document.getElementById('adminKeyInput').value.trim();
-            var test = await fetch('/api/solo/admin/stats', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY}) }).then(function(r){return r.json();}).catch(function(){return{success:false};});
-            if (!test || !test.success) { document.getElementById('loginErr').style.display = 'block'; document.getElementById('loginErr').textContent = 'Clé incorrecte'; return; }
+            var test = await api('/api/solo/admin/stats');
+            if (!test || !test.success) {
+                document.getElementById('loginErr').style.display = 'block';
+                document.getElementById('loginErr').textContent = 'Clé incorrecte';
+                return;
+            }
             document.getElementById('loginGate').style.display = 'none';
             document.getElementById('adminPanel').style.display = 'block';
-            load();
+            loadDashboard();
         }
-        async function load() {
-            var s = await fetch('/api/solo/admin/stats', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY}) }).then(function(r){return r.json();}).catch(function(){return{users:{total:0,new:0,premium:0},matches:0};});
-            if (!s || !s.success) return;
-            document.getElementById('statUsers').textContent = s.users.total || 0;
-            document.getElementById('statNew').textContent = s.users.new || 0;
-            document.getElementById('statMatches').textContent = s.matches || 0;
-            document.getElementById('statPremium').textContent = s.users.premium || 0;
-            var u = await fetch('/api/solo/admin/users', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY}) }).then(function(r){return r.json();}).catch(function(){return{users:[]};});
+
+        async function api(url, body) {
+            body = body || {};
+            body.key = KEY;
+            var r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            return r.json();
+        }
+
+        function logout() { location.reload(); }
+
+        function toast(msg) {
+            var el = document.getElementById('toast');
+            el.textContent = msg;
+            el.classList.add('show');
+            setTimeout(function() { el.classList.remove('show'); }, 3000);
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.nav-item').forEach(function(i) { i.classList.remove('active'); });
+                item.classList.add('active');
+                document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+                var page = item.dataset.page;
+                document.getElementById('page' + page.charAt(0).toUpperCase() + page.slice(1)).classList.add('active');
+                document.getElementById('pageTitle').textContent = item.querySelector('span').textContent;
+                currentPage = page;
+                if (page === 'dashboard') loadDashboard();
+                if (page === 'users') searchUsers();
+                if (page === 'reports') loadReports();
+                if (page === 'annonces') loadAnnonces();
+                if (page === 'messages') loadMessages();
+                if (page === 'boosts') loadBoosts();
+            });
+        });
+
+        // Dashboard
+        async function loadDashboard() {
+            var d = await api('/api/solo/admin/stats');
+            if (!d.success) return;
+            document.getElementById('sTotal').textContent = d.users.total || 0;
+            document.getElementById('sNew24h').textContent = d.users.new24h || 0;
+            document.getElementById('sOnline').textContent = d.users.online || 0;
+            document.getElementById('sMatches').textContent = d.matches || 0;
+            document.getElementById('sMessages').textContent = d.messages || 0;
+            document.getElementById('sPremium').textContent = d.users.premium || 0;
+            document.getElementById('sAnnonces').textContent = d.annonces || 0;
+            document.getElementById('sReports').textContent = d.reports || 0;
+            if (d.reports > 0) {
+                document.getElementById('reportsBadge').style.display = 'block';
+                document.getElementById('reportsBadge').textContent = d.reports;
+            }
+            renderChartSignups(d.dailySignups || []);
+            renderChartCountries(d.topCountries || []);
+            renderChartGender(d.genderStats || []);
+        }
+
+        function renderChartSignups(data) {
+            if (charts.signups) charts.signups.destroy();
+            var ctx = document.getElementById('chartSignups').getContext('2d');
+            charts.signups = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(function(d) { return d.date.substring(5); }),
+                    datasets: [{ label: 'Inscriptions', data: data.map(function(d) { return d.count; }), borderColor: '#ff3b3b', backgroundColor: 'rgba(255,59,59,.1)', fill: true, tension: 0.4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#666' } }, y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#666' } } } }
+            });
+        }
+
+        function renderChartCountries(data) {
+            if (charts.countries) charts.countries.destroy();
+            var ctx = document.getElementById('chartCountries').getContext('2d');
+            var colors = ['#ff3b3b','#ff6b6b','#4caf50','#ffd700','#2196f3','#9c27b0','#ff9800','#00bcd4','#e91e63','#8bc34a'];
+            charts.countries = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(function(d) { return d.country; }),
+                    datasets: [{ data: data.map(function(d) { return d.count; }), backgroundColor: colors }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#888', font: { size: 11 } } } } }
+            });
+        }
+
+        function renderChartGender(data) {
+            if (charts.gender) charts.gender.destroy();
+            var ctx = document.getElementById('chartGender').getContext('2d');
+            charts.gender = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(function(d) { return d.gender; }),
+                    datasets: [{ data: data.map(function(d) { return d.count; }), backgroundColor: ['#2196f3','#e91e63','#9c27b0'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#888', font: { size: 11 } } } } }
+            });
+        }
+
+        // Users
+        var userPage = 1;
+        async function searchUsers() {
+            userPage = 1;
+            loadUsers();
+        }
+
+        async function loadUsers() {
+            var d = await api('/api/solo/admin/users', {
+                search: document.getElementById('userSearch').value,
+                gender: document.getElementById('filterGender').value,
+                country: document.getElementById('filterCountry').value,
+                plan: document.getElementById('filterPlan').value,
+                page: userPage
+            });
+            if (!d.success) return;
+            document.getElementById('usersTotal').textContent = d.total;
             var tbody = document.getElementById('userTable');
-            if (!u.users || !u.users.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Aucun utilisateur</td></tr>'; return; }
-            tbody.innerHTML = u.users.map(function(us){return '<tr><td>'+(us.pseudo||'')+'</td><td>'+(us.phone||us.email||'')+'</td><td>'+(us.gender||'')+'</td><td>'+(us.age||'')+'</td><td>'+(us.country||'')+'</td><td>'+(us.plan||'')+'</td><td>'+((us.created_at||'').substring(0,10))+'</td><td><button class="btn-block" onclick="block(\''+us.email+'\')">🚫 Bloquer</button></td></tr>';}).join('');
+            if (!d.users || !d.users.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#666;padding:2rem">Aucun utilisateur</td></tr>'; return; }
+            tbody.innerHTML = d.users.map(function(u) {
+                var planClass = u.plan === 'banned' ? 'badge-banned' : (u.plan !== 'free' ? 'badge-vip' : 'badge-free');
+                return '<tr><td><strong>' + esc(u.pseudo) + '</strong>' + (u.verified ? ' ✓' : '') + '</td><td>' + esc(u.phone || u.email) + '</td><td>' + esc(u.gender) + '</td><td>' + (u.age || '-') + '</td><td>' + esc(u.country) + '</td><td><span class="badge ' + planClass + '">' + esc(u.plan) + '</span></td><td>' + (u.created_at || '').substring(0, 10) + '</td><td><button class="btn-sm btn-primary" onclick="showUser(\'' + esc(u.email) + '\')">Détail</button></td></tr>';
+            }).join('');
+            renderPagination(d.pages, d.page);
         }
-        async function block(email) {
-            if (!confirm('Bloquer définitivement ' + email + ' ?')) return;
-            await fetch('/api/solo/admin/block', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:KEY, email}) });
-            load();
+
+        function renderPagination(total, current) {
+            var el = document.getElementById('userPagination');
+            var html = '';
+            for (var i = 1; i <= total; i++) {
+                html += '<button class="page-btn' + (i === current ? ' active' : '') + '" onclick="userPage=' + i + ';loadUsers()">' + i + '</button>';
+            }
+            el.innerHTML = html;
         }
+
+        async function showUser(email) {
+            var d = await api('/api/solo/admin/users/' + email);
+            if (!d.success) return;
+            var u = d.user;
+            var s = d.stats;
+            var body = document.getElementById('userModalBody');
+            body.innerHTML = '<div class="row"><div class="label">Pseudo</div><div class="value">' + esc(u.pseudo) + (u.verified ? ' ✓' : '') + '</div></div>' +
+                '<div class="row"><div class="label">Email</div><div class="value">' + esc(u.email) + '</div></div>' +
+                '<div class="row"><div class="label">Téléphone</div><div class="value">' + esc(u.phone || '-') + '</div></div>' +
+                '<div class="row"><div class="label">Genre</div><div class="value">' + esc(u.gender) + '</div></div>' +
+                '<div class="row"><div class="label">Âge</div><div class="value">' + (u.age || '-') + '</div></div>' +
+                '<div class="row"><div class="label">Pays</div><div class="value">' + esc(u.country) + '</div></div>' +
+                '<div class="row"><div class="label">Ville</div><div class="value">' + esc(u.city || '-') + '</div></div>' +
+                '<div class="row"><div class="label">Plan</div><div class="value">' + esc(u.plan) + '</div></div>' +
+                '<div class="row"><div class="label">Inscrit</div><div class="value">' + (u.created_at || '').substring(0, 10) + '</div></div>' +
+                '<div class="row"><div class="label">Dernière visite</div><div class="value">' + (u.last_seen ? new Date(u.last_seen).toLocaleString() : '-') + '</div></div>' +
+                '<hr style="border-color:rgba(255,255,255,.06);margin:1rem 0">' +
+                '<div style="display:flex;gap:1rem;margin-bottom:1rem"><div style="flex:1;text-align:center;background:rgba(255,255,255,.03);padding:.8rem;border-radius:8px"><div style="font-size:1.5rem;font-weight:700;color:#ff3b3b">' + s.matches + '</div><div style="font-size:.7rem;color:#888">Matchs</div></div>' +
+                '<div style="flex:1;text-align:center;background:rgba(255,255,255,.03);padding:.8rem;border-radius:8px"><div style="font-size:1.5rem;font-weight:700;color:#ff3b3b">' + s.messages + '</div><div style="font-size:.7rem;color:#888">Messages</div></div>' +
+                '<div style="flex:1;text-align:center;background:rgba(255,255,255,.03);padding:.8rem;border-radius:8px"><div style="font-size:1.5rem;font-weight:700;color:#ff3b3b">' + s.likes + '</div><div style="font-size:.7rem;color:#888">Likes</div></div></div>' +
+                '<div style="display:flex;gap:.5rem">' +
+                (u.plan === 'banned' ? '<button class="btn-sm btn-success" onclick="unbanUser(\'' + esc(u.email) + '\')">Débannir</button>' : '<button class="btn-sm btn-danger" onclick="banUser(\'' + esc(u.email) + '\')">Bannir</button>') +
+                '<button class="btn-sm btn-danger" onclick="blockUser(\'' + esc(u.email) + '\')">Supprimer</button>' +
+                '</div>';
+            document.getElementById('userModal').classList.add('show');
+        }
+
+        async function banUser(email) {
+            if (!confirm('Bannir ' + email + ' ?')) return;
+            await api('/api/solo/admin/users/' + email + '/ban');
+            toast('Utilisateur banni');
+            closeModal('userModal');
+            loadUsers();
+        }
+
+        async function unbanUser(email) {
+            await api('/api/solo/admin/users/' + email + '/unban');
+            toast('Utilisateur débanni');
+            closeModal('userModal');
+            loadUsers();
+        }
+
+        async function blockUser(email) {
+            if (!confirm('Supprimer définitivement ' + email + ' ?')) return;
+            await api('/api/solo/admin/block', { email: email });
+            toast('Utilisateur supprimé');
+            closeModal('userModal');
+            loadUsers();
+        }
+
+        // Reports
+        async function loadReports() {
+            var status = document.getElementById('reportStatus').value;
+            var d = await api('/api/solo/admin/reports', { status: status });
+            if (!d.success) return;
+            var tbody = document.getElementById('reportTable');
+            if (!d.reports || !d.reports.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#666;padding:2rem">Aucun signalement</td></tr>'; return; }
+            tbody.innerHTML = d.reports.map(function(r) {
+                var statusClass = r.status === 'pending' ? 'badge-pending' : 'badge-resolved';
+                return '<tr><td>' + esc(r.reporter) + '</td><td>' + esc(r.reported_pseudo || r.reported) + '</td><td>' + esc(r.reason) + '</td><td>' + esc(r.details || '-') + '</td><td>' + (r.created_at || '').substring(0, 10) + '</td><td><span class="badge ' + statusClass + '">' + esc(r.status) + '</span></td><td>' +
+                    (r.status === 'pending' ? '<button class="btn-sm btn-primary" onclick="resolveReport(' + r.id + ',\'resolved\')">Traiter</button> <button class="btn-sm btn-danger" onclick="banUser(\'' + esc(r.reported) + '\')">Bannir</button>' : '-') + '</td></tr>';
+            }).join('');
+        }
+
+        async function resolveReport(id, action) {
+            await api('/api/solo/admin/reports/' + id + '/resolve', { action: action });
+            toast('Signalement traité');
+            loadReports();
+        }
+
+        // Annonces
+        async function loadAnnonces() {
+            var d = await api('/api/solo/admin/annonces');
+            if (!d.success) return;
+            var tbody = document.getElementById('annonceTable');
+            if (!d.annonces || !d.annonces.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#666;padding:2rem">Aucune annonce</td></tr>'; return; }
+            tbody.innerHTML = d.annonces.map(function(a) {
+                return '<tr><td>' + esc(a.pseudo) + '</td><td>' + esc(a.title) + '</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(a.description) + '</td><td>' + esc(a.country) + '</td><td>' + (a.created_at || '').substring(0, 10) + '</td><td><button class="btn-sm btn-danger" onclick="deleteAnnonce(' + a.id + ')">Supprimer</button></td></tr>';
+            }).join('');
+        }
+
+        async function deleteAnnonce(id) {
+            if (!confirm('Supprimer cette annonce ?')) return;
+            await api('/api/solo/admin/annonces/' + id + '/delete');
+            toast('Annonce supprimée');
+            loadAnnonces();
+        }
+
+        // Messages
+        async function loadMessages() {
+            var d = await api('/api/solo/admin/messages/suspicious');
+            if (!d.success) return;
+            var tbody = document.getElementById('messageTable');
+            if (!d.messages || !d.messages.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#666;padding:2rem">Aucun message suspect</td></tr>'; return; }
+            tbody.innerHTML = d.messages.map(function(m) {
+                return '<tr><td>' + esc(m.sender_pseudo || m.sender) + '</td><td style="max-width:300px;word-break:break-all">' + esc(m.content) + '</td><td>' + (m.created_at || '').substring(0, 16) + '</td><td><button class="btn-sm btn-danger" onclick="blockUser(\'' + esc(m.sender) + '\')">Bannir</button></td></tr>';
+            }).join('');
+        }
+
+        // Boosts
+        async function loadBoosts() {
+            var d = await api('/api/solo/admin/boosts');
+            if (!d.success) return;
+            var tbody = document.getElementById('boostTable');
+            if (!d.boosts || !d.boosts.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#666;padding:2rem">Aucun boost actif</td></tr>'; return; }
+            tbody.innerHTML = d.boosts.map(function(b) {
+                return '<tr><td>' + esc(b.pseudo || b.user_id) + '</td><td>' + (b.created_at || '').substring(0, 16) + '</td><td>' + (b.expires_at || '').substring(0, 16) + '</td><td>-</td></tr>';
+            }).join('');
+        }
+
+        function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     </script>
 </body>
 </html>

@@ -185,15 +185,16 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 }
 
 // ─── Push Notification Helper ─────────────────────────
-const webPush = require('web-push');
+let webPush = null;
+try { webPush = require('web-push'); } catch (e) { console.log('web-push not installed, push notifications disabled'); }
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+if (webPush && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
     webPush.setVapidDetails('mailto:contact@solodesir.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 }
 
 async function sendPushNotification(email, title, body, url) {
-    if (!VAPID_PUBLIC_KEY) return;
+    if (!webPush || !VAPID_PUBLIC_KEY) return;
     try {
         const user = pool ? (await pool.query('SELECT push_sub FROM solo_users WHERE email = $1', [email])).rows[0] : USERS_MEM[email];
         if (!user || !user.push_sub) return;
@@ -781,17 +782,150 @@ app.post('/api/solo/referral/claim', authMiddleware, async (req, res) => {
 app.all('/api/solo/admin/stats', async (req, res) => {
     const adminPass = (req.method === 'POST' ? req.body.key : req.query.key);
     if (adminPass !== ADMIN_KEY) return res.json({ success: false });
-    const users = pool ? (await pool.query("SELECT COUNT(*) as total, COUNT(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN 1 END) as new, COUNT(CASE WHEN plan != 'free' THEN 1 END) as premium FROM solo_users")).rows[0] : { total: Object.keys(USERS_MEM).length, new: 0, premium: 0 };
-    const matches = pool ? (await pool.query('SELECT COUNT(*) as total FROM solo_matches')).rows[0].total : MATCHES_MEM.length;
-    res.json({ success: true, users, matches });
+    if (pool) {
+        const users = (await pool.query("SELECT COUNT(*) as total, COUNT(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN 1 END) as new7d, COUNT(CASE WHEN created_at > NOW() - INTERVAL '24 hours' THEN 1 END) as new24h, COUNT(CASE WHEN plan != 'free' THEN 1 END) as premium, COUNT(CASE WHEN verified = true THEN 1 END) as verified, COUNT(CASE WHEN last_seen > NOW() - INTERVAL '5 minutes' THEN 1 END) as online FROM solo_users")).rows[0];
+        const matches = (await pool.query('SELECT COUNT(*) as total FROM solo_matches')).rows[0].total;
+        const messages = (await pool.query('SELECT COUNT(*) as total FROM solo_messages')).rows[0].total;
+        const annonces = (await pool.query('SELECT COUNT(*) as total FROM solo_annonces WHERE expires_at > NOW()')).rows[0].total;
+        const reports = (await pool.query("SELECT COUNT(*) as total FROM solo_reports WHERE status = 'pending'")).rows[0].total;
+        const boosts = (await pool.query('SELECT COUNT(*) as total FROM solo_boosts WHERE expires_at > NOW()')).rows[0].total;
+        const dailySignups = (await pool.query("SELECT DATE(created_at) as date, COUNT(*) as count FROM solo_users WHERE created_at > NOW() - INTERVAL '7 days' GROUP BY DATE(created_at) ORDER BY date")).rows;
+        const topCountries = (await pool.query("SELECT country, COUNT(*) as count FROM solo_users GROUP BY country ORDER BY count DESC LIMIT 10")).rows;
+        const genderStats = (await pool.query("SELECT gender, COUNT(*) as count FROM solo_users GROUP BY gender")).rows;
+        res.json({ success: true, users: { ...users, total: parseInt(users.total) }, matches, messages, annonces, reports, boosts, dailySignups, topCountries, genderStats });
+    } else {
+        res.json({ success: true, users: { total: Object.keys(USERS_MEM).length, new7d: 0, new24h: 0, premium: 0, verified: 0, online: 0 }, matches: MATCHES_MEM.length, messages: 0, annonces: ANNONCES_MEM.length, reports: 0, boosts: 0, dailySignups: [], topCountries: [], genderStats: [] });
+    }
 });
 
 app.all('/api/solo/admin/users', async (req, res) => {
-    if ((req.method === 'POST' ? req.body.key : req.query.key) !== ADMIN_KEY) return res.json({ success: false });
-    const list = pool
-        ? (await pool.query('SELECT pseudo, email, phone, gender, age, country, city, plan, created_at FROM solo_users ORDER BY created_at DESC LIMIT 200')).rows
-        : Object.values(USERS_MEM).map(u => ({ pseudo: u.pseudo, email: u.email, phone: u.phone, gender: u.gender, age: u.age, country: u.country, city: u.city, plan: u.plan, created_at: u.created_at }));
-    res.json({ success: true, users: list });
+    const key = (req.method === 'POST' ? req.body.key : req.query.key);
+    if (key !== ADMIN_KEY) return res.json({ success: false });
+    const { search, gender, country, plan, page, limit } = req.method === 'POST' ? req.body : req.query;
+    const lim = Math.min(parseInt(limit) || 50, 100);
+    const off = ((parseInt(page) || 1) - 1) * lim;
+    if (pool) {
+        let conditions = [];
+        let params = [];
+        let idx = 1;
+        if (search) { conditions.push(`(pseudo ILIKE $${idx} OR email ILIKE $${idx} OR phone ILIKE $${idx})`); params.push('%' + search + '%'); idx++; }
+        if (gender) { conditions.push(`gender = $${idx++}`); params.push(gender); }
+        if (country) { conditions.push(`country = $${idx++}`); params.push(country); }
+        if (plan) { conditions.push(`plan = $${idx++}`); params.push(plan); }
+        const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+        const total = (await pool.query(`SELECT COUNT(*) FROM solo_users ${where}`, params)).rows[0].count;
+        const list = (await pool.query(`SELECT id, pseudo, email, phone, gender, age, country, city, plan, verified, last_seen, created_at FROM solo_users ${where} ORDER BY created_at DESC LIMIT $${idx++} OFFSET $${idx++}`, [...params, lim, off])).rows;
+        res.json({ success: true, users: list, total: parseInt(total), page: parseInt(page) || 1, pages: Math.ceil(total / lim) });
+    } else {
+        res.json({ success: true, users: Object.values(USERS_MEM).slice(off, off + lim), total: Object.keys(USERS_MEM).length, page: 1, pages: 1 });
+    }
+});
+
+app.all('/api/solo/admin/users/:email', async (req, res) => {
+    const key = (req.method === 'POST' ? req.body.key : req.query.key);
+    if (key !== ADMIN_KEY) return res.json({ success: false });
+    const email = req.params.email;
+    if (pool) {
+        const user = (await pool.query('SELECT * FROM solo_users WHERE email = $1', [email])).rows[0];
+        if (!user) return res.status(404).json({ success: false });
+        const matches = (await pool.query('SELECT COUNT(*) FROM solo_matches WHERE user1 = $1 OR user2 = $1', [email])).rows[0].count;
+        const messages = (await pool.query('SELECT COUNT(*) FROM solo_messages WHERE sender = $1', [email])).rows[0].count;
+        const likes = (await pool.query('SELECT COUNT(*) FROM solo_likes WHERE from_user = $1', [email])).rows[0].count;
+        res.json({ success: true, user, stats: { matches: parseInt(matches), messages: parseInt(messages), likes: parseInt(likes) } });
+    } else {
+        const user = USERS_MEM[email];
+        if (!user) return res.status(404).json({ success: false });
+        res.json({ success: true, user, stats: { matches: 0, messages: 0, likes: 0 } });
+    }
+});
+
+app.post('/api/solo/admin/users/:email/ban', async (req, res) => {
+    if (req.body.key !== ADMIN_KEY) return res.json({ success: false });
+    const email = req.params.email;
+    if (pool) {
+        await pool.query("UPDATE solo_users SET plan = 'banned' WHERE email = $1", [email]);
+    }
+    res.json({ success: true, message: 'Utilisateur banni' });
+});
+
+app.post('/api/solo/admin/users/:email/unban', async (req, res) => {
+    if (req.body.key !== ADMIN_KEY) return res.json({ success: false });
+    const email = req.params.email;
+    if (pool) {
+        await pool.query("UPDATE solo_users SET plan = 'free' WHERE email = $1", [email]);
+    }
+    res.json({ success: true, message: 'Utilisateur débanni' });
+});
+
+app.all('/api/solo/admin/reports', async (req, res) => {
+    const key = (req.method === 'POST' ? req.body.key : req.query.key);
+    if (key !== ADMIN_KEY) return res.json({ success: false });
+    const { status } = req.method === 'POST' ? req.body : req.query;
+    if (pool) {
+        let query = 'SELECT r.*, u.pseudo as reported_pseudo FROM solo_reports r LEFT JOIN solo_users u ON r.reported = u.email';
+        const params = [];
+        if (status) { query += ' WHERE r.status = $1'; params.push(status); }
+        query += ' ORDER BY r.created_at DESC LIMIT 100';
+        const reports = (await pool.query(query, params)).rows;
+        res.json({ success: true, reports });
+    } else {
+        res.json({ success: true, reports: [] });
+    }
+});
+
+app.post('/api/solo/admin/reports/:id/resolve', async (req, res) => {
+    if (req.body.key !== ADMIN_KEY) return res.json({ success: false });
+    const id = parseInt(req.params.id);
+    const { action } = req.body;
+    if (pool) {
+        await pool.query('UPDATE solo_reports SET status = $1 WHERE id = $2', [action || 'resolved', id]);
+    }
+    res.json({ success: true, message: 'Report traité' });
+});
+
+app.all('/api/solo/admin/annonces', async (req, res) => {
+    const key = (req.method === 'POST' ? req.body.key : req.query.key);
+    if (key !== ADMIN_KEY) return res.json({ success: false });
+    if (pool) {
+        const annonces = (await pool.query('SELECT * FROM solo_annonces ORDER BY created_at DESC LIMIT 100')).rows;
+        res.json({ success: true, annonces });
+    } else {
+        res.json({ success: true, annonces: ANNONCES_MEM });
+    }
+});
+
+app.post('/api/solo/admin/annonces/:id/delete', async (req, res) => {
+    if (req.body.key !== ADMIN_KEY) return res.json({ success: false });
+    const id = parseInt(req.params.id);
+    if (pool) {
+        await pool.query('DELETE FROM solo_annonces WHERE id = $1', [id]);
+    } else {
+        const idx = ANNONCES_MEM.findIndex(a => a.id === id);
+        if (idx !== -1) ANNONCES_MEM.splice(idx, 1);
+    }
+    res.json({ success: true, message: 'Annonce supprimée' });
+});
+
+app.all('/api/solo/admin/messages/suspicious', async (req, res) => {
+    const key = (req.method === 'POST' ? req.body.key : req.query.key);
+    if (key !== ADMIN_KEY) return res.json({ success: false });
+    if (pool) {
+        const msgs = (await pool.query("SELECT m.*, u.pseudo as sender_pseudo FROM solo_messages m LEFT JOIN solo_users u ON m.sender = u.email WHERE m.content ~* '(envoie.*argent|OM.*code|moMo.*code|wester.*union|money.*gram)' ORDER BY m.created_at DESC LIMIT 50")).rows;
+        res.json({ success: true, messages: msgs });
+    } else {
+        res.json({ success: true, messages: [] });
+    }
+});
+
+app.all('/api/solo/admin/boosts', async (req, res) => {
+    const key = (req.method === 'POST' ? req.body.key : req.query.key);
+    if (key !== ADMIN_KEY) return res.json({ success: false });
+    if (pool) {
+        const boosts = (await pool.query('SELECT b.*, u.pseudo FROM solo_boosts b LEFT JOIN solo_users u ON b.user_id = u.email WHERE b.expires_at > NOW() ORDER BY b.created_at DESC')).rows;
+        res.json({ success: true, boosts });
+    } else {
+        res.json({ success: true, boosts: [] });
+    }
 });
 
 app.post('/api/solo/admin/block', async (req, res) => {
