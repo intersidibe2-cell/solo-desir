@@ -13,6 +13,9 @@ const B = {
     browseMode: 'profiles',
     typingInterval: null,
     lastSwipedEmail: null,
+    profilesOffset: 0,
+    profilesHasMore: true,
+    autoRefreshInterval: null,
 
     async safeFetch(url, opts = {}) {
         var timeout = opts.timeout || 15000;
@@ -108,6 +111,8 @@ const B = {
         this.loadProfiles();
         this.saveGeoLocation();
         this.loadUnreadCount();
+        this.subscribePush();
+        this.startAutoRefresh();
         const visited = localStorage.getItem('solo_visited');
         if (!visited) {
             localStorage.setItem('solo_visited', '1');
@@ -299,6 +304,8 @@ const B = {
         localStorage.removeItem('solo_token'); location.reload(); },
 
     async loadProfiles() {
+        this.profilesOffset = 0;
+        this.profilesHasMore = true;
         const params = new URLSearchParams();
         const g = document.getElementById('filterGender').value;
         const c = document.getElementById('filterCountry').value;
@@ -310,12 +317,34 @@ const B = {
         if (min) params.set('ageMin', min);
         if (max) params.set('ageMax', max);
         if (dist && dist < 500) params.set('maxDistance', dist);
+        params.set('limit', 20);
         var r = await this.safeFetch('/api/solo/profiles?' + params, { headers: { 'Authorization': 'Bearer ' + this.token } });
         if (!r.ok) return;
         var d = await r.resp.json();
+        this.profilesHasMore = d.hasMore;
         var blocked = JSON.parse(localStorage.getItem('solo_blocked') || '[]');
         this.profiles = (d.profiles || []).filter(p => !blocked.includes(p.email));
         this.renderProfiles();
+        this.setupInfiniteScroll();
+    },
+
+    setupInfiniteScroll() {
+        var self = this;
+        var grid = document.getElementById('profilesGrid');
+        if (!grid) return;
+        var observer = new IntersectionObserver(function(entries) {
+            if (entries[0].isIntersecting && self.profilesHasMore) {
+                self.loadMoreProfiles();
+            }
+        }, { threshold: 0.1 });
+        var sentinel = document.getElementById('scrollSentinel');
+        if (!sentinel) {
+            sentinel = document.createElement('div');
+            sentinel.id = 'scrollSentinel';
+            sentinel.style.height = '1px';
+            grid.parentNode.appendChild(sentinel);
+        }
+        observer.observe(sentinel);
     },
 
     renderProfiles() {
@@ -817,6 +846,88 @@ const B = {
         var d = await r.resp.json();
         if (d.matched) { this.toast('💘 Match ! Allez dans Chat pour discuter'); this.openChat(d.matchId, ''); }
         else this.toast('Réponse envoyée');
+    },
+
+    // ─── Auto-refresh profils ───────────────────────────
+    startAutoRefresh() {
+        if (this.autoRefreshInterval) clearInterval(this.autoRefreshInterval);
+        var self = this;
+        this.autoRefreshInterval = setInterval(function() {
+            if (!document.hidden && self.browseMode === 'profiles') {
+                self.loadProfiles();
+            }
+        }, 30000);
+    },
+
+    // ─── Pagination profils ─────────────────────────────
+    async loadMoreProfiles() {
+        if (!this.profilesHasMore) return;
+        this.profilesOffset += 20;
+        var params = new URLSearchParams();
+        var g = document.getElementById('filterGender').value;
+        var c = document.getElementById('filterCountry').value;
+        var min = document.getElementById('filterAgeMin').value;
+        var max = document.getElementById('filterAgeMax').value;
+        var dist = document.getElementById('filterDistance')?.value;
+        if (g) params.set('gender', g);
+        if (c) params.set('country', c);
+        if (min) params.set('ageMin', min);
+        if (max) params.set('ageMax', max);
+        if (dist && dist < 500) params.set('maxDistance', dist);
+        params.set('offset', this.profilesOffset);
+        params.set('limit', 20);
+        var r = await this.safeFetch('/api/solo/profiles?' + params, { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (!r.ok) return;
+        var d = await r.resp.json();
+        this.profilesHasMore = d.hasMore;
+        var blocked = JSON.parse(localStorage.getItem('solo_blocked') || '[]');
+        var newProfiles = (d.profiles || []).filter(function(p) { return !blocked.includes(p.email); });
+        this.profiles = this.profiles.concat(newProfiles);
+        this.renderProfiles();
+    },
+
+    // ─── Push Notifications ─────────────────────────────
+    async subscribePush() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+        try {
+            var reg = await navigator.serviceWorker.ready;
+            var sub = await reg.pushManager.getSubscription();
+            if (!sub) {
+                var r = await this.safeFetch('/api/solo/vapid-key');
+                if (r.ok) {
+                    var d = await r.resp.json();
+                    if (d.key) {
+                        sub = await reg.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: d.key
+                        });
+                    }
+                }
+            }
+            if (sub) {
+                await this.safeFetch('/api/solo/subscribe-push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token },
+                    body: JSON.stringify({ subscription: sub })
+                });
+            }
+        } catch (e) { console.log('Push subscribe failed:', e); }
+    },
+
+    // ─── Incognito Mode ─────────────────────────────────
+    async toggleIncognito() {
+        var current = this.user?.incognito || false;
+        var r = await this.safeFetch('/api/solo/me', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token },
+            body: JSON.stringify({ incognito: !current })
+        });
+        if (r.ok) {
+            this.user.incognito = !current;
+            this.toast(this.user.incognito ? '🕶️ Mode incognito activé' : '👁️ Mode incognito désactivé');
+            var btn = document.getElementById('incognitoBtn');
+            if (btn) btn.textContent = this.user.incognito ? '👁️' : '🕶️';
+        }
     },
 
     // ─── Online Status ──────────────────────────────────

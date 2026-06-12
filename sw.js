@@ -1,4 +1,4 @@
-const CACHE = 'solo-v8';
+const CACHE = 'solo-v9';
 self.addEventListener('install', function(e) {
     e.waitUntil(caches.open(CACHE).then(function(c) { return c.addAll(['/','/solo.html','/css/landing.css','/css/solo.css','/js/solo.js']); }));
     self.skipWaiting();

@@ -127,6 +127,7 @@ async function initDB() {
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION DEFAULT 0`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION DEFAULT 0`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS push_sub TEXT DEFAULT ''`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS incognito BOOLEAN DEFAULT false`);
         console.log('✅ PostgreSQL migrations done');
         await client.query(`
             CREATE TABLE IF NOT EXISTS solo_annonces (
@@ -182,6 +183,29 @@ function haversineKm(lat1, lng1, lat2, lng2) {
     const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+
+// ─── Push Notification Helper ─────────────────────────
+const webPush = require('web-push');
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+    webPush.setVapidDetails('mailto:contact@solodesir.com', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
+
+async function sendPushNotification(email, title, body, url) {
+    if (!VAPID_PUBLIC_KEY) return;
+    try {
+        const user = pool ? (await pool.query('SELECT push_sub FROM solo_users WHERE email = $1', [email])).rows[0] : USERS_MEM[email];
+        if (!user || !user.push_sub) return;
+        const sub = typeof user.push_sub === 'string' ? JSON.parse(user.push_sub) : user.push_sub;
+        await webPush.sendNotification(sub, JSON.stringify({ title, body, url: url || '/solo.html', icon: '/manifest-icon-192.png' }));
+    } catch (e) { console.error('Push error:', e.message); }
+}
+
+// ─── VAPID Key endpoint ───────────────────────────────
+app.get('/api/solo/vapid-key', (req, res) => {
+    res.json({ success: true, key: VAPID_PUBLIC_KEY });
+});
 
 // ─── Solo API ────────────────────────────────────────
 app.post('/api/solo/register', async (req, res) => {
@@ -254,11 +278,11 @@ app.get('/api/solo/me', authMiddleware, async (req, res) => {
     const today = new Date().toDateString();
     const msgsLeft = user.plan === 'free' ? Math.max(0, 5 - (user.last_message_date === today ? user.messages_today : 0)) : 999;
     const matchesLeft = user.plan === 'free' ? Math.max(0, 3 - (user.last_message_date === today ? user.matches_today : 0)) : 999;
-    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, phone: user.phone, photos: user.photos, profession: user.profession, looking_for: user.looking_for, interests: user.interests, bio: user.bio, plan: user.plan, status: user.status, religion: user.religion, children: user.children, verified: user.verified, lat: user.lat, lng: user.lng, referralCode: user.referral_code, referralsCount: user.referrals_count || 0, messagesLeft: msgsLeft, matchesLeft } });
+    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, phone: user.phone, photos: user.photos, profession: user.profession, looking_for: user.looking_for, interests: user.interests, bio: user.bio, plan: user.plan, status: user.status, religion: user.religion, children: user.children, verified: user.verified, lat: user.lat, lng: user.lng, referralCode: user.referral_code, referralsCount: user.referrals_count || 0, messagesLeft: msgsLeft, matchesLeft, incognito: user.incognito || false } });
 });
 
 app.put('/api/solo/me', authMiddleware, async (req, res) => {
-    const { pseudo, age, country, city, phone, photos, profession, looking_for, interests, bio, status, religion, children, lat, lng } = req.body;
+    const { pseudo, age, country, city, phone, photos, profession, looking_for, interests, bio, status, religion, children, lat, lng, incognito } = req.body;
     const updates = {};
     if (pseudo !== undefined) updates.pseudo = pseudo;
     if (age !== undefined) updates.age = parseInt(age);
@@ -275,6 +299,7 @@ app.put('/api/solo/me', authMiddleware, async (req, res) => {
     if (status !== undefined) updates.status = status;
     if (religion !== undefined) updates.religion = religion;
     if (children !== undefined) updates.children = children;
+    if (incognito !== undefined) updates.incognito = !!incognito;
     if (pool) {
         const keys = Object.keys(updates);
         if (keys.length > 0) {
@@ -326,42 +351,6 @@ app.put('/api/solo/location', authMiddleware, async (req, res) => {
     res.json({ success: true });
 });
 
-app.get('/api/solo/profiles', authMiddleware, async (req, res) => {
-    const { country, gender, ageMin, ageMax } = req.query;
-    const me = pool ? (await pool.query('SELECT lat, lng FROM solo_users WHERE email = $1', [req.user.email])).rows[0] : USERS_MEM[req.user.email];
-    const myLat = me?.lat || 0;
-    const myLng = me?.lng || 0;
-    if (pool) {
-        const conditions = ['email != $1'];
-        const params = [req.user.email];
-        let idx = 2;
-        if (gender) { conditions.push(`gender = $${idx++}`); params.push(gender); }
-        if (country) { conditions.push(`country = $${idx++}`); params.push(country); }
-        if (ageMin) { conditions.push(`age >= $${idx++}`); params.push(parseInt(ageMin)); }
-        if (ageMax) { conditions.push(`age <= $${idx++}`); params.push(parseInt(ageMax)); }
-        const where = conditions.join(' AND ');
-        const profiles = (await pool.query(`SELECT pseudo, email, gender, age, country, city, photos, bio, verified, lat, lng, created_at FROM solo_users WHERE ${where} ORDER BY created_at DESC LIMIT 50`, params)).rows;
-        const enriched = profiles.map(p => {
-            let distanceKm = null;
-            if (myLat && myLng && p.lat && p.lng) distanceKm = Math.round(haversineKm(myLat, myLng, p.lat, p.lng));
-            return { ...p, distanceKm };
-        });
-        res.json({ success: true, profiles: enriched });
-    } else {
-        let filtered = Object.values(USERS_MEM).filter(u => u.email !== req.user.email).map(p => ({ pseudo: p.pseudo, email: p.email, gender: p.gender, age: p.age, country: p.country, city: p.city, photos: p.photos, bio: p.bio, verified: p.verified, lat: p.lat, lng: p.lng, created_at: p.created_at }));
-        if (gender) filtered = filtered.filter(p => p.gender === gender);
-        if (country) filtered = filtered.filter(p => p.country === country);
-        if (ageMin) filtered = filtered.filter(p => p.age >= parseInt(ageMin));
-        if (ageMax) filtered = filtered.filter(p => p.age <= parseInt(ageMax));
-        const enriched = filtered.slice(0, 50).map(p => {
-            let distanceKm = null;
-            if (myLat && myLng && p.lat && p.lng) distanceKm = Math.round(haversineKm(myLat, myLng, p.lat, p.lng));
-            return { ...p, distanceKm };
-        });
-        res.json({ success: true, profiles: enriched });
-    }
-});
-
 app.post('/api/solo/like', authMiddleware, async (req, res) => {
     const { targetEmail } = req.body;
     if (!targetEmail) return res.status(400).json({ success: false, message: 'Cible requise' });
@@ -377,9 +366,12 @@ app.post('/api/solo/like', authMiddleware, async (req, res) => {
         await pool.query('INSERT INTO solo_likes (from_user, to_user) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.user.email, targetEmail]);
         const rev = (await pool.query('SELECT * FROM solo_likes WHERE from_user = $1 AND to_user = $2', [targetEmail, req.user.email])).rows[0];
         LAST_SWIPE[req.user.email] = { target: targetEmail, time: Date.now() };
+        const likerPseudo = pool ? (await pool.query('SELECT pseudo FROM solo_users WHERE email = $1', [req.user.email])).rows[0]?.pseudo : req.user.email;
+        sendPushNotification(targetEmail, '❤️ Nouveau like !', likerPseudo + ' t\'a liké(e) !', '/solo.html');
         if (rev) {
             await pool.query('INSERT INTO solo_matches (user1, user2) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.user.email, targetEmail]);
             const m = (await pool.query('SELECT * FROM solo_matches WHERE user1 = $1 AND user2 = $2', [req.user.email, targetEmail])).rows[0];
+            sendPushNotification(targetEmail, '💘 Match !', 'Vous vous plaisez mutuellement !', '/solo.html');
             return res.json({ success: true, matched: true, matchId: m.id });
         }
     } else {
@@ -479,6 +471,11 @@ app.post('/api/solo/message', authMiddleware, async (req, res) => {
     if (pool) {
         await pool.query('UPDATE solo_users SET messages_today = messages_today + 1, last_message_date = $2 WHERE email = $1', [req.user.email, today]);
         await pool.query('INSERT INTO solo_messages (match_id, sender, content) VALUES ($1,$2,$3)', [matchId, req.user.email, content]);
+        const match = (await pool.query('SELECT user1, user2 FROM solo_matches WHERE id = $1', [matchId])).rows[0];
+        if (match) {
+            const recipient = match.user1 === req.user.email ? match.user2 : match.user1;
+            sendPushNotification(recipient, '💬 Nouveau message', user.pseudo + ': ' + content.substring(0, 50), '/solo.html');
+        }
     } else {
         USERS_MEM[req.user.email].messages_today = msgsToday + 1;
         USERS_MEM[req.user.email].last_message_date = today;
@@ -677,14 +674,16 @@ app.post('/api/solo/swipe/undo', authMiddleware, async (req, res) => {
     res.json({ success: true, message: 'Swipe annulé' });
 });
 
-// ─── Distance Filter ──────────────────────────────────
+// ─── Distance Filter + Pagination ─────────────────────
 app.get('/api/solo/profiles', authMiddleware, async (req, res) => {
-    const { country, gender, ageMin, ageMax, maxDistance } = req.query;
+    const { country, gender, ageMin, ageMax, maxDistance, offset, limit } = req.query;
+    const lim = Math.min(parseInt(limit) || 20, 50);
+    const off = parseInt(offset) || 0;
     const me = pool ? (await pool.query('SELECT lat, lng FROM solo_users WHERE email = $1', [req.user.email])).rows[0] : USERS_MEM[req.user.email];
     const myLat = me?.lat || 0;
     const myLng = me?.lng || 0;
     if (pool) {
-        const conditions = ['email != $1'];
+        const conditions = ['email != $1', 'incognito = false'];
         const params = [req.user.email];
         let idx = 2;
         if (gender) { conditions.push(`gender = $${idx++}`); params.push(gender); }
@@ -692,7 +691,7 @@ app.get('/api/solo/profiles', authMiddleware, async (req, res) => {
         if (ageMin) { conditions.push(`age >= $${idx++}`); params.push(parseInt(ageMin)); }
         if (ageMax) { conditions.push(`age <= $${idx++}`); params.push(parseInt(ageMax)); }
         const where = conditions.join(' AND ');
-        let profiles = (await pool.query(`SELECT pseudo, email, gender, age, country, city, photos, bio, verified, lat, lng, last_seen, created_at FROM solo_users WHERE ${where} ORDER BY created_at DESC LIMIT 50`, params)).rows;
+        let profiles = (await pool.query(`SELECT pseudo, email, gender, age, country, city, photos, bio, verified, lat, lng, last_seen, created_at FROM solo_users WHERE ${where} ORDER BY created_at DESC LIMIT $${idx++} OFFSET $${idx++}`, [...params, lim, off])).rows;
         const enriched = profiles.map(p => {
             let distanceKm = null;
             if (myLat && myLng && p.lat && p.lng) distanceKm = Math.round(haversineKm(myLat, myLng, p.lat, p.lng));
@@ -700,21 +699,21 @@ app.get('/api/solo/profiles', authMiddleware, async (req, res) => {
             const isOnline = lastSeen && (Date.now() - lastSeen.getTime() < 2 * 60 * 1000);
             return { ...p, distanceKm, isOnline, lastSeen: isOnline ? null : lastSeen };
         }).filter(p => !maxDistance || p.distanceKm === null || p.distanceKm <= parseInt(maxDistance));
-        res.json({ success: true, profiles: enriched });
+        res.json({ success: true, profiles: enriched, hasMore: profiles.length === lim });
     } else {
-        let filtered = Object.values(USERS_MEM).filter(u => u.email !== req.user.email).map(p => ({ pseudo: p.pseudo, email: p.email, gender: p.gender, age: p.age, country: p.country, city: p.city, photos: p.photos, bio: p.bio, verified: p.verified, lat: p.lat, lng: p.lng, last_seen: p.last_seen, created_at: p.created_at }));
+        let filtered = Object.values(USERS_MEM).filter(u => u.email !== req.user.email && !u.incognito).map(p => ({ pseudo: p.pseudo, email: p.email, gender: p.gender, age: p.age, country: p.country, city: p.city, photos: p.photos, bio: p.bio, verified: p.verified, lat: p.lat, lng: p.lng, last_seen: p.last_seen, created_at: p.created_at }));
         if (gender) filtered = filtered.filter(p => p.gender === gender);
         if (country) filtered = filtered.filter(p => p.country === country);
         if (ageMin) filtered = filtered.filter(p => p.age >= parseInt(ageMin));
         if (ageMax) filtered = filtered.filter(p => p.age <= parseInt(ageMax));
-        const enriched = filtered.slice(0, 50).map(p => {
+        const enriched = filtered.slice(off, off + lim).map(p => {
             let distanceKm = null;
             if (myLat && myLng && p.lat && p.lng) distanceKm = Math.round(haversineKm(myLat, myLng, p.lat, p.lng));
             const lastSeen = p.last_seen ? new Date(p.last_seen) : null;
             const isOnline = lastSeen && (Date.now() - lastSeen.getTime() < 2 * 60 * 1000);
             return { ...p, distanceKm, isOnline, lastSeen: isOnline ? null : lastSeen };
         }).filter(p => !maxDistance || p.distanceKm === null || p.distanceKm <= parseInt(maxDistance));
-        res.json({ success: true, profiles: enriched });
+        res.json({ success: true, profiles: enriched, hasMore: off + lim < filtered.length });
     }
 });
 
