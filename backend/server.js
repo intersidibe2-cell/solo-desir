@@ -169,8 +169,8 @@ function authMiddleware(req, res, next) {
 function generateTokens(user) {
     const payload = { id: user.id, pseudo: user.pseudo, email: user.email, plan: user.plan };
     return {
-        accessToken: jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' }),
-        refreshToken: jwt.sign({ id: user.id }, JWT_REFRESH_SECRET, { expiresIn: '7d' })
+        accessToken: jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' }),
+        refreshToken: jwt.sign({ id: user.id }, JWT_REFRESH_SECRET, { expiresIn: '90d' })
     };
 }
 

@@ -114,7 +114,10 @@ const B = {
 
     async loadUser() {
         var r = await this.safeFetch('/api/solo/me', { headers: { 'Authorization': 'Bearer ' + this.token } });
-        if (!r.ok) return this.logout();
+        if (!r.ok) {
+            if (r.error === 'Timeout' || r.error === 'Failed to fetch') return;
+            return this.logout();
+        }
         var d = await r.resp.json();
         if (!d.success) return this.logout();
         this.user = d.user;
