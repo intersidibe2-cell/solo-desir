@@ -20,7 +20,7 @@ app.use(helmet({
 }));
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
-        ? [/\.solodesir\.com$/, /\.onrender\.com$/]
+        ? [/\.solodesir\.com$/, /167\.233\.105\.13$/]
         : [/localhost:/],
     credentials: true
 }));
