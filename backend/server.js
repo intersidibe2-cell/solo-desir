@@ -38,7 +38,7 @@ app.post('/api/solo/upload-photo', authMiddleware, async (req, res) => {
     const ext = matches[1].split('/')[1].replace('jpeg', 'jpg');
     const data = matches[2];
     const buf = Buffer.from(data, 'base64');
-    if (buf.length > 3 * 1024 * 1024) return res.status(400).json({ success: false, message: 'Image trop lourde (max 3MB)' });
+    if (buf.length > 15 * 1024 * 1024) return res.status(400).json({ success: false, message: 'Image trop lourde (max 15MB)' });
     const filename = 'solo_' + crypto.randomBytes(8).toString('hex') + '.' + ext;
     const dir = path.join(__dirname, '..', 'uploads');
     try { await fs.mkdir(dir, { recursive: true }); } catch (e) {}
@@ -426,7 +426,7 @@ app.post('/api/solo/verify/selfie', authMiddleware, async (req, res) => {
     const matches = image.match(/^data:(\w+\/\w+);base64,(.+)$/);
     if (!matches) return res.status(400).json({ success: false, message: 'Format invalide' });
     const buf = Buffer.from(matches[2], 'base64');
-    if (buf.length > 5 * 1024 * 1024) return res.status(400).json({ success: false, message: 'Image trop lourde (max 5MB)' });
+    if (buf.length > 15 * 1024 * 1024) return res.status(400).json({ success: false, message: 'Image trop lourde (max 15MB)' });
     const filename = 'selfie_' + crypto.randomBytes(8).toString('hex') + '.jpg';
     const dir = path.join(__dirname, '..', 'uploads', 'selfies');
     try { await fs.mkdir(dir, { recursive: true }); } catch (e) {}

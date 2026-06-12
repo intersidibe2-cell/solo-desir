@@ -191,7 +191,6 @@ const B = {
         if (remaining <= 0) { this.toast('⚠️ Maximum 5 photos atteint'); document.getElementById('photoInput').value = ''; return; }
         const toUpload = Array.from(files).slice(0, remaining);
         for (const file of toUpload) {
-            if (file.size > 3 * 1024 * 1024) { this.toast('Photo trop lourde (max 3MB)'); continue; }
             const reader = new FileReader();
             await new Promise(resolve => {
                 reader.onload = async () => {
@@ -669,7 +668,6 @@ const B = {
         input.onchange = async function() {
             var file = input.files[0];
             if (!file) return;
-            if (file.size > 5 * 1024 * 1024) { B.toast('Image trop lourde (max 5MB)'); return; }
             var reader = new FileReader();
             reader.onload = async function() {
                 var r = await B.safeFetch('/api/solo/verify/selfie', {
@@ -763,7 +761,6 @@ const B = {
         var files = document.getElementById('annoncePhotos').files;
         for (var i = 0; i < Math.min(files.length, 3); i++) {
             var file = files[i];
-            if (file.size > 3 * 1024 * 1024) continue;
             var reader = new FileReader();
             await new Promise(function(resolve) {
                 reader.onload = async function() {
