@@ -76,8 +76,6 @@
             <header class="solo-header">
                 <span class="logo">🔥 Solo</span>
                 <div>
-                    <button id="ecoBtn" class="btn-ghost" title="Mode Éco — cacher les images">📵</button>
-                    <button id="shareBtn" class="btn-ghost" title="Inviter un ami">💬</button>
                     <span id="userPlan" class="plan-badge">Gratuit</span>
                     <button id="logoutBtn" class="btn-ghost"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
@@ -92,13 +90,31 @@
             </div>
 
             <div id="pageBrowse" class="page active">
-                <div class="filters">
-                    <select id="filterGender"><option value="">Tous</option><option value="homme">Homme</option><option value="femme">Femme</option></select>
-                    <select id="filterCountry"><option value="">Tous pays</option><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="BJ">Bénin</option><option value="TG">Togo</option><option value="NG">Nigéria</option><option value="GH">Ghana</option></select>
-                    <input type="number" id="filterAgeMin" placeholder="Âge min" min="18">
-                    <input type="number" id="filterAgeMax" placeholder="Âge max" min="18">
+                <div class="browse-toggle">
+                    <button class="toggle-btn active" data-mode="profiles">👥 Profils</button>
+                    <button class="toggle-btn" data-mode="annonces">📢 Annonces</button>
                 </div>
-                <div id="profilesGrid" class="profiles-grid"></div>
+                <div id="browseProfiles">
+                    <div class="filters">
+                        <select id="filterGender"><option value="">Tous</option><option value="homme">Homme</option><option value="femme">Femme</option></select>
+                        <select id="filterCountry"><option value="">Tous pays</option><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="BJ">Bénin</option><option value="TG">Togo</option><option value="NG">Nigéria</option><option value="GH">Ghana</option></select>
+                        <input type="number" id="filterAgeMin" placeholder="Âge min" min="18">
+                        <input type="number" id="filterAgeMax" placeholder="Âge max" min="18">
+                        <div class="distance-filter">
+                            <label>📍 <span id="distanceValue">500</span> km</label>
+                            <input type="range" id="filterDistance" min="10" max="500" value="500" step="10">
+                        </div>
+                    </div>
+                    <div id="profilesGrid" class="profiles-grid"></div>
+                </div>
+                <div id="browseAnnonces" style="display:none">
+                    <button id="createAnnonceBtn" class="btn-primary" style="width:100%;margin-bottom:1rem;border-radius:12px;padding:.7rem;font-weight:600;cursor:pointer">✍️ Poster une annonce</button>
+                    <div class="filters">
+                        <select id="annonceFilterCountry"><option value="">Tous pays</option><option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option></select>
+                        <select id="annonceFilterGender"><option value="">Tous</option><option value="homme">Homme</option><option value="femme">Femme</option></select>
+                    </div>
+                    <div id="annoncesList" class="annonces-list"></div>
+                </div>
             </div>
 
             <div id="pageSwipe" class="page">
@@ -106,6 +122,7 @@
                     <div id="swipeCard" class="swipe-card"></div>
                     <div class="swipe-actions">
                         <button id="swipePass" class="swipe-btn pass"><i class="fas fa-times"></i></button>
+                        <button id="swipeUndo" class="swipe-btn undo" title="Annuler">↩️</button>
                         <button id="swipeSuper" class="swipe-btn super">⚡</button>
                         <button id="swipeLike" class="swipe-btn like"><i class="fas fa-heart"></i></button>
                     </div>
@@ -136,14 +153,27 @@
                 <div id="chatHeader" class="chat-header">Sélectionne un match <button id="deleteChatBtn" class="btn-ghost" style="float:right;font-size:.7rem" title="Supprimer">🗑️</button></div>
                 <div id="chatMessages" class="chat-messages"></div>
                 <div class="chat-input-bar">
+                    <button id="gifBtn" class="btn-ghost" title="GIF" onclick="B.toggleGifPicker()">GIF</button>
                     <input type="text" id="chatInput" placeholder="Écris ici..." disabled>
                     <button id="sendChatBtn" disabled><i class="fas fa-arrow-up"></i></button>
+                </div>
+                <div id="gifPicker" class="gif-picker" style="display:none">
+                    <input type="text" id="gifSearch" placeholder="Chercher un GIF..." oninput="B.searchGifs(this.value)">
+                    <div id="gifResults" class="gif-results"></div>
                 </div>
             </div>
 
             <div id="pageProfile" class="page">
                 <div class="profile-edit">
-                    <h3>Mon profil</h3>
+                    <div class="profile-header">
+                        <div class="profile-avatar" id="profileAvatar">👤</div>
+                        <div>
+                            <div class="profile-pseudo" id="profilePseudo">-</div>
+                            <div class="profile-badges">
+                                <span class="badge badge-new">Nouveau</span>
+                            </div>
+                        </div>
+                    </div>
                     <div id="profileScore" class="profile-score">Profil complété à <span id="scoreValue">40</span>%</div>
                     <div class="profile-fold">
                         <button class="fold-header" onclick="this.parentElement.classList.toggle('open')">👤 Infos de base <span class="fold-arrow">▼</span></button>
@@ -155,6 +185,7 @@
                                 <select id="editReligion"><option value="">Religion</option><option value="Musulman">Musulman</option><option value="Chrétien">Chrétien</option><option value="Animiste">Animiste</option><option value="Autre">Autre</option><option value="Sans">Sans</option></select>
                             </div>
                             <select id="editChildren"><option value="">Enfants</option><option value="A des enfants">A des enfants</option><option value="N'en a pas">N'en a pas</option><option value="En veut">En veut</option></select>
+                        </div>
                     </div>
                     <div class="profile-fold open">
                         <button class="fold-header" onclick="this.parentElement.classList.toggle('open')">🎯 Ce que je cherche <span class="fold-arrow">▼</span></button>
@@ -182,22 +213,23 @@
                         <button class="fold-header" onclick="this.parentElement.classList.toggle('open')">📸 Photos <span class="fold-arrow">▼</span></button>
                         <div class="fold-body">
                             <div class="photos-section">
-                                <label class="photo-label">Mes photos</label>
+                                <label class="photo-label">Mes photos <span id="photoCounter" class="photo-counter">0/5</span></label>
                                 <div id="photosPreview" class="photos-preview"></div>
                                 <input type="file" id="photoInput" accept="image/*" multiple style="display:none" onchange="B.uploadPhotos()">
                                 <button type="button" id="addPhotoBtn" class="btn-photo-add">+ Ajouter une photo</button>
-                                <p class="photo-hint">3 Mo max par photo. Formats JPG, PNG, WebP.</p>
+                                <p class="photo-hint">3 Mo max par photo. Formats JPG, PNG, WebP. Maximum 5 photos.</p>
                             </div>
                             <label class="private-photos-label"><input type="checkbox" id="editPhotosPrivate"> Mes photos sont privées (visibles après match seulement)</label>
                         </div>
                     </div>
-                    <button id="saveProfileBtn">Sauvegarder</button>
                     <div id="verifySection" class="verify-section">
                         <span id="verifyStatus"></span>
                         <input type="text" id="verifyCode" placeholder="Code à 6 chiffres" maxlength="6" style="display:none">
-                        <button id="verifyBtn" class="btn-verify">✅ Vérifier mon compte</button>
+                        <button id="verifyBtn" class="btn-verify">✅ Vérifier par SMS</button>
+                        <button id="verifySelfieBtn" class="btn-verify" onclick="B.verifyBySelfie()">🤳 Vérifier par selfie</button>
                         <button id="verifyConfirmBtn" class="btn-verify" style="display:none">Confirmer le code</button>
                     </div>
+                    <button id="boostBtn" class="btn-boost" onclick="B.activateBoost()">🚀 Boost (30 min)</button>
                     <button id="deleteAccountBtn" class="btn-delete">🗑️ Supprimer mon compte</button>
                     <div class="referral-section">
                         <h4>🔥 Invite 3 amis → 1 jour VIP</h4>
@@ -212,6 +244,9 @@
                         </div>
                         <button id="refClaimBtn" class="btn-primary" style="display:none;width:100%">🎁 Activer mon VIP</button>
                     </div>
+                </div>
+                <div class="save-sticky">
+                    <button id="saveProfileBtn">💾 Enregistrer le profil</button>
                 </div>
             </div>
         </div>
