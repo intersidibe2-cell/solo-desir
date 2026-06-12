@@ -352,11 +352,16 @@ const B = {
         if (!this.profiles.length) { grid.innerHTML = '<p style="text-align:center;color:#666;padding:2rem">Aucun profil trouvé</p>'; return; }
         grid.innerHTML = this.profiles.map(p => {
             const photos = Array.isArray(p.photos) ? p.photos : typeof p.photos === 'string' ? p.photos.split(',').map(s => s.trim()).filter(s => s) : [];
-            const img = photos[0] || '';
             const onlineClass = p.isOnline ? 'online' : '';
             const onlineDot = p.isOnline ? '<span class="online-dot"></span>' : '';
+            const carousel = photos.length > 0
+                ? `<div class="photo-carousel" data-photos='${this.esc(JSON.stringify(photos))}'>
+                     <div class="carousel-track">${photos.map(u => `<img src="${this.esc(u)}" onerror="this.style.display='none'" loading="lazy">`).join('')}</div>
+                     <div class="carousel-dots">${photos.map((_, i) => `<span class="dot${i === 0 ? ' active' : ''}"></span>`).join('')}</div>
+                   </div>`
+                : '<div class="no-photo">📷</div>';
             return `<div class="profile-card ${onlineClass}" data-email="${this.esc(p.email)}">
-                ${img ? `<img class="profile-photo" src="${this.esc(img)}" onerror="this.innerHTML='📷'">` : '<div class="profile-photo">📷</div>'}
+                ${carousel}
                 <div class="profile-info">
                     <div class="name">${this.esc(p.pseudo)}, ${p.age || '?'}${p.verified ? '<span class="verified-badge">✓</span>' : ''} ${onlineDot}</div>
                     <div class="meta">${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}${p.distanceKm != null ? ' · <span style="color:#ff3b3b">📍 ' + p.distanceKm + ' km</span>' : ''}</div>
@@ -366,10 +371,41 @@ const B = {
                 </div>
             </div>`;
         }).join('');
+        this.initCarousels();
         document.querySelectorAll('.profile-card').forEach(card => {
             card.addEventListener('click', e => {
-                if (e.target.closest('.btn-like')) return;
+                if (e.target.closest('.btn-like') || e.target.closest('.photo-carousel')) return;
                 this.showProfile(card.dataset.email);
+            });
+        });
+    },
+
+    initCarousels() {
+        document.querySelectorAll('.photo-carousel').forEach(carousel => {
+            const photos = JSON.parse(carousel.dataset.photos);
+            if (photos.length <= 1) return;
+            let current = 0;
+            const track = carousel.querySelector('.carousel-track');
+            const dots = carousel.querySelectorAll('.dot');
+            let startX = 0, dragging = false;
+            carousel.addEventListener('touchstart', e => { startX = e.touches[0].clientX; dragging = true; }, { passive: true });
+            carousel.addEventListener('touchmove', e => {
+                if (!dragging) return;
+                const diff = e.touches[0].clientX - startX;
+                const offset = -current * 100 + (diff / carousel.offsetWidth * 100);
+                track.style.transition = 'none';
+                track.style.transform = `translateX(${offset}%)`;
+            }, { passive: true });
+            carousel.addEventListener('touchend', e => {
+                dragging = false;
+                const diff = startX - e.changedTouches[0].clientX;
+                track.style.transition = 'transform .3s ease';
+                if (Math.abs(diff) > 50) {
+                    if (diff > 0 && current < photos.length - 1) current++;
+                    else if (diff < 0 && current > 0) current--;
+                }
+                track.style.transform = `translateX(-${current * 100}%)`;
+                dots.forEach((d, i) => d.classList.toggle('active', i === current));
             });
         });
     },
@@ -379,10 +415,16 @@ const B = {
         if (!p) return;
         const photos = Array.isArray(p.photos) ? p.photos : [];
         const onlineStatus = p.isOnline ? '<span style="color:#4caf50;font-size:.8rem">🟢 En ligne</span>' : '';
+        const carousel = photos.length > 0
+            ? `<div class="photo-carousel" data-photos='${this.esc(JSON.stringify(photos))}'>
+                 <div class="carousel-track">${photos.map(u => `<img src="${this.esc(u)}" onerror="this.style.display='none'" loading="lazy">`).join('')}</div>
+                 <div class="carousel-dots">${photos.map((_, i) => `<span class="dot${i === 0 ? ' active' : ''}"></span>`).join('')}</div>
+               </div>`
+            : '';
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.innerHTML = `<div class="modal-detail">
-            ${photos.length > 0 ? photos.map(u => `<img src="${this.esc(u)}" onerror="this.style.display='none'">`).join('') : ''}
+            ${carousel}
             <div class="detail-info">
                 <div class="detail-name">${this.esc(p.pseudo)}, ${p.age || '?'} ${p.verified ? '<span class="verified-badge">✓</span>' : ''} ${onlineStatus}</div>
                 <div class="detail-meta">${this.esc(p.gender)} · ${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}</div>
@@ -399,6 +441,7 @@ const B = {
         </div>`;
         overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
         document.body.appendChild(overlay);
+        this.initCarousels();
     },
 
     async like(targetEmail) {
@@ -598,8 +641,14 @@ const B = {
         }
         const p = this.swipeProfiles[this.swipeIndex];
         const photos = Array.isArray(p.photos) ? p.photos : [];
+        const carousel = photos.length > 0
+            ? `<div class="photo-carousel" data-photos='${this.esc(JSON.stringify(photos))}'>
+                 <div class="carousel-track">${photos.map(u => `<img src="${this.esc(u)}" onerror="this.style.display='none'" loading="lazy">`).join('')}</div>
+                 <div class="carousel-dots">${photos.map((_, i) => `<span class="dot${i === 0 ? ' active' : ''}"></span>`).join('')}</div>
+               </div>`
+            : '<div style="display:flex;align-items:center;justify-content:center;height:340px;font-size:3rem;color:#555;background:linear-gradient(135deg,#1a1a2e,#0d0d14)">📷</div>';
         card.innerHTML = `
-            <div class="swipe-photo">${photos[0] ? `<img src="${this.esc(photos[0])}" onerror="this.parentElement.innerHTML='📷'">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;color:#555">📷</div>'}</div>
+            <div class="swipe-photo">${carousel}</div>
             <div class="swipe-info">
                 <div class="swipe-name">${this.esc(p.pseudo)}, ${p.age || '?'}</div>
                 <div class="swipe-meta">${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}</div>
@@ -608,6 +657,7 @@ const B = {
                 ${p.bio ? `<div class="swipe-bio">${this.esc(p.bio)}</div>` : ''}
             </div>
         `;
+        this.initCarousels();
     },
 
     async swipeAction(like, superLike = false) {
