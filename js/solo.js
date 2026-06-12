@@ -28,6 +28,7 @@ const B = {
     init() {
         const saved = localStorage.getItem('solo_token');
         if (saved) { this.token = saved; this.loadMain(); return; }
+        i18n.load(localStorage.getItem('solo_lang') || 'fr').then(() => i18n.initSwitcher());
         document.getElementById('loginForm').addEventListener('submit', e => { e.preventDefault(); this.login(); });
         document.getElementById('registerForm').addEventListener('submit', e => { e.preventDefault(); this.register(); });
         document.querySelectorAll('.tab').forEach(t => {

@@ -217,7 +217,16 @@ app.post('/api/solo/register', async (req, res) => {
         let country = formCountry || 'ML';
         if (!formCountry) {
             const p = phone.replace(/[^0-9+]/g, '');
-            const prefixMap = { '+223':'ML','+225':'CI','+221':'SN','+226':'BF','+224':'GN','+237':'CM','+229':'BJ','+228':'TG','+234':'NG','+233':'GH','+227':'NE','+235':'TD','+243':'CD','+242':'CG','+241':'GA' };
+            const prefixMap = {
+                '+213':'DZ','+244':'AO','+229':'BJ','+267':'BW','+226':'BF','+257':'BI','+238':'CV',
+                '+237':'CM','+236':'CF','+235':'TD','+269':'KM','+242':'CG','+243':'CD','+225':'CI',
+                '+253':'DJ','+20':'EG','+240':'GQ','+291':'ER','+268':'SZ','+251':'ET','+241':'GA',
+                '+220':'GM','+233':'GH','+224':'GN','+245':'GW','+254':'KE','+266':'LS','+231':'LR',
+                '+218':'LY','+261':'MG','+265':'MW','+223':'ML','+222':'MR','+230':'MU','+212':'MA',
+                '+258':'MZ','+264':'NA','+227':'NE','+234':'NG','+250':'RW','+239':'ST','+221':'SN',
+                '+248':'SC','+232':'SL','+252':'SO','+27':'ZA','+211':'SS','+249':'SD','+255':'TZ',
+                '+228':'TG','+216':'TN','+256':'UG','+260':'ZM','+263':'ZW'
+            };
             for (const [pref, c] of Object.entries(prefixMap)) { if (p.startsWith(pref)) { country = c; break; } }
         }
         const existing = pool
