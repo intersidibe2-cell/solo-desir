@@ -236,7 +236,7 @@ app.post('/api/solo/register', async (req, res) => {
         if (pool) {
             await pool.query(
                 `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, status, religion, children, verified, messages_today, likes_today, last_like_date, matches_today, last_message_date, lat, lng, referral_code, referred_by, referrals_count, created_at)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)`,
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)`,
                 [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.status, user.religion, user.children, user.verified, user.messages_today, user.likes_today, user.last_like_date, user.matches_today, user.last_message_date, user.lat, user.lng, user.referral_code, ref || '', 0, user.created_at]
             );
         } else { USERS_MEM[user.email] = user; }
