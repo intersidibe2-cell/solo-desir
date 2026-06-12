@@ -19,6 +19,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .input-icon input,.input-icon select{width:100%;padding:.8rem 1rem .8rem 2.5rem;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eee;font-size:.9rem;transition:all .25s;outline:none;backdrop-filter:blur(10px)}
 .input-icon input:focus,.input-icon select:focus{border-color:#ff3b3b;box-shadow:0 0 0 4px rgba(255,59,59,.1);background:rgba(255,255,255,.1)}
 .input-icon select{appearance:none;cursor:pointer}
+.input-icon select option{background:#1a1a2e;color:#eee}
 .auth-form button[type=submit]{width:100%;padding:.85rem;border-radius:14px;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff;font-weight:700;font-size:.92rem;border:none;cursor:pointer;transition:.3s;box-shadow:0 4px 15px rgba(255,59,59,.3)}
 .auth-form button[type=submit]:hover{transform:translateY(-1px);box-shadow:0 8px 25px rgba(255,59,59,.4)}
 .auth-form button[type=submit]:active{transform:translateY(0)}
@@ -54,6 +55,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .filters{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap}
 .filters select,.filters input{flex:1;min-width:80px;padding:.5rem;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eee;font-size:.8rem;outline:none;transition:.2s;backdrop-filter:blur(10px)}
 .filters select:focus,.filters input:focus{border-color:#ff3b3b;background:rgba(255,255,255,.1)}
+.filters select option{background:#1a1a2e;color:#eee}
 
 /* Profiles */
 .profiles-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
@@ -112,6 +114,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .profile-edit h3{margin-bottom:.3rem}
 .profile-edit input,.profile-edit select,.profile-edit textarea{padding:.7rem;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eee;font-size:.85rem;font-family:inherit;outline:none;transition:.2s;backdrop-filter:blur(10px)}
 .profile-edit input:focus,.profile-edit select:focus,.profile-edit textarea:focus{border-color:#ff3b3b;background:rgba(255,255,255,.1)}
+.profile-edit select option{background:#1a1a2e;color:#eee}
 .profile-edit textarea{resize:vertical}
 .profile-edit button[type=submit]{display:none}
 .profile-edit .save-sticky button{all:revert}
