@@ -185,57 +185,67 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 
 // ─── Solo API ────────────────────────────────────────
 app.post('/api/solo/register', async (req, res) => {
-    const { pseudo, email, password, gender, age, phone, country: formCountry, ref } = req.body;
-    if (!pseudo || !password || !gender || !phone) return res.status(400).json({ success: false, message: 'Téléphone, pseudo, mot de passe et genre requis' });
-    const userEmail = email || ('phone_' + phone.replace(/[^0-9+]/g, '') + '@solo.local');
-    let country = formCountry || 'ML';
-    if (!formCountry) {
-        const p = phone.replace(/[^0-9+]/g, '');
-        const prefixMap = { '+223':'ML','+225':'CI','+221':'SN','+226':'BF','+224':'GN','+237':'CM','+229':'BJ','+228':'TG','+234':'NG','+233':'GH','+227':'NE','+235':'TD','+243':'CD','+242':'CG','+241':'GA' };
-        for (const [pref, c] of Object.entries(prefixMap)) { if (p.startsWith(pref)) { country = c; break; } }
-    }
-    const existing = pool
-        ? (await pool.query('SELECT * FROM solo_users WHERE email = $1 OR phone = $2 OR pseudo = $3', [userEmail.toLowerCase(), phone, pseudo])).rows[0]
-        : Object.values(USERS_MEM).find(u => u.email === userEmail.toLowerCase() || u.phone === phone || u.pseudo === pseudo);
-    if (existing) return res.status(409).json({ success: false, message: 'Téléphone, email ou pseudo déjà utilisé' });
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(password, salt);
-    const referralCode = crypto.randomBytes(4).toString('hex');
-    const user = {
-        id: crypto.randomUUID(), pseudo, email: userEmail.toLowerCase(), password: hash, gender, age: age || 25,
-        country: country, city: '', phone: phone || '', photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
-        status: '', religion: '', children: '', verified: false, lat: 0, lng: 0,
-        messages_today: 0, likes_today: 0, last_like_date: '', matches_today: 0, last_message_date: '', referral_code: referralCode, referred_by: ref || '', referrals_count: 0, created_at: new Date().toISOString()
-    };
-    if (pool) {
-        await pool.query(
-            `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, status, religion, children, verified, messages_today, likes_today, last_like_date, matches_today, last_message_date, lat, lng, referral_code, referred_by, referrals_count, created_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)`,
-            [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.status, user.religion, user.children, user.verified, user.messages_today, user.likes_today, user.last_like_date, user.matches_today, user.last_message_date, user.lat, user.lng, user.referral_code, ref || '', 0, user.created_at]
-        );
-    } else { USERS_MEM[user.email] = user; }
-    if (ref && ref !== referralCode) {
-        if (pool) {
-            await pool.query('UPDATE solo_users SET referrals_count = referrals_count + 1 WHERE referral_code = $1', [ref]);
-        } else {
-            const refUser = Object.values(USERS_MEM).find(u => u.referral_code === ref);
-            if (refUser) refUser.referrals_count = (refUser.referrals_count || 0) + 1;
+    try {
+        const { pseudo, email, password, gender, age, phone, country: formCountry, ref } = req.body;
+        if (!pseudo || !password || !gender || !phone) return res.status(400).json({ success: false, message: 'Téléphone, pseudo, mot de passe et genre requis' });
+        const userEmail = email || ('phone_' + phone.replace(/[^0-9+]/g, '') + '@solo.local');
+        let country = formCountry || 'ML';
+        if (!formCountry) {
+            const p = phone.replace(/[^0-9+]/g, '');
+            const prefixMap = { '+223':'ML','+225':'CI','+221':'SN','+226':'BF','+224':'GN','+237':'CM','+229':'BJ','+228':'TG','+234':'NG','+233':'GH','+227':'NE','+235':'TD','+243':'CD','+242':'CG','+241':'GA' };
+            for (const [pref, c] of Object.entries(prefixMap)) { if (p.startsWith(pref)) { country = c; break; } }
         }
+        const existing = pool
+            ? (await pool.query('SELECT * FROM solo_users WHERE email = $1 OR phone = $2 OR pseudo = $3', [userEmail.toLowerCase(), phone, pseudo])).rows[0]
+            : Object.values(USERS_MEM).find(u => u.email === userEmail.toLowerCase() || u.phone === phone || u.pseudo === pseudo);
+        if (existing) return res.status(409).json({ success: false, message: 'Téléphone, email ou pseudo déjà utilisé' });
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(password, salt);
+        const referralCode = crypto.randomBytes(4).toString('hex');
+        const user = {
+            id: crypto.randomUUID(), pseudo, email: userEmail.toLowerCase(), password: hash, gender, age: age || 25,
+            country: country, city: '', phone: phone || '', photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
+            status: '', religion: '', children: '', verified: false, lat: 0, lng: 0,
+            messages_today: 0, likes_today: 0, last_like_date: '', matches_today: 0, last_message_date: '', referral_code: referralCode, referred_by: ref || '', referrals_count: 0, created_at: new Date().toISOString()
+        };
+        if (pool) {
+            await pool.query(
+                `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, status, religion, children, verified, messages_today, likes_today, last_like_date, matches_today, last_message_date, lat, lng, referral_code, referred_by, referrals_count, created_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)`,
+                [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.status, user.religion, user.children, user.verified, user.messages_today, user.likes_today, user.last_like_date, user.matches_today, user.last_message_date, user.lat, user.lng, user.referral_code, ref || '', 0, user.created_at]
+            );
+        } else { USERS_MEM[user.email] = user; }
+        if (ref && ref !== referralCode) {
+            if (pool) {
+                await pool.query('UPDATE solo_users SET referrals_count = referrals_count + 1 WHERE referral_code = $1', [ref]);
+            } else {
+                const refUser = Object.values(USERS_MEM).find(u => u.referral_code === ref);
+                if (refUser) refUser.referrals_count = (refUser.referrals_count || 0) + 1;
+            }
+        }
+        const tokens = generateTokens(user);
+        res.json({ success: true, token: tokens.accessToken, user: { pseudo, email: user.email, phone, gender, plan: 'free' } });
+    } catch (err) {
+        console.error('Register error:', err);
+        res.status(500).json({ success: false, message: 'Erreur serveur, réessaie dans quelques secondes' });
     }
-    const tokens = generateTokens(user);
-    res.json({ success: true, token: tokens.accessToken, user: { pseudo, email: user.email, phone, gender, plan: 'free' } });
 });
 
 app.post('/api/solo/login', async (req, res) => {
-    const { login, password } = req.body;
-    if (!login || !password) return res.status(400).json({ success: false, message: 'Identifiant et mot de passe requis' });
-    const isEmail = login.includes('@');
-    const user = pool
-        ? (await pool.query(isEmail ? 'SELECT * FROM solo_users WHERE email = $1' : 'SELECT * FROM solo_users WHERE phone = $1 OR email = $1 OR pseudo = $1', [login.trim()])).rows[0]
-        : (isEmail ? USERS_MEM[login.trim()] : Object.values(USERS_MEM).find(u => u.phone === login.trim() || u.pseudo === login.trim()));
-    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ success: false, message: 'Identifiant ou mot de passe incorrect' });
-    const tokens = generateTokens(user);
-    res.json({ success: true, token: tokens.accessToken, user: { pseudo: user.pseudo, email: user.email, phone: user.phone, gender: user.gender, plan: user.plan } });
+    try {
+        const { login, password } = req.body;
+        if (!login || !password) return res.status(400).json({ success: false, message: 'Identifiant et mot de passe requis' });
+        const isEmail = login.includes('@');
+        const user = pool
+            ? (await pool.query(isEmail ? 'SELECT * FROM solo_users WHERE email = $1' : 'SELECT * FROM solo_users WHERE phone = $1 OR email = $1 OR pseudo = $1', [login.trim()])).rows[0]
+            : (isEmail ? USERS_MEM[login.trim()] : Object.values(USERS_MEM).find(u => u.phone === login.trim() || u.pseudo === login.trim()));
+        if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ success: false, message: 'Identifiant ou mot de passe incorrect' });
+        const tokens = generateTokens(user);
+        res.json({ success: true, token: tokens.accessToken, user: { pseudo: user.pseudo, email: user.email, phone: user.phone, gender: user.gender, plan: user.plan } });
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ success: false, message: 'Erreur serveur, réessaie' });
+    }
 });
 
 app.get('/api/solo/me', authMiddleware, async (req, res) => {

@@ -47,8 +47,18 @@ const B = {
 
     async login() {
         this.showErr('');
-        var r = await this.safeFetch('/api/solo/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: document.getElementById('loginField').value.trim(), password: document.getElementById('loginPassword').value }), timeout: 10000 });
-        if (!r.ok) { this.showErr('Erreur réseau'); return; }
+        var btn = document.getElementById('loginSubmit');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Connexion...';
+        var r = await this.safeFetch('/api/solo/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: document.getElementById('loginField').value.trim(), password: document.getElementById('loginPassword').value }), timeout: 20000 });
+        btn.disabled = false;
+        btn.textContent = 'Se connecter';
+        if (!r.ok) {
+            if (r.error === 'Timeout') this.showErr('Le serveur est lent, réessaie...');
+            else if (r.error === 'Failed to fetch') this.showErr('Pas de connexion internet');
+            else this.showErr('Erreur: ' + r.error);
+            return;
+        }
         var d = await r.resp.json();
         if (!d.success) return this.showErr(d.message);
         this.setToken(d.token);
@@ -57,6 +67,9 @@ const B = {
 
     async register() {
         this.showErr('');
+        var btn = document.getElementById('regSubmit');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Création...';
         var prefixEl = document.getElementById('phonePrefix');
         var prefix = prefixEl.textContent.replace(/[^0-9+]/g, '') || '+223';
         var phoneRaw = document.getElementById('regPhone').value.trim();
@@ -69,8 +82,15 @@ const B = {
             gender: document.getElementById('regGender').value,
             age: parseInt(document.getElementById('regAge').value) || 25
         });
-        var r = await this.safeFetch('/api/solo/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, timeout: 10000 });
-        if (!r.ok) { this.showErr('Erreur réseau'); return; }
+        var r = await this.safeFetch('/api/solo/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, timeout: 30000 });
+        btn.disabled = false;
+        btn.textContent = 'Créer mon compte';
+        if (!r.ok) {
+            if (r.error === 'Timeout') this.showErr('Le serveur est lent, réessaie...');
+            else if (r.error === 'Failed to fetch') this.showErr('Pas de connexion internet');
+            else this.showErr('Erreur: ' + r.error);
+            return;
+        }
         var d = await r.resp.json();
         if (!d.success) return this.showErr(d.message);
         this.setToken(d.token);

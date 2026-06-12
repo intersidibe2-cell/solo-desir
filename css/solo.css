@@ -24,6 +24,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .auth-form button[type=submit]:active{transform:translateY(0)}
 .auth-note{text-align:center;color:#666;font-size:.7rem;margin-top:.2rem}
 .error-msg{color:#ff3b3b;text-align:center;font-size:.8rem;margin-top:.5rem;min-height:1.2rem}
+
+/* Spinner */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:.4rem;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 .btn-ghost{background:none;border:none;color:#888;cursor:pointer;font-size:1.1rem;padding:.3rem;transition:.2s}
 .btn-ghost:hover{color:#eee}
 
