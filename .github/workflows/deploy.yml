@@ -1,8 +1,8 @@
-name: Deploy to Hetzner
+name: Deploy to Hetzner (disabled - using Python SSH instead)
 
 on:
   push:
-    branches: [master]
+    branches: [none]
 
 jobs:
   deploy:
