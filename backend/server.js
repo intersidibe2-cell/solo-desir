@@ -494,6 +494,53 @@ app.post('/api/solo/verify/sms-confirm', async (req, res) => {
     res.json({ success: true, message: '✅ Code vérifié', verified: true });
 });
 
+// ─── Forgot / Reset Password ───────────────────────────
+app.post('/api/solo/forgot-password', async (req, res) => {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ success: false, message: 'Numéro requis' });
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    const user = pool
+        ? (await pool.query('SELECT email, pseudo FROM solo_users WHERE phone = $1', [cleanPhone])).rows[0]
+        : Object.values(USERS_MEM).find(u => u.phone === cleanPhone);
+    if (!user) return res.status(404).json({ success: false, message: 'Aucun compte avec ce numéro' });
+
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
+    VERIFICATION_CODES['reset:' + cleanPhone] = { code, time: Date.now() };
+
+    const smsResult = await sendSMS(cleanPhone, `Solo: Code de reinitialisation: ${code}`);
+    if (smsResult.mock) {
+        console.log('📱 Reset code for', cleanPhone, ':', code);
+        res.json({ success: true, message: 'Code envoyé — (mode test)', code: code });
+    } else if (smsResult.success) {
+        res.json({ success: true, message: 'Code envoyé par SMS' });
+    } else {
+        delete VERIFICATION_CODES['reset:' + cleanPhone];
+        res.status(500).json({ success: false, message: 'Erreur envoi SMS' });
+    }
+});
+
+app.post('/api/solo/reset-password', async (req, res) => {
+    const { phone, code, password } = req.body;
+    if (!phone || !code || !password) return res.status(400).json({ success: false, message: 'Tous les champs requis' });
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    const stored = VERIFICATION_CODES['reset:' + cleanPhone];
+    if (!stored) return res.status(400).json({ success: false, message: 'Aucun code envoyé à ce numéro' });
+    if (stored.code !== code) return res.status(400).json({ success: false, message: 'Code incorrect' });
+    if (Date.now() - stored.time > 300000) { delete VERIFICATION_CODES['reset:' + cleanPhone]; return res.status(400).json({ success: false, message: 'Code expiré (5 min)' }); }
+    delete VERIFICATION_CODES['reset:' + cleanPhone];
+
+    if (password.length < 6) return res.status(400).json({ success: false, message: 'Mot de passe trop court (6+ caractères)' });
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password, salt);
+    if (pool) {
+        await pool.query('UPDATE solo_users SET password = $1 WHERE phone = $2', [hash, cleanPhone]);
+    } else {
+        const user = Object.values(USERS_MEM).find(u => u.phone === cleanPhone);
+        if (user) user.password = hash;
+    }
+    res.json({ success: true, message: '✅ Mot de passe changé. Connecte-toi avec ton nouveau mot de passe.' });
+});
+
 app.post('/api/solo/verify/selfie', authMiddleware, async (req, res) => {
     const { image } = req.body;
     if (!image) return res.status(400).json({ success: false, message: 'Image requise' });

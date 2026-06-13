@@ -48,7 +48,7 @@ const B = {
             var banner = document.getElementById('offlineBanner');
             if (banner) banner.style.display = 'block';
         });
-        const saved = localStorage.getItem('solo_token');
+        const saved = localStorage.getItem('solo_token') || sessionStorage.getItem('solo_token');
         if (saved) { this.token = saved; this.loadMain(); return; }
         i18n.load(localStorage.getItem('solo_lang') || 'fr').then(function() { i18n.initSwitcher(); });
         document.getElementById('loginForm').addEventListener('submit', function(e) { e.preventDefault(); self.login(); });
@@ -158,7 +158,7 @@ const B = {
         this.loadMain();
     },
 
-    setToken(t) { this.token = t; localStorage.setItem('solo_token', t); },
+    setToken(t) { this.token = t; localStorage.setItem('solo_token', t); sessionStorage.setItem('solo_token', t); },
     showErr(msg) { const el = document.getElementById('authError'); el.textContent = msg || ''; },
 
     async loadMain() {
@@ -199,11 +199,22 @@ const B = {
         var r = await this.safeFetch('/api/solo/me', { headers: { 'Authorization': 'Bearer ' + this.token } });
         if (!r.ok) {
             var cached = localStorage.getItem('solo_user_cache');
-            if (cached) { try { this.user = JSON.parse(cached); this.populateUserUI(); return; } catch(e) {} }
+            if (cached) {
+                try { this.user = JSON.parse(cached); this.populateUserUI(); } catch(e) {}
+                if (!navigator.onLine) this.toast('📡 Mode hors ligne — données en cache');
+            }
             return;
         }
         var d = await r.resp.json();
-        if (!d.success) return;
+        if (!d.success) {
+            // Token expired or invalid
+            if (d.message && d.message.toLowerCase().includes('expir')) {
+                localStorage.removeItem('solo_token');
+                sessionStorage.removeItem('solo_token');
+                location.reload();
+            }
+            return;
+        }
         this.user = d.user;
         localStorage.setItem('solo_user_cache', JSON.stringify(d.user));
         this.populateUserUI();
@@ -395,7 +406,9 @@ const B = {
 
     logout() {
         if (this.pollInterval) clearInterval(this.pollInterval);
-        localStorage.removeItem('solo_token'); location.reload(); },
+        localStorage.removeItem('solo_token'); sessionStorage.removeItem('solo_token');
+        localStorage.removeItem('solo_user_cache');
+        location.reload(); },
 
     async loadProfiles() {
         this.profilesOffset = 0;
@@ -782,6 +795,58 @@ const B = {
         }
         this.swipeIndex++;
         this.renderSwipeCard();
+    },
+
+    async forgotPassword() {
+        var overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.id = 'forgotModal';
+        overlay.innerHTML = '<div class="modal-detail" style="max-width:360px">' +
+            '<div class="detail-info" style="text-align:center">' +
+                '<div style="font-size:2.5rem;margin-bottom:.5rem">🔑</div>' +
+                '<h3 style="margin-bottom:.3rem">Mot de passe oublié</h3>' +
+                '<p style="color:#888;font-size:.8rem;margin-bottom:1rem">Entre ton numéro de téléphone</p>' +
+                '<div class="phone-input-group" style="margin-bottom:.8rem"><span class="phone-prefix">+223</span><input type="tel" id="forgotPhone" placeholder="70 00 00 00" style="border:none;background:transparent;padding:.8rem 1rem;color:#eee;font-size:.9rem;outline:none;flex:1;min-width:0"></div>' +
+                '<button class="btn-primary" onclick="B.sendForgotCode()" style="width:100%;padding:.8rem;border-radius:12px;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff;border:none;font-weight:600;cursor:pointer;font-size:1rem;margin-bottom:.5rem">Recevoir le code</button>' +
+                '<div id="forgotCodeSection" style="display:none;margin-top:.8rem">' +
+                    '<p style="color:#888;font-size:.75rem;margin-bottom:.5rem">Entre le code reçu</p>' +
+                    '<input type="text" id="forgotCode" placeholder="0000" maxlength="4" style="width:100%;padding:.8rem;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eee;font-size:1.5rem;text-align:center;letter-spacing:8px;outline:none;margin-bottom:.5rem">' +
+                    '<input type="password" id="forgotNewPassword" placeholder="Nouveau mot de passe" style="width:100%;padding:.8rem;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eee;font-size:.9rem;outline:none;margin-bottom:.5rem">' +
+                    '<button class="btn-primary" onclick="B.resetPassword()" style="width:100%;padding:.8rem;border-radius:12px;background:linear-gradient(135deg,#4caf50,#66bb6a);color:#fff;border:none;font-weight:600;cursor:pointer;font-size:1rem">Changer le mot de passe</button>' +
+                '</div>' +
+                '<button class="btn-ghost" onclick="document.getElementById(\'forgotModal\').remove()" style="color:#888;margin-top:.5rem">Annuler</button>' +
+            '</div>' +
+        '</div>';
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+    },
+
+    async sendForgotCode() {
+        var phone = (document.getElementById('forgotPhone')?.value || '').trim().replace(/[^0-9+]/g, '');
+        if (!phone || phone.length < 8) { this.toast('Numéro invalide'); return; }
+        var prefix = '+223';
+        var fullPhone = prefix + phone;
+        var r = await this.safeFetch('/api/solo/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: fullPhone }), timeout: 15000 });
+        if (!r.ok) { this.toast('Erreur réseau'); return; }
+        var d = await r.resp.json();
+        if (!d.success) { this.toast(d.message); return; }
+        document.getElementById('forgotCodeSection').style.display = 'block';
+        this.toast('Code envoyé par SMS');
+    },
+
+    async resetPassword() {
+        var phone = (document.getElementById('forgotPhone')?.value || '').trim().replace(/[^0-9+]/g, '');
+        var code = document.getElementById('forgotCode').value.trim();
+        var pwd = document.getElementById('forgotNewPassword').value;
+        if (code.length < 4) { this.toast('Code incomplet'); return; }
+        if (pwd.length < 6) { this.toast('Mot de passe (6+ caractères)'); return; }
+        var fullPhone = '+223' + phone;
+        var r = await this.safeFetch('/api/solo/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: fullPhone, code: code, password: pwd }), timeout: 15000 });
+        if (!r.ok) { this.toast('Erreur réseau'); return; }
+        var d = await r.resp.json();
+        if (!d.success) { this.toast(d.message); return; }
+        document.getElementById('forgotModal')?.remove();
+        this.toast('✅ Mot de passe changé. Connecte-toi.');
     },
 
     async deleteAccount() {
