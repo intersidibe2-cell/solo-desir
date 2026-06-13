@@ -22,6 +22,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .input-icon input,.input-icon select{width:100%;padding:.8rem 1rem .8rem 2.5rem;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eee;font-size:.9rem;transition:all .25s;outline:none;backdrop-filter:blur(10px)}
 .input-icon input:focus,.input-icon select:focus{border-color:#ff3b3b;box-shadow:0 0 0 4px rgba(255,59,59,.1);background:rgba(255,255,255,.1)}
 .input-icon select{appearance:none;cursor:pointer}
+.phone-input-group{display:flex;align-items:center;width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);overflow:hidden;transition:all .25s}
+.phone-input-group:focus-within{border-color:#ff3b3b;box-shadow:0 0 0 4px rgba(255,59,59,.1);background:rgba(255,255,255,.1)}
+.phone-prefix{padding:.8rem .6rem .8rem 1rem;font-weight:600;color:#ff3b3b;font-size:.9rem;border-right:1px solid rgba(255,255,255,.1);white-space:nowrap;min-width:55px;text-align:center}
+.phone-input{border:none!important;background:transparent!important;padding:.8rem 1rem!important;color:#eee!important;font-size:.9rem!important;outline:none;flex:1;min-width:0}
+.phone-input:focus{box-shadow:none!important}
 .input-icon select option{background:#1a1a2e;color:#eee}
 .auth-form button[type=submit]{width:100%;padding:.85rem;border-radius:14px;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff;font-weight:700;font-size:.92rem;border:none;cursor:pointer;transition:.3s;box-shadow:0 4px 15px rgba(255,59,59,.3)}
 .auth-form button[type=submit]:hover{transform:translateY(-1px);box-shadow:0 8px 25px rgba(255,59,59,.4)}

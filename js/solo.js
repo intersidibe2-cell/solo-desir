@@ -61,7 +61,7 @@ const B = {
                 document.getElementById(t.dataset.tab === 'login' ? 'registerForm' : 'loginForm').style.display = 'none';
             });
         });
-        const prefixMap = { ML:'+223',CI:'+225',SN:'+221',BF:'+226',GN:'+224',CM:'+237',BJ:'+229',TG:'+228',NG:'+234',GH:'+233',NE:'+227',TD:'+235',CD:'+243',CG:'+242',GA:'+241' };
+        const prefixMap = { ML:'+223',CI:'+225',SN:'+221',BF:'+226',GN:'+224',CM:'+237',BJ:'+229',TG:'+228',NE:'+227',TD:'+235' };
         document.getElementById('regCountry').addEventListener('change', function() {
             const p = prefixMap[this.value] || '+223';
             document.getElementById('phonePrefix').textContent = p;
@@ -94,32 +94,66 @@ const B = {
     async register() {
         this.showErr('');
         var btn = document.getElementById('regSubmit');
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner"></span> Création...';
         var prefixEl = document.getElementById('phonePrefix');
-        var prefix = prefixEl.textContent.replace(/[^0-9+]/g, '') || '+223';
-        var phoneRaw = document.getElementById('regPhone').value.trim();
+        var phoneRaw = document.getElementById('regPhone').value.trim().replace(/[^0-9]/g, '');
+        var prefix = prefixEl.textContent.trim() || '+223';
+        var fullPhone = prefix + phoneRaw;
+        if (!phoneRaw || phoneRaw.length < 7) { this.showErr('Numéro de téléphone invalide'); return; }
         var country = document.getElementById('regPhone').dataset.country || 'ML';
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Envoi du code...';
+
+        var r = await this.safeFetch('/api/solo/verify/sms-send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: fullPhone }), timeout: 15000 });
+        btn.disabled = false;
+        btn.textContent = 'Créer mon compte';
+        if (!r.ok) { this.showErr('Erreur réseau'); return; }
+        var d = await r.resp.json();
+        if (!d.success) { this.showErr(d.message); return; }
+
+        this.showVerifyModal(fullPhone, phoneRaw, prefix, country);
+    },
+
+    showVerifyModal(phone, phoneRaw, prefix, country) {
+        var overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.id = 'verifyModal';
+        overlay.innerHTML = '<div class="modal-detail" style="max-width:360px">' +
+            '<div class="detail-info" style="text-align:center">' +
+                '<div style="font-size:3rem;margin-bottom:.5rem">📱</div>' +
+                '<h3 style="margin-bottom:.3rem">Vérifie ton numéro</h3>' +
+                '<p style="color:#888;font-size:.8rem;margin-bottom:1rem">Un code à 4 chiffres a été envoyé à ' + this.esc(phone) + '</p>' +
+                '<input type="text" id="verifySmsCode" placeholder="0000" maxlength="4" style="width:100%;padding:.8rem;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eee;font-size:1.5rem;text-align:center;letter-spacing:8px;outline:none;margin-bottom:1rem">' +
+                '<button class="btn-primary" onclick="B.confirmSmsCode(\'' + this.esc(phone) + '\',\'' + this.esc(phoneRaw) + '\',\'' + this.esc(prefix) + '\',\'' + this.esc(country) + '\')" style="width:100%;padding:.8rem;border-radius:12px;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff;border:none;font-weight:600;cursor:pointer;font-size:1rem;margin-bottom:.5rem">Confirmer</button>' +
+                '<button class="btn-ghost" onclick="document.getElementById(\'verifyModal\').remove()" style="color:#888">Annuler</button>' +
+            '</div>' +
+        '</div>';
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+        setTimeout(function() { var el = document.getElementById('verifySmsCode'); if (el) el.focus(); }, 300);
+    },
+
+    async confirmSmsCode(phone, phoneRaw, prefix, country) {
+        var code = document.getElementById('verifySmsCode').value.trim();
+        if (code.length < 4) { this.toast('Code incomplet'); return; }
+        var r = await this.safeFetch('/api/solo/verify/sms-confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: phone, code: code }), timeout: 10000 });
+        if (!r.ok) { this.toast('Erreur réseau'); return; }
+        var d = await r.resp.json();
+        if (!d.success) { this.toast(d.message); return; }
+        document.getElementById('verifyModal')?.remove();
+        // Complete registration
         var body = JSON.stringify({
             pseudo: document.getElementById('regPseudo').value.trim(),
             password: document.getElementById('regPassword').value,
-            phone: prefix + phoneRaw, country: country,
+            phone: phone, country: country,
             email: (document.getElementById('regEmail').value || '').trim(),
             gender: document.getElementById('regGender').value,
             age: parseInt(document.getElementById('regAge').value) || 25
         });
-        var r = await this.safeFetch('/api/solo/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, timeout: 30000 });
-        btn.disabled = false;
-        btn.textContent = 'Créer mon compte';
-        if (!r.ok) {
-            if (r.error === 'Timeout') this.showErr('Le serveur est lent, réessaie...');
-            else if (r.error === 'Failed to fetch') this.showErr('Pas de connexion internet');
-            else this.showErr('Erreur: ' + r.error);
-            return;
-        }
-        var d = await r.resp.json();
-        if (!d.success) return this.showErr(d.message);
-        this.setToken(d.token);
+        var r2 = await this.safeFetch('/api/solo/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, timeout: 30000 });
+        if (!r2.ok) { this.showErr('Erreur réseau'); return; }
+        var d2 = await r2.resp.json();
+        if (!d2.success) { this.showErr(d2.message); return; }
+        this.setToken(d2.token);
         this.loadMain();
     },
 
@@ -163,41 +197,49 @@ const B = {
     async loadUser() {
         var r = await this.safeFetch('/api/solo/me', { headers: { 'Authorization': 'Bearer ' + this.token } });
         if (!r.ok) {
-            if (r.error === 'Timeout' || r.error === 'Failed to fetch') return;
-            return this.logout();
+            var cached = localStorage.getItem('solo_user_cache');
+            if (cached) { try { this.user = JSON.parse(cached); this.populateUserUI(); return; } catch(e) {} }
+            return;
         }
         var d = await r.resp.json();
-        if (!d.success) return this.logout();
+        if (!d.success) return;
         this.user = d.user;
-        document.getElementById('userPlan').textContent = d.user.plan === 'free' ? 'Gratuit' : d.user.plan;
-        document.getElementById('profilePseudo').textContent = d.user.pseudo || '-';
+        localStorage.setItem('solo_user_cache', JSON.stringify(d.user));
+        this.populateUserUI();
+    },
+
+    populateUserUI() {
+        var u = this.user;
+        if (!u) return;
+        document.getElementById('userPlan').textContent = u.plan === 'free' ? 'Gratuit' : u.plan;
+        document.getElementById('profilePseudo').textContent = u.pseudo || '-';
         var avatarEl = document.getElementById('profileAvatar');
-        if (d.user.photos && d.user.photos.length > 0) { avatarEl.innerHTML = '<img src="' + this.esc(d.user.photos[0]) + '" alt="avatar">'; }
+        if (u.photos && u.photos.length > 0) { avatarEl.innerHTML = '<img src="' + this.esc(u.photos[0]) + '" alt="avatar">'; }
         else { avatarEl.innerHTML = '👤'; }
         var badgesEl = document.querySelector('.profile-badges');
         if (badgesEl) {
             var badges = '<span class="badge badge-new">Nouveau</span>';
-            if (d.user.verified) badges += '<span class="badge badge-verified">✓ Vérifié</span>';
-            if (d.user.plan !== 'free') badges += '<span class="badge badge-vip">VIP</span>';
+            if (u.verified) badges += '<span class="badge badge-verified">✓ Vérifié</span>';
+            if (u.plan !== 'free') badges += '<span class="badge badge-vip">VIP</span>';
             badgesEl.innerHTML = badges;
         }
-        document.getElementById('editPseudo').value = d.user.pseudo || '';
-        document.getElementById('editProfession').value = d.user.profession || '';
-        document.getElementById('editLooking').value = d.user.looking_for || '';
-        document.getElementById('editInterests').value = (d.user.interests || []).join(', ');
-        document.getElementById('editAge').value = d.user.age || '';
-        document.getElementById('editCountry').value = d.user.country || 'ML';
-        document.getElementById('editCity').value = d.user.city || '';
-        document.getElementById('editBio').value = d.user.bio || '';
-        document.getElementById('editStatus').value = d.user.status || '';
-        document.getElementById('editReligion').value = d.user.religion || '';
-        document.getElementById('editChildren').value = d.user.children || '';
-        this.photoUrls = (d.user.photos || []).slice();
+        document.getElementById('editPseudo').value = u.pseudo || '';
+        document.getElementById('editProfession').value = u.profession || '';
+        document.getElementById('editLooking').value = u.looking_for || '';
+        document.getElementById('editInterests').value = (u.interests || []).join(', ');
+        document.getElementById('editAge').value = u.age || '';
+        document.getElementById('editCountry').value = u.country || 'ML';
+        document.getElementById('editCity').value = u.city || '';
+        document.getElementById('editBio').value = u.bio || '';
+        document.getElementById('editStatus').value = u.status || '';
+        document.getElementById('editReligion').value = u.religion || '';
+        document.getElementById('editChildren').value = u.children || '';
+        this.photoUrls = (u.photos || []).slice();
         this.loadProfileStats();
         document.getElementById('editPhotosPrivate').checked = localStorage.getItem('solo_photos_private') === '1';
         var verifyStatus = document.getElementById('verifyStatus');
         if (verifyStatus) {
-            verifyStatus.textContent = d.user.verified ? '✅ Profil vérifié' : '';
+            verifyStatus.textContent = u.verified ? '✅ Profil vérifié' : '';
         }
         this.renderPhotoPreviews();
         this.updatePhotoCounter();

@@ -177,7 +177,7 @@ function authMiddleware(req, res, next) {
 function generateTokens(user) {
     const payload = { id: user.id, pseudo: user.pseudo, email: user.email, plan: user.plan };
     return {
-        accessToken: jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' }),
+        accessToken: jwt.sign(payload, JWT_SECRET, { expiresIn: '90d' }),
         refreshToken: jwt.sign({ id: user.id }, JWT_REFRESH_SECRET, { expiresIn: '90d' })
     };
 }
@@ -218,12 +218,13 @@ app.get('/api/solo/vapid-key', (req, res) => {
 // ─── Solo API ────────────────────────────────────────
 app.post('/api/solo/register', async (req, res) => {
     try {
-        const { pseudo, email, password, gender, age, phone, country: formCountry, ref } = req.body;
+        const { pseudo, email, password, gender, age, phone, country: formCountry, ref, verified } = req.body;
         if (!pseudo || !password || !gender || !phone) return res.status(400).json({ success: false, message: 'Téléphone, pseudo, mot de passe et genre requis' });
-        const userEmail = email || ('phone_' + phone.replace(/[^0-9+]/g, '') + '@solo.local');
+        const cleanPhone = phone.replace(/[^0-9+]/g, '');
+        const userEmail = email || ('phone_' + cleanPhone + '@solo.local');
         let country = formCountry || 'ML';
         if (!formCountry) {
-            const p = phone.replace(/[^0-9+]/g, '');
+            const p = cleanPhone;
             const prefixMap = {
                 '+213':'DZ','+244':'AO','+229':'BJ','+267':'BW','+226':'BF','+257':'BI','+238':'CV',
                 '+237':'CM','+236':'CF','+235':'TD','+269':'KM','+242':'CG','+243':'CD','+225':'CI',
@@ -237,16 +238,17 @@ app.post('/api/solo/register', async (req, res) => {
             for (const [pref, c] of Object.entries(prefixMap)) { if (p.startsWith(pref)) { country = c; break; } }
         }
         const existing = pool
-            ? (await pool.query('SELECT * FROM solo_users WHERE email = $1 OR phone = $2 OR pseudo = $3', [userEmail.toLowerCase(), phone, pseudo])).rows[0]
-            : Object.values(USERS_MEM).find(u => u.email === userEmail.toLowerCase() || u.phone === phone || u.pseudo === pseudo);
+            ? (await pool.query('SELECT * FROM solo_users WHERE email = $1 OR phone = $2 OR pseudo = $3', [userEmail.toLowerCase(), cleanPhone, pseudo])).rows[0]
+            : Object.values(USERS_MEM).find(u => u.email === userEmail.toLowerCase() || u.phone === cleanPhone || u.pseudo === pseudo);
         if (existing) return res.status(409).json({ success: false, message: 'Téléphone, email ou pseudo déjà utilisé' });
         const salt = await bcrypt.genSalt(10);
         const hash = await bcrypt.hash(password, salt);
         const referralCode = crypto.randomBytes(4).toString('hex');
+        const isVerified = !!verified;
         const user = {
             id: crypto.randomUUID(), pseudo, email: userEmail.toLowerCase(), password: hash, gender, age: age || 25,
-            country: country, city: '', phone: phone || '', photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
-            status: '', religion: '', children: '', verified: false, lat: 0, lng: 0,
+            country: country, city: '', phone: cleanPhone, photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
+            status: '', religion: '', children: '', verified: isVerified, lat: 0, lng: 0,
             messages_today: 0, likes_today: 0, last_like_date: '', matches_today: 0, last_message_date: '', referral_code: referralCode, referred_by: ref || '', referrals_count: 0, created_at: new Date().toISOString()
         };
         if (pool) {
@@ -420,23 +422,74 @@ app.get('/api/solo/matches', authMiddleware, async (req, res) => {
 // ─── Verification ────────────────────────────────────
 const VERIFICATION_CODES = {};
 
-app.post('/api/solo/verify/send', authMiddleware, async (req, res) => {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    VERIFICATION_CODES[req.user.email] = { code, time: Date.now() };
-    console.log('📱 Verification code for', req.user.email, ':', code);
-    res.json({ success: true, message: 'Code de vérification envoyé par SMS' });
+// Twilio SMS integration (optional - falls back to console log)
+const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID || '';
+const TWILIO_AUTH = process.env.TWILIO_AUTH_TOKEN || '';
+const TWILIO_FROM = process.env.TWILIO_PHONE_NUMBER || '';
+
+async function sendSMS(phone, message) {
+    if (!TWILIO_SID || !TWILIO_AUTH || !TWILIO_FROM) {
+        console.log('📱 SMS (mock):', phone, message);
+        return { success: true, mock: true };
+    }
+    try {
+        const body = new URLSearchParams();
+        body.append('To', phone);
+        body.append('From', TWILIO_FROM);
+        body.append('Body', message);
+        const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic ' + Buffer.from(TWILIO_SID + ':' + TWILIO_AUTH).toString('base64')
+            },
+            body: body.toString()
+        });
+        const data = await r.json();
+        return { success: !data.error_code, sid: data.sid };
+    } catch (e) {
+        console.error('Twilio error:', e);
+        return { success: false, error: 'Twilio failed' };
+    }
+}
+
+app.post('/api/solo/verify/sms-send', async (req, res) => {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ success: false, message: 'Numéro requis' });
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    if (cleanPhone.length < 8) return res.status(400).json({ success: false, message: 'Numéro invalide' });
+
+    // Check if phone already registered
+    const existing = pool
+        ? (await pool.query('SELECT email FROM solo_users WHERE phone = $1', [cleanPhone])).rows[0]
+        : Object.values(USERS_MEM).find(u => u.phone === cleanPhone);
+    if (existing) return res.status(409).json({ success: false, message: 'Ce numéro est déjà utilisé' });
+
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
+    VERIFICATION_CODES[cleanPhone] = { code, time: Date.now() };
+
+    const smsResult = await sendSMS(cleanPhone, `Solo: Your code is ${code}`);
+    if (smsResult.mock) {
+        console.log('📱 Code for', cleanPhone, ':', code);
+        res.json({ success: true, message: 'Code envoyé — (mode test)', code: code });
+    } else if (smsResult.success) {
+        res.json({ success: true, message: 'Code envoyé par SMS' });
+    } else {
+        delete VERIFICATION_CODES[cleanPhone];
+        res.status(500).json({ success: false, message: 'Erreur d\'envoi SMS, réessaie' });
+    }
 });
 
-app.post('/api/solo/verify/confirm', authMiddleware, async (req, res) => {
-    const { code } = req.body;
-    if (!code) return res.status(400).json({ success: false, message: 'Code requis' });
-    const stored = VERIFICATION_CODES[req.user.email];
-    if (!stored || stored.code !== code) return res.status(400).json({ success: false, message: 'Code incorrect ou expiré' });
-    if (Date.now() - stored.time > 300000) return res.status(400).json({ success: false, message: 'Code expiré' });
-    delete VERIFICATION_CODES[req.user.email];
-    if (pool) await pool.query('UPDATE solo_users SET verified = true WHERE email = $1', [req.user.email]);
-    else if (USERS_MEM[req.user.email]) USERS_MEM[req.user.email].verified = true;
-    res.json({ success: true, message: '✅ Compte vérifié', verified: true });
+app.post('/api/solo/verify/sms-confirm', async (req, res) => {
+    const { phone, code } = req.body;
+    if (!phone || !code) return res.status(400).json({ success: false, message: 'Numéro et code requis' });
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    const stored = VERIFICATION_CODES[cleanPhone];
+    if (!stored) return res.status(400).json({ success: false, message: 'Aucun code envoyé à ce numéro' });
+    if (stored.code !== code) return res.status(400).json({ success: false, message: 'Code incorrect' });
+    if (Date.now() - stored.time > 300000) { delete VERIFICATION_CODES[cleanPhone]; return res.status(400).json({ success: false, message: 'Code expiré (5 min)' }); }
+    delete VERIFICATION_CODES[cleanPhone];
+    res.json({ success: true, message: '✅ Code vérifié', verified: true });
 });
 
 app.post('/api/solo/verify/selfie', authMiddleware, async (req, res) => {
