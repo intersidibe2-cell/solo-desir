@@ -829,7 +829,8 @@ const B = {
                     '<input type="text" id="annonceCity" placeholder="Ville" style="flex:1;padding:.7rem;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.04);color:#eee;font-size:.85rem;outline:none">' +
                 '</div>' +
                 '<p style="color:#555;font-size:.7rem;margin-bottom:.7rem">📸 Photos (optionnel, max 3)</p>' +
-                '<input type="file" id="annoncePhotos" accept="image/*" multiple style="margin-bottom:1rem">' +
+                '<input type="file" id="annoncePhotos" accept="image/*" multiple style="margin-bottom:.5rem">' +
+                '<label style="display:flex;align-items:center;gap:.5rem;color:#888;font-size:.8rem;margin-bottom:.7rem;cursor:pointer"><input type="checkbox" id="annonceDiscreet"> 🔒 Annonce discrète (pseudo masqué)</label>' +
                 '<div class="detail-actions">' +
                     '<button class="btn-primary" onclick="B.createAnnonce()" style="flex:1;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff;padding:.7rem;border-radius:12px;border:none;font-weight:600;cursor:pointer">Publier</button>' +
                     '<button class="btn-close-detail" onclick="document.getElementById(\'annonceModal\').remove()" style="flex:1;background:rgba(255,255,255,.06);color:#888;padding:.7rem;border-radius:12px;border:none;cursor:pointer">Annuler</button>' +
@@ -864,7 +865,7 @@ const B = {
         }
         var r = await this.safeFetch('/api/solo/annonces', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token },
-            body: JSON.stringify({ title: title, description: desc, looking_for: document.getElementById('annonceLooking').value, photos: photos })
+            body: JSON.stringify({ title: title, description: desc, looking_for: document.getElementById('annonceLooking').value, photos: photos, discreet: document.getElementById('annonceDiscreet')?.checked || false })
         });
         if (!r.ok) { this.toast('Erreur réseau'); return; }
         var d = await r.resp.json();

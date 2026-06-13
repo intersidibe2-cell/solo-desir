@@ -131,7 +131,7 @@
             <div class="nav-item active" data-page="dashboard"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></div>
             <div class="nav-item" data-page="users"><i class="fas fa-users"></i> <span>Utilisateurs</span></div>
             <div class="nav-item" data-page="reports"><i class="fas fa-flag"></i> <span>Signalements</span> <span class="nav-badge" id="reportsBadge" style="display:none">0</span></div>
-            <div class="nav-item" data-page="annonces"><i class="fas fa-bullhorn"></i> <span>Annonces</span></div>
+            <div class="nav-item" data-page="annonces"><i class="fas fa-bullhorn"></i> <span>Annonces</span> <span class="nav-badge" id="annoncesBadge" style="display:none">0</span></div>
             <div class="nav-item" data-page="messages"><i class="fas fa-exclamation-triangle"></i> <span>Messages suspects</span></div>
             <div class="nav-item" data-page="boosts"><i class="fas fa-rocket"></i> <span>Boosts</span></div>
         </div>
@@ -216,9 +216,19 @@
             <!-- Annonces Page -->
             <div id="pageAnnonces" class="page">
                 <div class="table-card">
-                    <div class="table-header"><h3>Annonces</h3></div>
+                    <div class="table-header">
+                        <h3>Annonces</h3>
+                        <div class="table-actions">
+                            <select class="filter-select" id="annonceStatus" onchange="loadAnnonces()">
+                                <option value="">Tous</option>
+                                <option value="pending">En attente</option>
+                                <option value="approved">Approuvée</option>
+                                <option value="rejected">Rejetée</option>
+                            </select>
+                        </div>
+                    </div>
                     <table>
-                        <thead><tr><th>Auteur</th><th>Titre</th><th>Description</th><th>Pays</th><th>Date</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Auteur</th><th>Titre</th><th>Description</th><th>Pays</th><th>Statut</th><th>Date</th><th>Actions</th></tr></thead>
                         <tbody id="annonceTable"></tbody>
                     </table>
                 </div>
@@ -341,6 +351,10 @@
             if (d.reports > 0) {
                 document.getElementById('reportsBadge').style.display = 'block';
                 document.getElementById('reportsBadge').textContent = d.reports;
+            }
+            if (d.pendingAnnonces > 0) {
+                document.getElementById('annoncesBadge').style.display = 'block';
+                document.getElementById('annoncesBadge').textContent = d.pendingAnnonces;
             }
             renderChartSignups(d.dailySignups || []);
             renderChartCountries(d.topCountries || []);
@@ -494,13 +508,37 @@
 
         // Annonces
         async function loadAnnonces() {
-            var d = await api('/api/solo/admin/annonces');
+            var status = document.getElementById('annonceStatus').value;
+            var d = await api('/api/solo/admin/annonces', { status: status });
             if (!d.success) return;
             var tbody = document.getElementById('annonceTable');
-            if (!d.annonces || !d.annonces.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#666;padding:2rem">Aucune annonce</td></tr>'; return; }
+            if (!d.annonces || !d.annonces.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#666;padding:2rem">Aucune annonce</td></tr>'; return; }
             tbody.innerHTML = d.annonces.map(function(a) {
-                return '<tr><td>' + esc(a.pseudo) + '</td><td>' + esc(a.title) + '</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(a.description) + '</td><td>' + esc(a.country) + '</td><td>' + (a.created_at || '').substring(0, 10) + '</td><td><button class="btn-sm btn-danger" onclick="deleteAnnonce(' + a.id + ')">Supprimer</button></td></tr>';
+                var statusClass = a.status === 'pending' ? 'badge-pending' : (a.status === 'approved' ? 'badge-resolved' : 'badge-banned');
+                var statusLabel = a.status === 'pending' ? 'En attente' : (a.status === 'approved' ? 'Approuvée' : 'Rejetée');
+                var actions = '';
+                if (a.status === 'pending') {
+                    actions = '<button class="btn-sm btn-success" onclick="approveAnnonce(' + a.id + ')">Approuver</button> <button class="btn-sm btn-danger" onclick="rejectAnnonce(' + a.id + ')">Rejeter</button>';
+                } else {
+                    actions = '<button class="btn-sm btn-danger" onclick="deleteAnnonce(' + a.id + ')">Supprimer</button>';
+                }
+                var discreetBadge = a.discreet ? ' 🔒' : '';
+                var pseudo = a.discreet ? 'Anonyme' : a.pseudo;
+                return '<tr><td>' + esc(pseudo) + discreetBadge + '</td><td>' + esc(a.title) + '</td><td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(a.description) + '</td><td>' + esc(a.country) + '</td><td><span class="badge ' + statusClass + '">' + statusLabel + '</span></td><td>' + (a.created_at || '').substring(0, 10) + '</td><td>' + actions + '</td></tr>';
             }).join('');
+        }
+
+        async function approveAnnonce(id) {
+            await api('/api/solo/admin/annonces/' + id + '/approve');
+            toast('Annonce approuvée');
+            loadAnnonces();
+        }
+
+        async function rejectAnnonce(id) {
+            var reason = prompt('Raison du rejet (optionnel) :');
+            await api('/api/solo/admin/annonces/' + id + '/reject', { reason: reason || '' });
+            toast('Annonce rejetée');
+            loadAnnonces();
         }
 
         async function deleteAnnonce(id) {

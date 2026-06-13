@@ -142,6 +142,9 @@ async function initDB() {
                 description TEXT NOT NULL,
                 looking_for TEXT DEFAULT '',
                 photos JSONB DEFAULT '[]',
+                status TEXT DEFAULT 'pending',
+                discreet BOOLEAN DEFAULT false,
+                reject_reason TEXT DEFAULT '',
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days')
             );
@@ -150,6 +153,10 @@ async function initDB() {
             CREATE INDEX IF NOT EXISTS idx_annonces_user ON solo_annonces(user_id);
         `);
         await client.query('DELETE FROM solo_annonces WHERE expires_at < NOW()');
+        await client.query(`ALTER TABLE solo_annonces ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'approved'`);
+        await client.query(`ALTER TABLE solo_annonces ADD COLUMN IF NOT EXISTS discreet BOOLEAN DEFAULT false`);
+        await client.query(`ALTER TABLE solo_annonces ADD COLUMN IF NOT EXISTS reject_reason TEXT DEFAULT ''`);
+        console.log('✅ Annonces moderation columns added');
         console.log('✅ PostgreSQL connected');
         return true;
     } finally { client.release(); }
@@ -519,14 +526,18 @@ app.get('/api/solo/annonces', async (req, res) => {
     const lim = Math.min(parseInt(limit) || 30, 50);
     if (pool) {
         await pool.query('DELETE FROM solo_annonces WHERE expires_at < NOW()');
-        const conditions = ['expires_at > NOW()'];
+        const conditions = ["expires_at > NOW()", "status = 'approved'"];
         const params = [];
         let idx = 1;
         if (country) { conditions.push(`country = $${idx++}`); params.push(country); }
         if (gender) { conditions.push(`gender = $${idx++}`); params.push(gender); }
         const where = conditions.join(' AND ');
-        const annonces = (await pool.query(`SELECT * FROM solo_annonces WHERE ${where} ORDER BY created_at DESC LIMIT $${idx}`, [...params, lim])).rows;
-        res.json({ success: true, annonces });
+        const annonces = (await pool.query(`SELECT id, pseudo, gender, age, country, city, title, description, looking_for, photos, discreet, created_at, expires_at FROM solo_annonces WHERE ${where} ORDER BY created_at DESC LIMIT $${idx}`, [...params, lim])).rows;
+        const safe = annonces.map(a => ({
+            ...a,
+            pseudo: a.discreet ? 'Anonyme' : a.pseudo
+        }));
+        res.json({ success: true, annonces: safe });
     } else {
         const now = Date.now();
         let filtered = ANNONCES_MEM.filter(a => new Date(a.expires_at).getTime() > now);
@@ -537,7 +548,7 @@ app.get('/api/solo/annonces', async (req, res) => {
 });
 
 app.post('/api/solo/annonces', authMiddleware, async (req, res) => {
-    const { title, description, looking_for, photos } = req.body;
+    const { title, description, looking_for, photos, discreet } = req.body;
     if (!title || !description) return res.status(400).json({ success: false, message: 'Titre et description requis' });
     const user = pool ? (await pool.query('SELECT pseudo, gender, age, country, city FROM solo_users WHERE email = $1', [req.user.email])).rows[0] : USERS_MEM[req.user.email];
     if (!user) return res.status(404).json({ success: false });
@@ -546,10 +557,10 @@ app.post('/api/solo/annonces', authMiddleware, async (req, res) => {
     const photosArr = Array.isArray(photos) ? photos.slice(0, 3) : [];
     if (pool) {
         const r = await pool.query(
-            `INSERT INTO solo_annonces (user_id, pseudo, gender, age, country, city, title, description, looking_for, photos) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-            [req.user.email, user.pseudo, user.gender, user.age, user.country, user.city, title.trim(), description.trim(), looking_for || '', JSON.stringify(photosArr)]
+            `INSERT INTO solo_annonces (user_id, pseudo, gender, age, country, city, title, description, looking_for, photos, discreet) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+            [req.user.email, user.pseudo, user.gender, user.age, user.country, user.city, title.trim(), description.trim(), looking_for || '', JSON.stringify(photosArr), !!discreet]
         );
-        res.json({ success: true, annonce: r.rows[0] });
+        res.json({ success: true, annonce: r.rows[0], message: 'Annonce soumise — en attente de validation' });
     } else {
         const annonce = { id: Date.now(), user_id: req.user.email, pseudo: user.pseudo, gender: user.gender, age: user.age, country: user.country, city: user.city, title: title.trim(), description: description.trim(), looking_for: looking_for || '', photos: photosArr, created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() };
         ANNONCES_MEM.push(annonce);
@@ -795,13 +806,14 @@ app.all('/api/solo/admin/stats', async (req, res) => {
         const users = (await pool.query("SELECT COUNT(*) as total, COUNT(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN 1 END) as new7d, COUNT(CASE WHEN created_at > NOW() - INTERVAL '24 hours' THEN 1 END) as new24h, COUNT(CASE WHEN plan != 'free' THEN 1 END) as premium, COUNT(CASE WHEN verified = true THEN 1 END) as verified, COUNT(CASE WHEN last_seen > NOW() - INTERVAL '5 minutes' THEN 1 END) as online FROM solo_users")).rows[0];
         const matches = (await pool.query('SELECT COUNT(*) as total FROM solo_matches')).rows[0].total;
         const messages = (await pool.query('SELECT COUNT(*) as total FROM solo_messages')).rows[0].total;
-        const annonces = (await pool.query('SELECT COUNT(*) as total FROM solo_annonces WHERE expires_at > NOW()')).rows[0].total;
+        const annonces = (await pool.query("SELECT COUNT(*) as total FROM solo_annonces WHERE expires_at > NOW()")).rows[0].total;
+        const pendingAnnonces = (await pool.query("SELECT COUNT(*) as total FROM solo_annonces WHERE status = 'pending' AND expires_at > NOW()")).rows[0].total;
         const reports = (await pool.query("SELECT COUNT(*) as total FROM solo_reports WHERE status = 'pending'")).rows[0].total;
         const boosts = (await pool.query('SELECT COUNT(*) as total FROM solo_boosts WHERE expires_at > NOW()')).rows[0].total;
         const dailySignups = (await pool.query("SELECT DATE(created_at) as date, COUNT(*) as count FROM solo_users WHERE created_at > NOW() - INTERVAL '7 days' GROUP BY DATE(created_at) ORDER BY date")).rows;
         const topCountries = (await pool.query("SELECT country, COUNT(*) as count FROM solo_users GROUP BY country ORDER BY count DESC LIMIT 10")).rows;
         const genderStats = (await pool.query("SELECT gender, COUNT(*) as count FROM solo_users GROUP BY gender")).rows;
-        res.json({ success: true, users: { ...users, total: parseInt(users.total) }, matches, messages, annonces, reports, boosts, dailySignups, topCountries, genderStats });
+        res.json({ success: true, users: { ...users, total: parseInt(users.total) }, matches, messages, annonces, pendingAnnonces, reports, boosts, dailySignups, topCountries, genderStats });
     } else {
         res.json({ success: true, users: { total: Object.keys(USERS_MEM).length, new7d: 0, new24h: 0, premium: 0, verified: 0, online: 0 }, matches: MATCHES_MEM.length, messages: 0, annonces: ANNONCES_MEM.length, reports: 0, boosts: 0, dailySignups: [], topCountries: [], genderStats: [] });
     }
@@ -895,12 +907,36 @@ app.post('/api/solo/admin/reports/:id/resolve', async (req, res) => {
 app.all('/api/solo/admin/annonces', async (req, res) => {
     const key = (req.method === 'POST' ? req.body.key : req.query.key);
     if (key !== ADMIN_KEY) return res.json({ success: false });
+    const { status } = req.method === 'POST' ? req.body : req.query;
     if (pool) {
-        const annonces = (await pool.query('SELECT * FROM solo_annonces ORDER BY created_at DESC LIMIT 100')).rows;
+        let query = 'SELECT * FROM solo_annonces';
+        const params = [];
+        if (status) { query += ' WHERE status = $1'; params.push(status); }
+        query += ' ORDER BY created_at DESC LIMIT 100';
+        const annonces = (await pool.query(query, params)).rows;
         res.json({ success: true, annonces });
     } else {
         res.json({ success: true, annonces: ANNONCES_MEM });
     }
+});
+
+app.post('/api/solo/admin/annonces/:id/approve', async (req, res) => {
+    if (req.body.key !== ADMIN_KEY) return res.json({ success: false });
+    const id = parseInt(req.params.id);
+    if (pool) {
+        await pool.query("UPDATE solo_annonces SET status = 'approved', reject_reason = '' WHERE id = $1", [id]);
+    }
+    res.json({ success: true, message: 'Annonce approuvée' });
+});
+
+app.post('/api/solo/admin/annonces/:id/reject', async (req, res) => {
+    if (req.body.key !== ADMIN_KEY) return res.json({ success: false });
+    const id = parseInt(req.params.id);
+    const { reason } = req.body;
+    if (pool) {
+        await pool.query("UPDATE solo_annonces SET status = 'rejected', reject_reason = $1 WHERE id = $2", [reason || '', id]);
+    }
+    res.json({ success: true, message: 'Annonce rejetée' });
 });
 
 app.post('/api/solo/admin/annonces/:id/delete', async (req, res) => {
