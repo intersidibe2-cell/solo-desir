@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solo — Hors ligne</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:Inter,system-ui,sans-serif;background:#0a0a0f;color:#eee;min-height:100dvh;display:flex;align-items:center;justify-content:center;text-align:center;padding:2rem}
+        .container{max-width:400px}
+        .icon{font-size:4rem;margin-bottom:1rem}
+        h1{font-size:1.5rem;margin-bottom:.5rem}
+        p{color:#888;font-size:.9rem;line-height:1.5}
+        .btn{display:inline-block;margin-top:1.5rem;padding:.8rem 2rem;border-radius:12px;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff;font-weight:600;text-decoration:none;cursor:pointer;border:none;font-size:1rem}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">📡</div>
+        <h1>Pas de connexion</h1>
+        <p>Vérifie ta connexion internet et réessaie. Solo fonctionne mieux avec une connexion stable.</p>
+        <button class="btn" onclick="location.reload()">Réessayer</button>
+    </div>
+</body>
+</html>

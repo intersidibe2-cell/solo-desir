@@ -158,6 +158,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .toast{position:fixed;bottom:max(80px,env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:rgba(20,20,32,.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);color:#eee;padding:.6rem 1.2rem;border-radius:20px;font-size:.8rem;z-index:30;opacity:0;transition:opacity .3s;pointer-events:none;border:1px solid rgba(255,255,255,.1);box-shadow:0 10px 30px rgba(0,0,0,.4)}
 .toast.show{opacity:1}
 
+/* Offline banner */
+.offline-banner{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,165,0,.95);color:#000;text-align:center;padding:.5rem;font-size:.8rem;font-weight:600;backdrop-filter:blur(10px);animation:slideDown .3s ease}
+@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+
 /* Eco mode */
 body.eco-mode .profile-photo{display:none!important}
 body.eco-mode .profiles-grid{grid-template-columns:1fr}

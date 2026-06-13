@@ -17,19 +17,41 @@ const B = {
     profilesHasMore: true,
     autoRefreshInterval: null,
 
-    async safeFetch(url, opts = {}) {
+    async safeFetch(url, opts) {
+        opts = opts || {};
+        var maxRetries = opts.retries || 3;
         var timeout = opts.timeout || 15000;
-        var ctrl = new AbortController();
-        var timer = setTimeout(function() { ctrl.abort(); }, timeout);
-        try { var r = await fetch(url, Object.assign({}, opts, { signal: ctrl.signal })); clearTimeout(timer); return { ok: true, resp: r }; }
-        catch (e) { clearTimeout(timer); return { ok: false, error: e.name === 'AbortError' ? 'Timeout' : e.message }; }
+        for (var i = 0; i < maxRetries; i++) {
+            var ctrl = new AbortController();
+            var timer = setTimeout(function() { ctrl.abort(); }, timeout);
+            try {
+                var r = await fetch(url, Object.assign({}, opts, { signal: ctrl.signal }));
+                clearTimeout(timer);
+                return { ok: true, resp: r };
+            } catch (e) {
+                clearTimeout(timer);
+                if (i === maxRetries - 1) return { ok: false, error: e.name === 'AbortError' ? 'Timeout' : e.message };
+                await new Promise(function(resolve) { setTimeout(resolve, 1000 * (i + 1)); });
+            }
+        }
     },
 
     init() {
+        var self = this;
+        window.addEventListener('online', function() {
+            var banner = document.getElementById('offlineBanner');
+            if (banner) banner.style.display = 'none';
+            self.toast('✅ Connexion rétablie');
+            if (self.token) self.loadProfiles();
+        });
+        window.addEventListener('offline', function() {
+            var banner = document.getElementById('offlineBanner');
+            if (banner) banner.style.display = 'block';
+        });
         const saved = localStorage.getItem('solo_token');
         if (saved) { this.token = saved; this.loadMain(); return; }
-        i18n.load(localStorage.getItem('solo_lang') || 'fr').then(() => i18n.initSwitcher());
-        document.getElementById('loginForm').addEventListener('submit', e => { e.preventDefault(); this.login(); });
+        i18n.load(localStorage.getItem('solo_lang') || 'fr').then(function() { i18n.initSwitcher(); });
+        document.getElementById('loginForm').addEventListener('submit', function(e) { e.preventDefault(); self.login(); });
         document.getElementById('registerForm').addEventListener('submit', e => { e.preventDefault(); this.register(); });
         document.querySelectorAll('.tab').forEach(t => {
             t.addEventListener('click', () => {
@@ -217,6 +239,7 @@ const B = {
         if (remaining <= 0) { this.toast('⚠️ Maximum 5 photos atteint'); document.getElementById('photoInput').value = ''; return; }
         const toUpload = Array.from(files).slice(0, remaining);
         for (const file of toUpload) {
+            const compressed = await this.compressImage(file);
             const reader = new FileReader();
             await new Promise(resolve => {
                 reader.onload = async () => {
@@ -228,11 +251,32 @@ const B = {
                     if (d.success) { this.photoUrls.push(d.url); this.renderPhotoPreviews(); }
                     resolve();
                 };
-                reader.readAsDataURL(file);
+                reader.readAsDataURL(compressed);
             });
         }
         document.getElementById('photoInput').value = '';
         this.updatePhotoCounter();
+    },
+
+    compressImage(file, maxWidth, quality) {
+        maxWidth = maxWidth || 800;
+        quality = quality || 0.8;
+        return new Promise(function(resolve) {
+            var canvas = document.createElement('canvas');
+            var ctx = canvas.getContext('2d');
+            var img = new Image();
+            img.onload = function() {
+                var w = img.width, h = img.height;
+                if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+                canvas.width = w;
+                canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+                canvas.toBlob(function(blob) {
+                    resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+                }, 'image/jpeg', quality);
+            };
+            img.src = URL.createObjectURL(file);
+        });
     },
 
     updateScore() {
