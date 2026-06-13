@@ -243,14 +243,12 @@
                         <button class="fold-header" onclick="this.parentElement.classList.toggle('open')">⚙️ Paramètres du compte <span class="fold-arrow">▼</span></button>
                         <div class="fold-body">
                             <div class="settings-grid">
-                                <button id="verifyBtn" class="setting-btn"><span>✅</span> Vérifier par SMS</button>
                                 <button id="verifySelfieBtn" class="setting-btn" onclick="B.verifyBySelfie()"><span>🤳</span> Vérifier par selfie</button>
                                 <button id="boostBtn" class="setting-btn" onclick="B.activateBoost()"><span>🚀</span> Boost (30 min)</button>
                                 <button id="incognitoBtn" class="setting-btn" onclick="B.toggleIncognito()"><span>🕶️</span> Mode incognito</button>
                             </div>
                             <div id="verifySection" class="verify-section">
-                                <input type="text" id="verifyCode" placeholder="Code à 6 chiffres" maxlength="6" style="display:none">
-                                <button id="verifyConfirmBtn" class="btn-verify" style="display:none">Confirmer le code</button>
+                                <span id="verifyStatus"></span>
                             </div>
                             <button id="deleteAccountBtn" class="btn-delete">🗑️ Supprimer mon compte</button>
                         </div>
