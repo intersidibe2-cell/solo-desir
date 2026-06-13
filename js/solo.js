@@ -193,6 +193,7 @@ const B = {
         document.getElementById('editReligion').value = d.user.religion || '';
         document.getElementById('editChildren').value = d.user.children || '';
         this.photoUrls = (d.user.photos || []).slice();
+        this.loadProfileStats();
         document.getElementById('editPhotosPrivate').checked = localStorage.getItem('solo_photos_private') === '1';
         var verifyBtn = document.getElementById('verifyBtn');
         var verifyStatus = document.getElementById('verifyStatus');
@@ -231,6 +232,23 @@ const B = {
     updatePhotoCounter() {
         const el = document.getElementById('photoCounter');
         if (el) { el.textContent = this.photoUrls.length + '/5'; el.classList.toggle('full', this.photoUrls.length >= 5); }
+    },
+
+    async loadProfileStats() {
+        var email = this.user?.email;
+        if (!email) return;
+        var r = await this.safeFetch('/api/solo/likes-received', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (r.ok) {
+            var d = await r.resp.json();
+            var el = document.getElementById('statLikes');
+            if (el) el.textContent = (d.likes || []).length;
+        }
+        r = await this.safeFetch('/api/solo/matches', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (r.ok) {
+            var d2 = await r.resp.json();
+            var el2 = document.getElementById('statMatches');
+            if (el2) el2.textContent = (d2.matches || []).length;
+        }
     },
 
     async uploadPhotos() {
@@ -293,9 +311,6 @@ const B = {
 
     bindEvents() {
         document.getElementById('logoutBtn').addEventListener('click', () => this.logout());
-        document.getElementById('refCopyBtn')?.addEventListener('click', () => this.copyRefLink());
-        document.getElementById('refShareBtn')?.addEventListener('click', () => this.shareRefWhatsApp());
-        document.getElementById('refClaimBtn')?.addEventListener('click', () => this.claimVIP());
         document.getElementById('addPhotoBtn')?.addEventListener('click', function() { document.getElementById('photoInput').click(); });
         document.getElementById('deleteAccountBtn')?.addEventListener('click', function() { B.deleteAccount(); });
         document.getElementById('deleteChatBtn')?.addEventListener('click', function() { B.deleteConversation(); });
@@ -727,43 +742,6 @@ const B = {
         }
         this.swipeIndex++;
         this.renderSwipeCard();
-    },
-
-    async loadReferral() {
-        var r = await this.safeFetch('/api/solo/referral', { headers: { 'Authorization': 'Bearer ' + this.token } });
-        if (!r.ok) return;
-        var d = await r.resp.json();
-        if (!d.success) return;
-        var link = window.location.origin + '/solo.html?ref=' + d.referralCode;
-        document.getElementById('refLink').value = link;
-        document.getElementById('refCount').textContent = d.referralsCount + '/3';
-        document.getElementById('refFill').style.width = Math.min(d.referralsCount / 3 * 100, 100) + '%';
-        if (d.referralsCount >= 3 && d.plan === 'free') {
-            document.getElementById('refClaimBtn').style.display = 'block';
-        }
-        if (d.plan !== 'free') {
-            document.getElementById('refClaimBtn').style.display = 'none';
-            document.getElementById('refCount').textContent = 'VIP actif';
-        }
-    },
-
-    copyRefLink() {
-        var input = document.getElementById('refLink');
-        input.select(); navigator.clipboard.writeText(input.value).catch(() => document.execCommand('copy'));
-        this.toast('Lien copié ✅');
-    },
-
-    shareRefWhatsApp() {
-        var link = encodeURIComponent(document.getElementById('refLink').value);
-        var text = encodeURIComponent('Rejoins-moi sur Solo — rencontres africaines :');
-        window.open('https://wa.me/?text=' + text + '%20' + link, '_blank');
-    },
-
-    async claimVIP() {
-        var r = await this.safeFetch('/api/solo/referral/claim', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token } });
-        var d = r.ok ? await r.resp.json() : {};
-        if (d.success) { this.toast('VIP active pour 24h'); this.loadUser(); this.loadReferral(); }
-        else { this.toast((d && d.message) || 'Erreur'); }
     },
 
     async deleteAccount() {

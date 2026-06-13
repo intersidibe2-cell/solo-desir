@@ -179,10 +179,15 @@
                             <div class="profile-badges">
                                 <span class="badge badge-new">Nouveau</span>
                             </div>
+                            <div class="profile-stats-row">
+                                <span class="profile-stat">❤️ <strong id="statLikes">0</strong></span>
+                                <span class="profile-stat">💘 <strong id="statMatches">0</strong></span>
+                                <span class="profile-stat">💬 <strong id="statMsgs">0</strong></span>
+                            </div>
                         </div>
                     </div>
                     <div id="profileScore" class="profile-score">Profil complété à <span id="scoreValue">40</span>%</div>
-                    <div class="profile-fold">
+                    <div class="profile-fold open">
                         <button class="fold-header" onclick="this.parentElement.classList.toggle('open')">👤 Infos de base <span class="fold-arrow">▼</span></button>
                         <div class="fold-body">
                             <input type="text" id="editPseudo" placeholder="Pseudo">
@@ -222,7 +227,10 @@
                         <button class="fold-header" onclick="this.parentElement.classList.toggle('open')">📸 Photos <span class="fold-arrow">▼</span></button>
                         <div class="fold-body">
                             <div class="photos-section">
-                                <label class="photo-label">Mes photos <span id="photoCounter" class="photo-counter">0/5</span></label>
+                                <div class="photo-label-row">
+                                    <span>Mes photos</span>
+                                    <span id="photoCounter" class="photo-counter">0/5</span>
+                                </div>
                                 <div id="photosPreview" class="photos-preview"></div>
                                 <input type="file" id="photoInput" accept="image/*" multiple style="display:none" onchange="B.uploadPhotos()">
                                 <button type="button" id="addPhotoBtn" class="btn-photo-add">+ Ajouter une photo</button>
@@ -231,27 +239,21 @@
                             <label class="private-photos-label"><input type="checkbox" id="editPhotosPrivate"> Mes photos sont privées (visibles après match seulement)</label>
                         </div>
                     </div>
-                    <div id="verifySection" class="verify-section">
-                        <span id="verifyStatus"></span>
-                        <input type="text" id="verifyCode" placeholder="Code à 6 chiffres" maxlength="6" style="display:none">
-                        <button id="verifyBtn" class="btn-verify">✅ Vérifier par SMS</button>
-                        <button id="verifySelfieBtn" class="btn-verify" onclick="B.verifyBySelfie()">🤳 Vérifier par selfie</button>
-                        <button id="verifyConfirmBtn" class="btn-verify" style="display:none">Confirmer le code</button>
-                    </div>
-                    <button id="boostBtn" class="btn-boost" onclick="B.activateBoost()">🚀 Boost (30 min)</button>
-                    <button id="deleteAccountBtn" class="btn-delete">🗑️ Supprimer mon compte</button>
-                    <div class="referral-section">
-                        <h4>🔥 Invite 3 amis → 1 jour VIP</h4>
-                        <div class="referral-progress">
-                            <div class="ref-bar"><div class="ref-fill" id="refFill"></div></div>
-                            <span id="refCount">0/3</span>
+                    <div class="profile-fold">
+                        <button class="fold-header" onclick="this.parentElement.classList.toggle('open')">⚙️ Paramètres du compte <span class="fold-arrow">▼</span></button>
+                        <div class="fold-body">
+                            <div class="settings-grid">
+                                <button id="verifyBtn" class="setting-btn"><span>✅</span> Vérifier par SMS</button>
+                                <button id="verifySelfieBtn" class="setting-btn" onclick="B.verifyBySelfie()"><span>🤳</span> Vérifier par selfie</button>
+                                <button id="boostBtn" class="setting-btn" onclick="B.activateBoost()"><span>🚀</span> Boost (30 min)</button>
+                                <button id="incognitoBtn" class="setting-btn" onclick="B.toggleIncognito()"><span>🕶️</span> Mode incognito</button>
+                            </div>
+                            <div id="verifySection" class="verify-section">
+                                <input type="text" id="verifyCode" placeholder="Code à 6 chiffres" maxlength="6" style="display:none">
+                                <button id="verifyConfirmBtn" class="btn-verify" style="display:none">Confirmer le code</button>
+                            </div>
+                            <button id="deleteAccountBtn" class="btn-delete">🗑️ Supprimer mon compte</button>
                         </div>
-                        <div class="referral-link">
-                            <input type="text" id="refLink" readonly onclick="this.select()">
-                            <button id="refCopyBtn">📋 Copier</button>
-                            <button id="refShareBtn">💬 WhatsApp</button>
-                        </div>
-                        <button id="refClaimBtn" class="btn-primary" style="display:none;width:100%">🎁 Activer mon VIP</button>
                     </div>
                 </div>
                 <div class="save-sticky">

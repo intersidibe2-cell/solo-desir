@@ -151,7 +151,14 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-photo-add{background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.12);color:#888;padding:.7rem;border-radius:12px;cursor:pointer;font-size:.8rem;width:100%;text-align:center;transition:.2s;backdrop-filter:blur(10px)}
 .btn-photo-add:hover{border-color:#ff3b3b;color:#ff3b3b;background:rgba(255,59,59,.05)}
 .photo-hint{color:#555;font-size:.65rem;margin-top:.3rem}
-.btn-delete{background:transparent;border:1px solid rgba(255,59,59,.2);color:rgba(255,59,59,.6);padding:.7rem;border-radius:12px;cursor:pointer;font-size:.8rem;margin-top:1rem;width:100%;transition:.2s;touch-action:manipulation;backdrop-filter:blur(10px)}
+.photo-label-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;color:#eee;font-size:.85rem}
+.btn-delete{background:transparent;border:1px solid rgba(255,59,59,.2);color:rgba(255,59,59,.6);padding:.7rem;border-radius:12px;cursor:pointer;font-size:.8rem;margin-top:.5rem;width:100%;transition:.2s;touch-action:manipulation;backdrop-filter:blur(10px)}
+
+/* Settings */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem}
+.setting-btn{display:flex;align-items:center;gap:.4rem;padding:.6rem;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:#eee;cursor:pointer;font-size:.78rem;transition:.2s;text-align:left}
+.setting-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15)}
+.setting-btn span{font-size:1rem}
 .btn-delete:hover{background:rgba(255,59,59,.15);color:#ff3b3b}
 
 /* Toast */
@@ -242,6 +249,9 @@ body.eco-mode .profile-photo{width:50px;height:50px;border-radius:50%;overflow:h
 .profile-avatar img{width:100%;height:100%;object-fit:cover}
 .profile-pseudo{font-size:1.3rem;font-weight:700}
 .profile-badges{display:flex;gap:.4rem;margin-top:.3rem;flex-wrap:wrap}
+.profile-stats-row{display:flex;gap:1rem;margin-top:.5rem}
+.profile-stat{font-size:.7rem;color:#888}
+.profile-stat strong{color:#eee;font-size:.9rem}
 .badge{padding:.2rem .5rem;border-radius:6px;font-size:.65rem;font-weight:600}
 .badge-vip{background:rgba(255,215,0,.15);color:#ffd700;border:1px solid rgba(255,215,0,.2)}
 .badge-verified{background:rgba(76,175,80,.15);color:#4caf50;border:1px solid rgba(76,175,80,.2)}
