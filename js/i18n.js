@@ -49,20 +49,9 @@ const i18n = {
 
     getCountryName(code) {
         const countries = {
-            'DZ': 'Algérie', 'AO': 'Angola', 'BJ': 'Bénin', 'BW': 'Botswana',
-            'BF': 'Burkina Faso', 'BI': 'Burundi', 'CV': 'Cabo Verde', 'CM': 'Cameroun',
-            'CF': 'Centrafrique', 'TD': 'Tchad', 'KM': 'Comores', 'CG': 'Congo',
-            'CD': 'RDC', 'CI': "Côte d'Ivoire", 'DJ': 'Djibouti', 'EG': 'Égypte',
-            'GQ': 'Guinée Éq.', 'ER': 'Érythrée', 'SZ': 'Eswatini', 'ET': 'Éthiopie',
-            'GA': 'Gabon', 'GM': 'Gambie', 'GH': 'Ghana', 'GN': 'Guinée',
-            'GW': 'Guinée-Bissau', 'KE': 'Kenya', 'LS': 'Lesotho', 'LR': 'Liberia',
-            'LY': 'Libye', 'MG': 'Madagascar', 'MW': 'Malawi', 'ML': 'Mali',
-            'MR': 'Mauritanie', 'MU': 'Maurice', 'MA': 'Maroc', 'MZ': 'Mozambique',
-            'NA': 'Namibie', 'NE': 'Niger', 'NG': 'Nigéria', 'RW': 'Rwanda',
-            'ST': 'São Tomé', 'SN': 'Sénégal', 'SC': 'Seychelles', 'SL': 'Sierra Leone',
-            'SO': 'Somalie', 'ZA': 'Afrique du Sud', 'SS': 'Soudan du Sud', 'SD': 'Soudan',
-            'TZ': 'Tanzanie', 'TG': 'Togo', 'TN': 'Tunisie', 'UG': 'Ouganda',
-            'ZM': 'Zambie', 'ZW': 'Zimbabwe'
+            'ML': 'Mali', 'CI': "Côte d'Ivoire", 'SN': 'Sénégal', 'BF': 'Burkina Faso',
+            'GN': 'Guinée', 'CM': 'Cameroun', 'BJ': 'Bénin', 'TG': 'Togo',
+            'NE': 'Niger', 'TD': 'Tchad'
         };
         return countries[code] || code;
     },

@@ -881,7 +881,7 @@ const B = {
                 '</select>' +
                 '<div style="display:flex;gap:.5rem;margin-bottom:.7rem">' +
                     '<select id="annonceCountry" style="flex:1;padding:.7rem;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.04);color:#eee;font-size:.85rem;outline:none">' +
-                        '<option value="ML">Mali</option><option value="CI">Côte d\'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option>' +
+                        '<option value="ML">Mali</option><option value="CI">Côte d\'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="BJ">Bénin</option><option value="TG">Togo</option><option value="NE">Niger</option><option value="TD">Tchad</option>' +
                     '</select>' +
                     '<input type="text" id="annonceCity" placeholder="Ville" style="flex:1;padding:.7rem;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.04);color:#eee;font-size:.85rem;outline:none">' +
                 '</div>' +
