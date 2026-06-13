@@ -143,6 +143,7 @@ const B = {
         // Complete registration
         var body = JSON.stringify({
             pseudo: document.getElementById('regPseudo').value.trim(),
+            prenom: (document.getElementById('regPrenom')?.value || '').trim(),
             password: document.getElementById('regPassword').value,
             phone: phone, country: country,
             email: (document.getElementById('regEmail').value || '').trim(),
@@ -212,10 +213,11 @@ const B = {
         var u = this.user;
         if (!u) return;
         document.getElementById('userPlan').textContent = u.plan === 'free' ? 'Gratuit' : u.plan;
-        document.getElementById('profilePseudo').textContent = u.pseudo || '-';
+        document.getElementById('profilePseudo').textContent = u.prenom || u.pseudo || '-';
         var avatarEl = document.getElementById('profileAvatar');
+        var name = u.pseudo || '?';
         if (u.photos && u.photos.length > 0) { avatarEl.innerHTML = '<img src="' + this.esc(u.photos[0]) + '" alt="avatar">'; }
-        else { avatarEl.innerHTML = '👤'; }
+        else { avatarEl.innerHTML = '<img src="' + this.avatarUrl(name, []) + '" alt="avatar" style="width:100%;height:100%;object-fit:cover">'; }
         var badgesEl = document.querySelector('.profile-badges');
         if (badgesEl) {
             var badges = '<span class="badge badge-new">Nouveau</span>';
@@ -224,6 +226,8 @@ const B = {
             badgesEl.innerHTML = badges;
         }
         document.getElementById('editPseudo').value = u.pseudo || '';
+        var editPrenom = document.getElementById('editPrenom');
+        if (editPrenom) editPrenom.value = u.prenom || '';
         document.getElementById('editProfession').value = u.profession || '';
         document.getElementById('editLooking').value = u.looking_for || '';
         document.getElementById('editInterests').value = (u.interests || []).join(', ');
@@ -449,11 +453,11 @@ const B = {
                      <div class="carousel-track">${photos.map(u => `<img src="${this.esc(u)}" onerror="this.style.display='none'" loading="lazy">`).join('')}</div>
                      <div class="carousel-dots">${photos.map((_, i) => `<span class="dot${i === 0 ? ' active' : ''}"></span>`).join('')}</div>
                    </div>`
-                : '<div class="no-photo">📷</div>';
+                : `<div class="no-photo"><img src="${this.avatarUrl(p.prenom || p.pseudo, [])}" alt="${this.esc(p.pseudo)}" style="width:100%;height:180px;object-fit:cover"></div>`;
             return `<div class="profile-card ${onlineClass}" data-email="${this.esc(p.email)}">
                 ${carousel}
                 <div class="profile-info">
-                    <div class="name">${this.esc(p.pseudo)}, ${p.age || '?'}${p.verified ? '<span class="verified-badge">✓</span>' : ''} ${onlineDot}</div>
+                    <div class="name">${this.esc(p.prenom || p.pseudo)}, ${p.age || '?'}${p.verified ? '<span class="verified-badge">✓</span>' : ''} ${onlineDot}</div>
                     <div class="meta">${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}${p.distanceKm != null ? ' · <span style="color:#ff3b3b">📍 ' + p.distanceKm + ' km</span>' : ''}</div>
                     ${p.isOnline ? '<div style="font-size:.7rem;color:#4caf50;margin-top:.2rem">🟢 En ligne</div>' : ''}
                     ${p.looking_for ? `<div style="font-size:.7rem;color:#ff3b3b;margin-top:.2rem">❤️ ${this.esc(p.looking_for)}</div>` : ''}
@@ -516,7 +520,7 @@ const B = {
         overlay.innerHTML = `<div class="modal-detail">
             ${carousel}
             <div class="detail-info">
-                <div class="detail-name">${this.esc(p.pseudo)}, ${p.age || '?'} ${p.verified ? '<span class="verified-badge">✓</span>' : ''} ${onlineStatus}</div>
+                <div class="detail-name">${this.esc(p.prenom || p.pseudo)}, ${p.age || '?'} ${p.verified ? '<span class="verified-badge">✓</span>' : ''} ${onlineStatus}</div>
                 <div class="detail-meta">${this.esc(p.gender)} · ${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}</div>
                 ${p.looking_for ? `<div style="color:#ff3b3b;font-size:.85rem;margin:.3rem 0">❤️ ${this.esc(p.looking_for)}</div>` : ''}
                 ${p.interests && p.interests.length > 0 ? `<div style="color:#999;font-size:.75rem;margin:.3rem 0">🏷️ ${p.interests.map(i => this.esc(i)).join(', ')}</div>` : ''}
@@ -555,7 +559,7 @@ const B = {
         const list = document.getElementById('matchesList');
         if (!this.matches.length) { list.innerHTML = '<p style="text-align:center;color:#666;padding:2rem">Aucun match. Like des profils !</p>'; return; }
         list.innerHTML = this.matches.map(m => `<div class="match-item" data-match="${m.id}" data-with="${m.with}">
-            <div class="match-avatar">💘</div><span class="match-name">${this.esc(m.pseudo || m.with)}</span>
+            <div class="match-avatar"><img src="${this.avatarUrl(m.pseudo || m.with, [])}" style="width:50px;height:50px;border-radius:50%;object-fit:cover"></div><span class="match-name">${this.esc(m.pseudo || m.with)}</span>
         </div>`).join('');
         document.querySelectorAll('.match-item').forEach(item => {
             item.addEventListener('click', () => this.openChat(item.dataset.match, item.dataset.with));
@@ -651,6 +655,7 @@ const B = {
         var interests = document.getElementById('editInterests').value.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
         var r = await this.safeFetch('/api/solo/me', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token }, body: JSON.stringify({
                 pseudo: document.getElementById('editPseudo').value.trim(),
+                prenom: (document.getElementById('editPrenom')?.value || '').trim(),
                 profession: document.getElementById('editProfession').value.trim(),
                 looking_for: document.getElementById('editLooking').value,
                 interests: interests,
@@ -689,6 +694,11 @@ const B = {
     },
 
     esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); },
+
+    avatarUrl(name, photos) {
+        if (photos && photos.length > 0) return this.esc(photos[0]);
+        return 'https://api.dicebear.com/7.x/initials/svg?seed=' + encodeURIComponent(name || '?') + '&backgroundColor=6b2bd7,ff3b3b,2196f3,4caf50,ff9800&textColor=ffffff';
+    },
 
     async initSwipe() {
         this.dailyLikes = parseInt(localStorage.getItem('solo_likes_today_' + new Date().toDateString()) || '0');
@@ -736,11 +746,11 @@ const B = {
                  <div class="carousel-track">${photos.map(u => `<img src="${this.esc(u)}" onerror="this.style.display='none'" loading="lazy">`).join('')}</div>
                  <div class="carousel-dots">${photos.map((_, i) => `<span class="dot${i === 0 ? ' active' : ''}"></span>`).join('')}</div>
                </div>`
-            : '<div style="display:flex;align-items:center;justify-content:center;height:340px;font-size:3rem;color:#555;background:linear-gradient(135deg,#1a1a2e,#0d0d14)">📷</div>';
+            : `<div class="swipe-photo"><img src="${this.avatarUrl(p.pseudo, [])}" alt="${this.esc(p.pseudo)}" style="width:100%;height:340px;object-fit:cover"></div>`;
         card.innerHTML = `
             <div class="swipe-photo">${carousel}</div>
             <div class="swipe-info">
-                <div class="swipe-name">${this.esc(p.pseudo)}, ${p.age || '?'}</div>
+                <div class="swipe-name">${this.esc(p.prenom || p.pseudo)}, ${p.age || '?'}</div>
                 <div class="swipe-meta">${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}</div>
                 ${p.looking_for ? `<div class="swipe-looking">❤️ ${this.esc(p.looking_for)}</div>` : ''}
                 ${p.interests && p.interests.length > 0 ? `<div class="swipe-interests">${p.interests.map(x => '#' + this.esc(x)).join(' ')}</div>` : ''}

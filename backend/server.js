@@ -128,6 +128,7 @@ async function initDB() {
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION DEFAULT 0`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS push_sub TEXT DEFAULT ''`);
         await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS incognito BOOLEAN DEFAULT false`);
+        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS prenom TEXT DEFAULT ''`);
         console.log('✅ PostgreSQL migrations done');
         await client.query(`
             CREATE TABLE IF NOT EXISTS solo_annonces (
@@ -218,7 +219,7 @@ app.get('/api/solo/vapid-key', (req, res) => {
 // ─── Solo API ────────────────────────────────────────
 app.post('/api/solo/register', async (req, res) => {
     try {
-        const { pseudo, email, password, gender, age, phone, country: formCountry, ref, verified } = req.body;
+        const { pseudo, email, password, gender, age, phone, country: formCountry, ref, verified, prenom } = req.body;
         if (!pseudo || !password || !gender || !phone) return res.status(400).json({ success: false, message: 'Téléphone, pseudo, mot de passe et genre requis' });
         const cleanPhone = phone.replace(/[^0-9+]/g, '');
         const userEmail = email || ('phone_' + cleanPhone + '@solo.local');
@@ -246,16 +247,16 @@ app.post('/api/solo/register', async (req, res) => {
         const referralCode = crypto.randomBytes(4).toString('hex');
         const isVerified = !!verified;
         const user = {
-            id: crypto.randomUUID(), pseudo, email: userEmail.toLowerCase(), password: hash, gender, age: age || 25,
+            id: crypto.randomUUID(), pseudo, prenom: prenom || '', email: userEmail.toLowerCase(), password: hash, gender, age: age || 25,
             country: country, city: '', phone: cleanPhone, photos: [], profession: '', looking_for: '', interests: [], bio: '', plan: 'free',
             status: '', religion: '', children: '', verified: isVerified, lat: 0, lng: 0,
             messages_today: 0, likes_today: 0, last_like_date: '', matches_today: 0, last_message_date: '', referral_code: referralCode, referred_by: ref || '', referrals_count: 0, created_at: new Date().toISOString()
         };
         if (pool) {
             await pool.query(
-                `INSERT INTO solo_users (id, pseudo, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, status, religion, children, verified, messages_today, likes_today, last_like_date, matches_today, last_message_date, lat, lng, referral_code, referred_by, referrals_count, created_at)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)`,
-                [user.id, user.pseudo, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.status, user.religion, user.children, user.verified, user.messages_today, user.likes_today, user.last_like_date, user.matches_today, user.last_message_date, user.lat, user.lng, user.referral_code, ref || '', 0, user.created_at]
+                `INSERT INTO solo_users (id, pseudo, prenom, email, password, gender, age, country, city, phone, photos, profession, looking_for, interests, bio, plan, status, religion, children, verified, messages_today, likes_today, last_like_date, matches_today, last_message_date, lat, lng, referral_code, referred_by, referrals_count, created_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)`,
+                [user.id, user.pseudo, user.prenom, user.email, user.password, user.gender, user.age, user.country, user.city, user.phone, JSON.stringify(user.photos), user.profession, user.looking_for, JSON.stringify(user.interests), user.bio, user.plan, user.status, user.religion, user.children, user.verified, user.messages_today, user.likes_today, user.last_like_date, user.matches_today, user.last_message_date, user.lat, user.lng, user.referral_code, ref || '', 0, user.created_at]
             );
         } else { USERS_MEM[user.email] = user; }
         if (ref && ref !== referralCode) {
@@ -297,13 +298,14 @@ app.get('/api/solo/me', authMiddleware, async (req, res) => {
     const today = new Date().toDateString();
     const msgsLeft = user.plan === 'free' ? Math.max(0, 5 - (user.last_message_date === today ? user.messages_today : 0)) : 999;
     const matchesLeft = user.plan === 'free' ? Math.max(0, 3 - (user.last_message_date === today ? user.matches_today : 0)) : 999;
-    res.json({ success: true, user: { pseudo: user.pseudo, email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, phone: user.phone, photos: user.photos, profession: user.profession, looking_for: user.looking_for, interests: user.interests, bio: user.bio, plan: user.plan, status: user.status, religion: user.religion, children: user.children, verified: user.verified, lat: user.lat, lng: user.lng, referralCode: user.referral_code, referralsCount: user.referrals_count || 0, messagesLeft: msgsLeft, matchesLeft, incognito: user.incognito || false } });
+    res.json({ success: true, user: { pseudo: user.pseudo, prenom: user.prenom || '', email: user.email, gender: user.gender, age: user.age, country: user.country, city: user.city, phone: user.phone, photos: user.photos, profession: user.profession, looking_for: user.looking_for, interests: user.interests, bio: user.bio, plan: user.plan, status: user.status, religion: user.religion, children: user.children, verified: user.verified, lat: user.lat, lng: user.lng, referralCode: user.referral_code, referralsCount: user.referrals_count || 0, messagesLeft: msgsLeft, matchesLeft, incognito: user.incognito || false } });
 });
 
 app.put('/api/solo/me', authMiddleware, async (req, res) => {
-    const { pseudo, age, country, city, phone, photos, profession, looking_for, interests, bio, status, religion, children, lat, lng, incognito } = req.body;
+    const { pseudo, prenom, age, country, city, phone, photos, profession, looking_for, interests, bio, status, religion, children, lat, lng, incognito } = req.body;
     const updates = {};
     if (pseudo !== undefined) updates.pseudo = pseudo;
+    if (prenom !== undefined) updates.prenom = prenom;
     if (age !== undefined) updates.age = parseInt(age);
     if (country !== undefined) updates.country = country;
     if (city !== undefined) updates.city = city;
@@ -765,7 +767,7 @@ app.get('/api/solo/profiles', authMiddleware, async (req, res) => {
         if (ageMin) { conditions.push(`age >= $${idx++}`); params.push(parseInt(ageMin)); }
         if (ageMax) { conditions.push(`age <= $${idx++}`); params.push(parseInt(ageMax)); }
         const where = conditions.join(' AND ');
-        let profiles = (await pool.query(`SELECT pseudo, email, gender, age, country, city, photos, bio, verified, lat, lng, last_seen, created_at FROM solo_users WHERE ${where} ORDER BY created_at DESC LIMIT $${idx++} OFFSET $${idx++}`, [...params, lim, off])).rows;
+        let profiles = (await pool.query(`SELECT pseudo, prenom, email, gender, age, country, city, photos, bio, verified, lat, lng, last_seen, created_at FROM solo_users WHERE ${where} ORDER BY created_at DESC LIMIT $${idx++} OFFSET $${idx++}`, [...params, lim, off])).rows;
         const enriched = profiles.map(p => {
             let distanceKm = null;
             if (myLat && myLng && p.lat && p.lng) distanceKm = Math.round(haversineKm(myLat, myLng, p.lat, p.lng));

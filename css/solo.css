@@ -161,6 +161,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 /* Settings */
 .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem}
+
+/* App footer */
+.app-footer{padding:.8rem 1rem 5rem;text-align:center;font-size:.65rem;color:#444}
+.app-footer a{color:#666;text-decoration:none;transition:.2s}
+.app-footer a:hover{color:#ff3b3b}
+.app-footer span{color:#333;margin:0 .3rem}
 .setting-btn{display:flex;align-items:center;gap:.4rem;padding:.6rem;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:#eee;cursor:pointer;font-size:.78rem;transition:.2s;text-align:left}
 .setting-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15)}
 .setting-btn span{font-size:1rem}
