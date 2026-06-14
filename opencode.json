@@ -1,0 +1,35 @@
+{
+    "project": {
+        "name": "Solo",
+        "description": "Rencontres Africaines — Dating Platform",
+        "type": "web",
+        "framework": "vanilla",
+        "runtime": "node",
+        "language": "javascript"
+    },
+    "deploy": {
+        "command": "cd /opt/solo && git pull origin master && cd backend && npm install && pm2 restart solo",
+        "host": "167.233.105.13",
+        "method": "ssh"
+    },
+    "quality": {
+        "lint": true,
+        "format": true,
+        "checkSyntax": true,
+        "checkDuplicateCode": true,
+        "maxComplexity": 15
+    },
+    "conventions": {
+        "useStrict": false,
+        "indent": 4,
+        "quotes": "mixed",
+        "semicolons": true,
+        "maxLineLength": 200,
+        "preferArrowFunctions": true,
+        "preferConst": false
+    },
+    "tests": {
+        "command": "npm test",
+        "framework": null
+    }
+}

@@ -20,12 +20,12 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-hashes'", "cdnjs.cloudflare.com", "cdn.jsdelivr.net", "static.cloudflareinsights.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-hashes'", "cdnjs.cloudflare.com", "cdn.jsdelivr.net", "static.cloudflareinsights.com", "browser.sentry-cdn.com"],
             scriptSrcAttr: ["'unsafe-inline'", "'unsafe-hashes'"],
             styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com", "cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "*.unsplash.com", "api.dicebear.com", "i.giphy.com", "images.unsplash.com"],
             fontSrc: ["'self'", "fonts.gstatic.com", "cdnjs.cloudflare.com"],
-            connectSrc: ["'self'", "*.giphy.com", "api.africastalking.com", "api.twilio.com", "cdn.jsdelivr.net", "static.cloudflareinsights.com"]
+            connectSrc: ["'self'", "*.giphy.com", "api.africastalking.com", "api.twilio.com", "cdn.jsdelivr.net", "static.cloudflareinsights.com", "*.ingest.sentry.io"],
         }
     }
 }));
