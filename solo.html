@@ -43,30 +43,7 @@
                 <div id="registerContainer" class="register-container" style="display:none">
                     <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
                     <div class="step active" id="step1">
-                        <h3 style="margin-bottom:1rem;font-size:1.1rem">Qui es-tu ?</h3>
-                        <div class="input-icon"><span>👤</span><input type="text" id="regPseudo" placeholder="Pseudo" required></div>
-                        <div class="input-icon"><span>✏️</span><input type="text" id="regPrenom" placeholder="Prénom (optionnel)"></div>
-                        <button type="button" class="btn-next" onclick="B.nextStep(1)">Continuer →</button>
-                    </div>
-                    <div class="step" id="step2" style="display:none">
-                        <h3 style="margin-bottom:1rem;font-size:1.1rem">Ton profil</h3>
-                        <div class="input-icon"><span>🎂</span><input type="number" id="regAge" placeholder="Âge" min="18" max="99"></div>
-                        <div class="input-icon"><span>⚧</span>
-                            <select id="regGender">
-                                <option value="">Choisis ton genre</option>
-                                <option value="homme">👨 Homme</option>
-                                <option value="femme">👩 Femme</option>
-                                <option value="couple">👥 Couple</option>
-                            </select>
-                        </div>
-                        <div class="input-icon"><span>🔒</span><input type="password" id="regPassword" placeholder="Mot de passe (6+ caractères)" minlength="6"></div>
-                        <div class="step-actions">
-                            <button type="button" class="btn-back" onclick="B.prevStep(1)">← Retour</button>
-                            <button type="button" class="btn-next" onclick="B.nextStep(2)">Continuer →</button>
-                        </div>
-                    </div>
-                    <div class="step" id="step3" style="display:none">
-                        <h3 style="margin-bottom:1rem;font-size:1.1rem">Ton numéro</h3>
+                        <h3 style="margin-bottom:1rem;font-size:1.1rem;text-align:center">📱 Ton numéro</h3>
                         <div class="input-icon"><span>🌍</span>
                             <select id="regCountry">
                                 <option value="ML" selected>🇲🇱 Mali (+223)</option>
@@ -81,19 +58,36 @@
                                 <option value="TD">🇹🇩 Tchad (+235)</option>
                             </select>
                         </div>
-                        <div class="input-icon"><span>📧</span><input type="email" id="regEmail" placeholder="Email (optionnel)"></div>
-                        <div class="phone-input-group" style="margin-bottom:.8rem"><span class="phone-prefix" id="phonePrefix">+223</span><input type="tel" id="regPhone" placeholder="70 00 00 00" class="phone-input"></div>
-                        <div class="step-actions">
-                            <button type="button" class="btn-back" onclick="B.prevStep(2)">← Retour</button>
-                            <button type="button" id="regSubmit" class="btn-next" onclick="B.registerStep3()">Recevoir le code</button>
-                        </div>
+                        <div class="phone-input-group" style="margin-bottom:.5rem"><span class="phone-prefix" id="phonePrefix">+223</span><input type="tel" id="regPhone" placeholder="70 00 00 00" class="phone-input"></div>
+                        <button type="button" id="regSubmit" class="btn-next" onclick="B.registerStep1()">Recevoir le code →</button>
                         <div id="smsCodeSection" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.06)">
-                            <p style="color:#888;font-size:.75rem;margin-bottom:.5rem">Code envoyé au numéro</p>
-                            <input type="text" id="regSmsCode" placeholder="0000" maxlength="4" class="sms-input">
-                            <div class="step-actions">
-                                <button type="button" class="btn-back" onclick="B.resendSmsCode()">Renvoyer</button>
-                                <button type="button" class="btn-next" onclick="B.confirmSmsAndRegister()">Confirmer</button>
-                            </div>
+                            <p style="color:#888;font-size:.75rem;margin-bottom:.5rem">Code reçu</p>
+                            <input type="text" id="regSmsCode" placeholder="0000" maxlength="4" class="sms-input" oninput="if(this.value.length>=4)B.confirmSmsAndGoStep2()">
+                            <button type="button" class="btn-next" onclick="B.confirmSmsAndGoStep2()" style="width:100%;margin-bottom:.3rem">Confirmer</button>
+                            <button type="button" class="btn-back" onclick="B.resendSmsCode()" style="width:100%">Renvoyer le code</button>
+                        </div>
+                    </div>
+                    <div class="step" id="step2" style="display:none">
+                        <h3 style="margin-bottom:1rem;font-size:1.1rem">Qui es-tu ?</h3>
+                        <div class="input-icon"><span>👤</span><input type="text" id="regPseudo" placeholder="Pseudo" required></div>
+                        <div class="input-icon"><span>✏️</span><input type="text" id="regPrenom" placeholder="Prénom (optionnel)"></div>
+                        <button type="button" class="btn-next" onclick="B.nextStep(2)">Continuer →</button>
+                    </div>
+                    <div class="step" id="step3" style="display:none">
+                        <h3 style="margin-bottom:1rem;font-size:1.1rem">Ton profil</h3>
+                        <div class="input-icon"><span>🎂</span><input type="number" id="regAge" placeholder="Âge" min="18" max="99"></div>
+                        <div class="input-icon"><span>⚧</span>
+                            <select id="regGender">
+                                <option value="">Choisis ton genre</option>
+                                <option value="homme">👨 Homme</option>
+                                <option value="femme">👩 Femme</option>
+                                <option value="couple">👥 Couple</option>
+                            </select>
+                        </div>
+                        <div class="input-icon"><span>🔒</span><input type="password" id="regPassword" placeholder="Mot de passe (6+ caractères)" minlength="6"></div>
+                        <div class="step-actions">
+                            <button type="button" class="btn-back" onclick="B.prevStep(1)">← Retour</button>
+                            <button type="button" class="btn-next" onclick="B.nextStep(3)">Continuer →</button>
                         </div>
                     </div>
                     <div class="step" id="step4" style="display:none">

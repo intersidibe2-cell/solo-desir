@@ -59,7 +59,7 @@ const B = {
                 var isLogin = t.dataset.tab === 'login';
                 document.getElementById('loginForm').style.display = isLogin ? 'block' : 'none';
                 document.getElementById('registerContainer').style.display = isLogin ? 'none' : 'block';
-                if (!isLogin) { document.querySelectorAll('.step').forEach(function(s,i){s.style.display=i===0?'block':'none'}); document.getElementById('progressFill').style.width='25%'; }
+                if (!isLogin) { document.querySelectorAll('.step').forEach(function(s,i){s.style.display=i===0?'block':'none'}); document.getElementById('progressFill').style.width='25%'; self.smsVerified=false; document.getElementById('smsCodeSection').style.display='none'; document.getElementById('regSubmit').style.display='block'; }
             });
         });
         const prefixMap = { ML:'+223',CI:'+225',SN:'+221',BF:'+226',GN:'+224',CM:'+237',BJ:'+229',TG:'+228',NE:'+227',TD:'+235' };
@@ -71,15 +71,24 @@ const B = {
             if (phoneInput) phoneInput.focus();
         });
         document.getElementById('regCountry').dispatchEvent(new Event('change'));
-        var regBtn = document.getElementById('regSubmit');
-        if (regBtn) regBtn.addEventListener('click', function(e) { e.preventDefault(); B.registerStep3(); });
+        if (navigator.language) {
+            var lang = navigator.language || navigator.userLanguage || '';
+            if (lang.includes('fr')) { /* keep ML default */ }
+            else if (lang.includes('en')) { /* could default to Nigeria/Ghana */ }
+        }
+        try {
+            var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            var tzMap = {'Africa/Bamako':'ML','Africa/Abidjan':'CI','Africa/Dakar':'SN','Africa/Ouagadougou':'BF','Africa/Conakry':'GN','Africa/Douala':'CM','Africa/Porto-Novo':'BJ','Africa/Lome':'TG','Africa/Niamey':'NE','Africa/Ndjamena':'TD','Africa/Cairo':'EG','Africa/Casablanca':'MA','Africa/Tunis':'TN','Africa/Algiers':'DZ','Africa/Maputo':'MZ','Africa/Lagos':'NG','Africa/Accra':'GH','Africa/Nairobi':'KE'};
+            if (tzMap[tz]) { document.getElementById('regCountry').value = tzMap[tz]; document.getElementById('regCountry').dispatchEvent(new Event('change')); }
+        } catch(e) {}
         var loginBtn = document.getElementById('loginSubmit');
-        if (loginBtn) loginBtn.addEventListener('click', function(e) { e.preventDefault(); B.login(); });
+        if (loginBtn) loginBtn.addEventListener('click', function(e) { e.preventDefault(); self.login(); });
     },
 
     nextStep(current) {
-        if (current === 1) { if (!this.validateStep1()) return; }
+        if (current === 1) { if (!this.smsVerified) { this.showErr('📱 Confirme d\'abord ton numéro'); return; } }
         if (current === 2) { if (!this.validateStep2()) return; }
+        if (current === 3) { if (!this.validateStep3()) return; }
         document.querySelectorAll('.step').forEach(function(s) { s.style.display = 'none'; });
         var next = document.getElementById('step' + (current + 1));
         if (next) { next.style.display = 'block'; next.classList.add('slide-in-right'); }
@@ -93,13 +102,13 @@ const B = {
         document.getElementById('progressFill').style.width = current * 25 + '%';
     },
 
-    validateStep1() {
+    validateStep2() {
         var pseudo = document.getElementById('regPseudo').value.trim();
         if (!pseudo) { this.showErr('Choisis un pseudo'); return false; }
         this.showErr(''); return true;
     },
 
-    validateStep2() {
+    validateStep3() {
         var age = document.getElementById('regAge').value;
         var gender = document.getElementById('regGender').value;
         var pwd = document.getElementById('regPassword').value;
@@ -129,27 +138,31 @@ const B = {
         this.loadMain();
     },
 
-    async registerStep3() {
+    async registerStep1() {
         this.showErr('');
         var btn = document.getElementById('regSubmit');
+        if (!btn) return;
         var prefixEl = document.getElementById('phonePrefix');
         var phoneRaw = document.getElementById('regPhone').value.trim().replace(/[^0-9]/g, '');
         var prefix = prefixEl.textContent.trim() || '+223';
         var fullPhone = prefix + phoneRaw;
-        if (!phoneRaw || phoneRaw.length < 7) { this.showErr('Numéro invalide'); this.toast('📱 Entre un numéro valide'); return; }
+        if (!phoneRaw || phoneRaw.length < 7) { this.showErr('📱 Numéro invalide'); return; }
         this.toast('📡 Envoi du code...');
         btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Envoi...';
         var r = await this.safeFetch('/api/solo/verify/sms-send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: fullPhone }), timeout: 15000 });
-        btn.disabled = false; btn.textContent = 'Recevoir le code';
+        btn.disabled = false; btn.innerHTML = 'Recevoir le code →';
         if (!r.ok) { this.showErr('Erreur réseau'); return; }
         var d = await r.resp.json();
         if (!d.success) { this.showErr(d.message); return; }
-        this.fullPhone = fullPhone; document.getElementById('smsCodeSection').style.display = 'block';
+        this.fullPhone = fullPhone; this.smsCountry = document.getElementById('regPhone').dataset.country || 'ML';
+        document.getElementById('smsCodeSection').style.display = 'block';
+        document.getElementById('regSubmit').style.display = 'none';
+        setTimeout(function() { var el = document.getElementById('regSmsCode'); if (el) el.focus(); }, 300);
     },
 
-    resendSmsCode() { this.registerStep3(); },
+    resendSmsCode() { this.registerStep1(); },
 
-    async confirmSmsAndRegister() {
+    async confirmSmsAndGoStep2() {
         this.showErr('');
         var code = document.getElementById('regSmsCode').value.trim();
         if (code.length < 4) { this.toast('Code incomplet'); return; }
@@ -157,8 +170,8 @@ const B = {
         if (!r.ok) { this.showErr('Erreur réseau'); return; }
         var d = await r.resp.json();
         if (!d.success) { this.showErr(d.message); return; }
-        document.getElementById('smsCodeSection').style.display = 'none';
-        this.nextStep(3);
+        this.smsVerified = true;
+        this.nextStep(1);
     },
 
     previewStep4Photo(e) {
@@ -169,11 +182,12 @@ const B = {
         reader.readAsDataURL(file);
     },
 
-    skipStep4() { if (this.fullPhone) this.finalizeRegistration(); },
-    submitStep4() { if (this.fullPhone) this.finalizeRegistration(); },
+    skipStep4() { if (this.smsVerified) this.finalizeRegistration(); },
+    submitStep4() { if (this.smsVerified) this.finalizeRegistration(); },
 
     async finalizeRegistration() {
         this.showErr('');
+        if (!this.smsVerified || !this.fullPhone) { this.toast('⚠️ Tu dois d\'abord vérifier ton numéro'); return; }
         var photoData = document.getElementById('step4Photo').getAttribute('data-photo') || '';
         var photoUrl = '';
         if (photoData) {
