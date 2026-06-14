@@ -1,0 +1,16 @@
+{
+    "apps": [{
+        "name": "solo",
+        "script": "backend/server.js",
+        "max_memory_restart": "500M",
+        "exp_backoff_restart_delay": 100,
+        "health_check": {
+            "interval": 30000,
+            "timeout": 5000,
+            "url": "/health"
+        },
+        "env": {
+            "NODE_ENV": "production"
+        }
+    }]
+}

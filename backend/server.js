@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const compression = require('compression');
 const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
@@ -28,6 +29,7 @@ app.use(helmet({
         }
     }
 }));
+app.use(compression());
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
         ? [/\.solodesir\.com$/, /167\.233\.105\.13$/]
@@ -35,8 +37,12 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, '..')));
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use(express.static(path.join(__dirname, '..'), {
+    maxAge: '1d',
+    etag: true,
+    lastModified: true
+}));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), { maxAge: '7d' }));
 
 // ─── Upload photo ───────────────────────────────────
 app.post('/api/solo/upload-photo', authMiddleware, async (req, res) => {
@@ -61,6 +67,10 @@ app.use('/api/', globalLimiter);
 const authLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, message: { success: false, message: 'Trop de tentatives, réessaie dans 1 minute' } });
 app.use('/api/solo/login', authLimiter);
 app.use('/api/solo/register', authLimiter);
+const msgLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, message: { success: false, message: 'Trop de messages, attends un peu' } });
+app.use('/api/solo/message', msgLimiter);
+
+function sanitize(str) { return String(str || '').replace(/[<>]/g, '').trim().substring(0, 500); }
 
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || crypto.randomBytes(32).toString('hex');
@@ -256,8 +266,12 @@ app.post('/api/solo/register', async (req, res) => {
     try {
         const { pseudo, email, password, gender, age, phone, country: formCountry, ref, verified, prenom } = req.body;
         if (!pseudo || !password || !gender || !phone) return res.status(400).json({ success: false, message: 'Téléphone, pseudo, mot de passe et genre requis' });
+        if (pseudo.length < 2 || pseudo.length > 30) return res.status(400).json({ success: false, message: 'Pseudo: 2-30 caractères' });
+        if (password.length < 6) return res.status(400).json({ success: false, message: 'Mot de passe: 6+ caractères' });
+        if (!['homme','femme','couple'].includes(gender)) return res.status(400).json({ success: false, message: 'Genre invalide' });
         const cleanPhone = phone.replace(/[^0-9+]/g, '');
-        const userEmail = email || ('phone_' + cleanPhone + '@solo.local');
+        if (cleanPhone.length < 8 || cleanPhone.length > 20) return res.status(400).json({ success: false, message: 'Numéro de téléphone invalide' });
+        const userEmail = email ? sanitize(email).toLowerCase() : ('phone_' + cleanPhone + '@solo.local');
         let country = formCountry || 'ML';
         if (!formCountry) {
             const p = cleanPhone;
@@ -277,7 +291,7 @@ app.post('/api/solo/register', async (req, res) => {
             ? (await pool.query('SELECT * FROM solo_users WHERE email = $1 OR phone = $2 OR pseudo = $3', [userEmail.toLowerCase(), cleanPhone, pseudo])).rows[0]
             : Object.values(USERS_MEM).find(u => u.email === userEmail.toLowerCase() || u.phone === cleanPhone || u.pseudo === pseudo);
         if (existing) return res.status(409).json({ success: false, message: 'Téléphone, email ou pseudo déjà utilisé' });
-        const salt = await bcrypt.genSalt(10);
+        const salt = await bcrypt.genSalt(8);
         const hash = await bcrypt.hash(password, salt);
         const referralCode = crypto.randomBytes(4).toString('hex');
         const isVerified = !!verified;
@@ -613,6 +627,8 @@ app.post('/api/solo/subscribe-push', authMiddleware, async (req, res) => {
 app.post('/api/solo/message', authMiddleware, async (req, res) => {
     const { matchId, content } = req.body;
     if (!matchId || !content) return res.status(400).json({ success: false, message: 'Match ID et contenu requis' });
+    const cleanContent = sanitize(content);
+    if (cleanContent.length < 1 || cleanContent.length > 1000) return res.status(400).json({ success: false, message: 'Message: 1-1000 caractères' });
     const user = pool ? (await pool.query('SELECT * FROM solo_users WHERE email = $1', [req.user.email])).rows[0] : USERS_MEM[req.user.email];
     if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
     const accountAge = (Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24);
@@ -621,20 +637,20 @@ app.post('/api/solo/message', authMiddleware, async (req, res) => {
     const maxMsgs = user.plan === 'free' ? 5 : 999;
     if (msgsToday >= maxMsgs) return res.status(429).json({ success: false, message: 'Limite de messages atteinte. Passe VIP !' });
     const suspiciousKeywords = /(envoie.*argent|OM.*code|moMo.*code|wester.*union|money.*gram|envoie.*ton.*code|donne.*code|num[eé]ro.*carte)/i;
-    const hasSuspicious = suspiciousKeywords.test(content);
+    const hasSuspicious = suspiciousKeywords.test(cleanContent);
     if (pool) {
         await pool.query('UPDATE solo_users SET messages_today = messages_today + 1, last_message_date = $2 WHERE email = $1', [req.user.email, today]);
-        await pool.query('INSERT INTO solo_messages (match_id, sender, content) VALUES ($1,$2,$3)', [matchId, req.user.email, content]);
+        await pool.query('INSERT INTO solo_messages (match_id, sender, content) VALUES ($1,$2,$3)', [matchId, req.user.email, cleanContent]);
         const match = (await pool.query('SELECT user1, user2 FROM solo_matches WHERE id = $1', [matchId])).rows[0];
         if (match) {
             const recipient = match.user1 === req.user.email ? match.user2 : match.user1;
-            sendPushNotification(recipient, '💬 Nouveau message', user.pseudo + ': ' + content.substring(0, 50), '/solo.html');
+            sendPushNotification(recipient, '💬 Nouveau message', user.pseudo + ': ' + cleanContent.substring(0, 50), '/solo.html');
         }
     } else {
         USERS_MEM[req.user.email].messages_today = msgsToday + 1;
         USERS_MEM[req.user.email].last_message_date = today;
         if (!MSGS_MEM[matchId]) MSGS_MEM[matchId] = [];
-        MSGS_MEM[matchId].push({ sender: req.user.email, content, time: new Date().toISOString() });
+        MSGS_MEM[matchId].push({ sender: req.user.email, content: cleanContent, time: new Date().toISOString() });
     }
     res.json({ success: true, warning: hasSuspicious ? '⚠️ Message suspect détecté. Ne partage jamais tes informations bancaires.' : null });
 });
