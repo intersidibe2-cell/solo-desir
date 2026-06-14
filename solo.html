@@ -124,48 +124,32 @@
             </header>
 
             <div class="tab-bar">
-                <button class="tab-btn active" data-page="browse"><i class="fas fa-users"></i> Découvrir</button>
-                <button class="tab-btn" data-page="swipe"><i class="fas fa-fire"></i> Quick</button>
+                <button class="tab-btn active" data-page="browse"><i class="fas fa-fire"></i> Découvrir</button>
                 <button class="tab-btn" data-page="matches"><i class="fas fa-heart"></i> Matchs</button>
                 <button class="tab-btn" data-page="chat"><i class="fas fa-comments"></i> Chat</button>
+                <button class="tab-btn" data-page="annonces"><i class="fas fa-bullhorn"></i> Annonces</button>
                 <button class="tab-btn" data-page="profile"><i class="fas fa-user"></i> Profil</button>
             </div>
 
             <div id="pageBrowse" class="page active">
-                <div class="browse-toggle">
-                    <button class="toggle-btn active" data-mode="profiles">👥 Profils</button>
-                    <button class="toggle-btn" data-mode="annonces">📢 Annonces</button>
-                </div>
-                <div id="browseProfiles">
-                    <div class="filters">
-                        <select id="filterGender"><option value="">Tous</option><option value="homme">Homme</option><option value="femme">Femme</option></select>
-                        <select id="filterCountry"><option value="">Tous pays</option>
-                            <option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="BJ">Bénin</option><option value="TG">Togo</option><option value="NE">Niger</option><option value="TD">Tchad</option>
-                        </select>
-                        <input type="number" id="filterAgeMin" placeholder="Âge min" min="18">
-                        <input type="number" id="filterAgeMax" placeholder="Âge max" min="18">
-                        <div class="distance-filter">
-                            <label>📍 <span id="distanceValue">500</span> km</label>
-                            <input type="range" id="filterDistance" min="10" max="500" value="500" step="10">
-                        </div>
+                <div id="browseFilters" class="swipe-filters" style="display:none">
+                    <select id="filterGender"><option value="">Tous</option><option value="homme">Homme</option><option value="femme">Femme</option></select>
+                    <select id="filterCountry"><option value="">Tous pays</option>
+                        <option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="BJ">Bénin</option><option value="TG">Togo</option><option value="NE">Niger</option><option value="TD">Tchad</option>
+                    </select>
+                    <input type="number" id="filterAgeMin" placeholder="Âge min" min="18">
+                    <input type="number" id="filterAgeMax" placeholder="Âge max" min="18">
+                    <div class="distance-filter">
+                        <label>📍 <span id="distanceValue">500</span> km</label>
+                        <input type="range" id="filterDistance" min="10" max="500" value="500" step="10">
                     </div>
-                    <div id="profilesGrid" class="profiles-grid"></div>
+                    <button class="swipe-filter-toggle" onclick="B.hideSwipeFilters()">Fermer</button>
                 </div>
-                <div id="browseAnnonces" style="display:none">
-                    <button id="createAnnonceBtn" class="btn-primary" style="width:100%;margin-bottom:1rem;border-radius:12px;padding:.7rem;font-weight:600;cursor:pointer">✍️ Poster une annonce</button>
-                    <div class="filters">
-                        <select id="annonceFilterCountry"><option value="">Tous pays</option>
-                            <option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="BJ">Bénin</option><option value="TG">Togo</option><option value="NE">Niger</option><option value="TD">Tchad</option>
-                        </select>
-                        <select id="annonceFilterGender"><option value="">Tous</option><option value="homme">Homme</option><option value="femme">Femme</option></select>
-                        <select id="annonceFilterCategory"><option value="">Toutes catégories</option><option value="Mariage">💍 Mariage</option><option value="Relation sérieuse">💖 Relation sérieuse</option><option value="Amitié">🤝 Amitié</option><option value="Voyage">✈️ Voyage</option><option value="Discussion">💬 Discussion</option></select>
-                    </div>
-                    <div id="annoncesList" class="annonces-list"></div>
-                </div>
-            </div>
-
-            <div id="pageSwipe" class="page">
                 <div id="swipeContainer" class="swipe-container">
+                    <div class="swipe-header">
+                        <button class="swipe-filter-btn" onclick="B.showSwipeFilters()">🔍 Filtres</button>
+                        <span class="swipe-counter" id="swipeCounter">❤️ 10 aujourd'hui</span>
+                    </div>
                     <div id="swipeCard" class="swipe-card"></div>
                     <div class="swipe-actions">
                         <button id="swipePass" class="swipe-btn pass"><i class="fas fa-times"></i></button>
@@ -173,7 +157,6 @@
                         <button id="swipeSuper" class="swipe-btn super">⚡</button>
                         <button id="swipeLike" class="swipe-btn like"><i class="fas fa-heart"></i></button>
                     </div>
-                    <div id="swipeCounter" class="swipe-counter">❤️ 10 aujourd'hui</div>
                 </div>
                 <div id="matchOverlay" class="match-overlay" style="display:none">
                     <div class="match-content">
@@ -184,6 +167,19 @@
                         <button id="matchCloseBtn" class="btn-ghost">Continuer</button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Annonces Page -->
+            <div id="pageAnnonces" class="page">
+                <button id="createAnnonceBtn" class="btn-primary" style="width:100%;margin-bottom:1rem;border-radius:12px;padding:.7rem;font-weight:600;cursor:pointer">✍️ Poster une annonce</button>
+                <div class="filters">
+                    <select id="annonceFilterCountry"><option value="">Tous pays</option>
+                        <option value="ML">Mali</option><option value="CI">Côte d'Ivoire</option><option value="SN">Sénégal</option><option value="BF">Burkina Faso</option><option value="GN">Guinée</option><option value="CM">Cameroun</option><option value="BJ">Bénin</option><option value="TG">Togo</option><option value="NE">Niger</option><option value="TD">Tchad</option>
+                    </select>
+                    <select id="annonceFilterGender"><option value="">Tous</option><option value="homme">Homme</option><option value="femme">Femme</option></select>
+                    <select id="annonceFilterCategory"><option value="">Toutes catégories</option><option value="Mariage">💍 Mariage</option><option value="Relation sérieuse">💖 Relation sérieuse</option><option value="Amitié">🤝 Amitié</option><option value="Voyage">✈️ Voyage</option><option value="Discussion">💬 Discussion</option></select>
+                </div>
+                <div id="annoncesList" class="annonces-list"></div>
             </div>
 
             <div id="pageMatches" class="page">

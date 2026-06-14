@@ -228,11 +228,10 @@ const B = {
         document.getElementById('soloMain').style.display = 'block';
         await this.loadUser();
         this.bindEvents();
-        this.loadProfiles();
-        this.saveGeoLocation();
         this.loadUnreadCount();
         this.subscribePush();
         this.startAutoRefresh();
+        this.initSwipe();
         const visited = localStorage.getItem('solo_visited');
         if (!visited) {
             localStorage.setItem('solo_visited', '1');
@@ -434,11 +433,12 @@ const B = {
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-                document.getElementById('page' + btn.dataset.page.charAt(0).toUpperCase() + btn.dataset.page.slice(1)).classList.add('active');
-                if (btn.dataset.page === 'browse') this.loadProfiles();
-                if (btn.dataset.page === 'swipe') this.initSwipe();
+                var pageId = 'page' + btn.dataset.page.charAt(0).toUpperCase() + btn.dataset.page.slice(1);
+                var page = document.getElementById(pageId);
+                if (page) page.classList.add('active');
+                if (btn.dataset.page === 'browse') { this.initSwipe(); this.hideSwipeFilters(); }
                 if (btn.dataset.page === 'matches') this.loadMatches();
-                if (btn.dataset.page === 'likes') this.loadLikes();
+                if (btn.dataset.page === 'annonces') this.loadAnnonces();
             });
         });
         document.querySelectorAll('.toggle-btn').forEach(btn => {
@@ -1201,10 +1201,17 @@ const B = {
         if (this.autoRefreshInterval) clearInterval(this.autoRefreshInterval);
         var self = this;
         this.autoRefreshInterval = setInterval(function() {
-            if (!document.hidden && self.browseMode === 'profiles') {
-                self.loadProfiles();
+            if (!document.hidden && document.querySelector('.tab-btn.active')?.dataset.page === 'browse') {
+                self.initSwipe();
             }
         }, 30000);
+    },
+
+    showSwipeFilters() {
+        document.getElementById('browseFilters').style.display = 'flex';
+    },
+    hideSwipeFilters() {
+        document.getElementById('browseFilters').style.display = 'none';
     },
 
     // ─── Pagination profils ─────────────────────────────
