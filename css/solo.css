@@ -74,6 +74,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .solo-header{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:.8rem 1rem;background:rgba(15,15,25,.9);backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);border-bottom:1px solid rgba(255,255,255,.05)}
 .plan-badge{background:rgba(255,255,255,.06);padding:.25rem .6rem;border-radius:6px;font-size:.72rem;color:#888;margin-right:.5rem}
 
+/* Logout button */
+.btn-logout{background:rgba(255,59,59,.15);border:1px solid rgba(255,59,59,.2);color:#ff3b3b;padding:.35rem .7rem;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:500;transition:.2s}
+.btn-logout:hover{background:rgba(255,59,59,.25)}
+
 /* Tab bar */
 .tab-bar{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;display:flex;background:rgba(15,15,25,.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.06);z-index:10;padding-bottom:env(safe-area-inset-bottom,0)}
 .tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.5rem 0;border:none;background:none;color:#666;cursor:pointer;font-size:.65rem;transition:.2s;touch-action:manipulation}
