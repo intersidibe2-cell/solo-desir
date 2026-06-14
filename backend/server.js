@@ -142,6 +142,7 @@ async function initDB() {
                 title TEXT NOT NULL,
                 description TEXT NOT NULL,
                 looking_for TEXT DEFAULT '',
+                category TEXT DEFAULT '',
                 photos JSONB DEFAULT '[]',
                 status TEXT DEFAULT 'pending',
                 discreet BOOLEAN DEFAULT false,
@@ -157,6 +158,19 @@ async function initDB() {
         await client.query(`ALTER TABLE solo_annonces ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'approved'`);
         await client.query(`ALTER TABLE solo_annonces ADD COLUMN IF NOT EXISTS discreet BOOLEAN DEFAULT false`);
         await client.query(`ALTER TABLE solo_annonces ADD COLUMN IF NOT EXISTS reject_reason TEXT DEFAULT ''`);
+        await client.query(`ALTER TABLE solo_annonces ADD COLUMN IF NOT EXISTS category TEXT DEFAULT ''`);
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS solo_notifications (
+                id SERIAL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                body TEXT DEFAULT '',
+                read BOOLEAN DEFAULT false,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_notifications_user ON solo_notifications(user_id);
+        `);
         console.log('✅ Annonces moderation columns added');
         console.log('✅ PostgreSQL connected');
         return true;
@@ -624,7 +638,7 @@ app.get('/api/solo/likes-received', authMiddleware, async (req, res) => {
 const ANNONCES_MEM = [];
 
 app.get('/api/solo/annonces', async (req, res) => {
-    const { country, gender, limit } = req.query;
+    const { country, gender, limit, category } = req.query;
     const lim = Math.min(parseInt(limit) || 30, 50);
     if (pool) {
         await pool.query('DELETE FROM solo_annonces WHERE expires_at < NOW()');
@@ -633,34 +647,50 @@ app.get('/api/solo/annonces', async (req, res) => {
         let idx = 1;
         if (country) { conditions.push(`country = $${idx++}`); params.push(country); }
         if (gender) { conditions.push(`gender = $${idx++}`); params.push(gender); }
+        if (category) { conditions.push(`category = $${idx++}`); params.push(category); }
         const where = conditions.join(' AND ');
-        const annonces = (await pool.query(`SELECT id, pseudo, gender, age, country, city, title, description, looking_for, photos, discreet, created_at, expires_at FROM solo_annonces WHERE ${where} ORDER BY created_at DESC LIMIT $${idx}`, [...params, lim])).rows;
+        const annonces = (await pool.query(`SELECT id, user_id, pseudo, gender, age, country, city, title, description, looking_for, category, photos, discreet, created_at, expires_at FROM solo_annonces WHERE ${where} ORDER BY created_at DESC LIMIT $${idx}`, [...params, lim])).rows;
         const safe = annonces.map(a => ({
-            ...a,
-            pseudo: a.discreet ? 'Anonyme' : a.pseudo
+            ...a, user_id: undefined,
+            pseudo: a.discreet ? 'Anonyme' : a.pseudo,
+            daysLeft: Math.max(0, Math.ceil((new Date(a.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
         }));
         res.json({ success: true, annonces: safe });
     } else {
         const now = Date.now();
-        let filtered = ANNONCES_MEM.filter(a => new Date(a.expires_at).getTime() > now);
+        let filtered = ANNONCES_MEM.filter(a => new Date(a.expires_at).getTime() > now && a.status === 'approved');
         if (country) filtered = filtered.filter(a => a.country === country);
         if (gender) filtered = filtered.filter(a => a.gender === gender);
-        res.json({ success: true, annonces: filtered.slice(0, lim) });
+        if (category) filtered = filtered.filter(a => a.category === category);
+        res.json({ success: true, annonces: filtered.slice(0, lim).map(a => ({ ...a, daysLeft: Math.max(0, Math.ceil((new Date(a.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))), pseudo: a.discreet ? 'Anonyme' : a.pseudo })) });
+    }
+});
+
+// ─── My Annonces ─────────────────────────────────────
+app.get('/api/solo/annonces/mine', authMiddleware, async (req, res) => {
+    const email = req.user.email;
+    if (pool) {
+        const annonces = (await pool.query('SELECT * FROM solo_annonces WHERE user_id = $1 AND expires_at > NOW() ORDER BY created_at DESC', [email])).rows;
+        const userEmail = email; // Keep email for notification
+        res.json({ success: true, annonces });
+    } else {
+        const userAnnonces = ANNONCES_MEM.filter(a => a.user_id === email);
+        res.json({ success: true, annonces: userAnnonces });
     }
 });
 
 app.post('/api/solo/annonces', authMiddleware, async (req, res) => {
-    const { title, description, looking_for, photos, discreet } = req.body;
+    const { title, description, looking_for, photos, discreet, category } = req.body;
     if (!title || !description) return res.status(400).json({ success: false, message: 'Titre et description requis' });
     const user = pool ? (await pool.query('SELECT pseudo, gender, age, country, city FROM solo_users WHERE email = $1', [req.user.email])).rows[0] : USERS_MEM[req.user.email];
     if (!user) return res.status(404).json({ success: false });
-    const userAnnonces = pool ? (await pool.query('SELECT COUNT(*) FROM solo_annonces WHERE user_id = $1', [req.user.email])).rows[0].count : ANNONCES_MEM.filter(a => a.user_id === req.user.email).length;
+    const userAnnonces = pool ? (await pool.query('SELECT COUNT(*) FROM solo_annonces WHERE user_id = $1 AND expires_at > NOW()', [req.user.email])).rows[0].count : ANNONCES_MEM.filter(a => a.user_id === req.user.email).length;
     if (parseInt(userAnnonces) >= 3) return res.status(429).json({ success: false, message: 'Maximum 3 annonces actives' });
     const photosArr = Array.isArray(photos) ? photos.slice(0, 3) : [];
     if (pool) {
         const r = await pool.query(
-            `INSERT INTO solo_annonces (user_id, pseudo, gender, age, country, city, title, description, looking_for, photos, discreet) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-            [req.user.email, user.pseudo, user.gender, user.age, user.country, user.city, title.trim(), description.trim(), looking_for || '', JSON.stringify(photosArr), !!discreet]
+            `INSERT INTO solo_annonces (user_id, pseudo, gender, age, country, city, title, description, looking_for, category, photos, discreet) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+            [req.user.email, user.pseudo, user.gender, user.age, user.country, user.city || '', title.trim(), description.trim(), looking_for || '', category || '', JSON.stringify(photosArr), !!discreet]
         );
         res.json({ success: true, annonce: r.rows[0], message: 'Annonce soumise — en attente de validation' });
     } else {
@@ -710,6 +740,23 @@ app.post('/api/solo/annonces/:id/respond', authMiddleware, async (req, res) => {
         return res.json({ success: true, matched: true, matchId });
     }
     res.json({ success: true, matched: false });
+});
+
+// ─── Notifications ────────────────────────────────────
+app.get('/api/solo/notifications', authMiddleware, async (req, res) => {
+    if (pool) {
+        const notifs = (await pool.query("SELECT * FROM solo_notifications WHERE user_id = $1 AND read = false ORDER BY created_at DESC LIMIT 20", [req.user.email])).rows;
+        res.json({ success: true, notifications: notifs });
+    } else {
+        res.json({ success: true, notifications: [] });
+    }
+});
+
+app.post('/api/solo/notifications/read', authMiddleware, async (req, res) => {
+    if (pool) {
+        await pool.query("UPDATE solo_notifications SET read = true WHERE user_id = $1", [req.user.email]);
+    }
+    res.json({ success: true });
 });
 
 // ─── Online Status & Last Seen ────────────────────────
@@ -1026,7 +1073,11 @@ app.post('/api/solo/admin/annonces/:id/approve', async (req, res) => {
     if (req.body.key !== ADMIN_KEY) return res.json({ success: false });
     const id = parseInt(req.params.id);
     if (pool) {
-        await pool.query("UPDATE solo_annonces SET status = 'approved', reject_reason = '' WHERE id = $1", [id]);
+        const annonce = (await pool.query('SELECT user_id, title FROM solo_annonces WHERE id = $1', [id])).rows[0];
+        if (annonce) {
+            await pool.query("UPDATE solo_annonces SET status = 'approved', reject_reason = '' WHERE id = $1", [id]);
+            await pool.query("INSERT INTO solo_notifications (user_id, type, title, body) VALUES ($1,'annonce_approved','✅ Annonce approuvée', $2)", [annonce.user_id, 'Votre annonce "' + annonce.title.substring(0, 50) + '" a été approuvée et est maintenant visible.']);
+        }
     }
     res.json({ success: true, message: 'Annonce approuvée' });
 });
@@ -1036,7 +1087,11 @@ app.post('/api/solo/admin/annonces/:id/reject', async (req, res) => {
     const id = parseInt(req.params.id);
     const { reason } = req.body;
     if (pool) {
-        await pool.query("UPDATE solo_annonces SET status = 'rejected', reject_reason = $1 WHERE id = $2", [reason || '', id]);
+        const annonce = (await pool.query('SELECT user_id, title FROM solo_annonces WHERE id = $1', [id])).rows[0];
+        if (annonce) {
+            await pool.query("UPDATE solo_annonces SET status = 'rejected', reject_reason = $1 WHERE id = $2", [reason || '', id]);
+            await pool.query("INSERT INTO solo_notifications (user_id, type, title, body) VALUES ($1,'annonce_rejected','❌ Annonce rejetée', $2)", [annonce.user_id, 'Votre annonce "' + annonce.title.substring(0, 50) + '" a été rejetée.' + (reason ? ' Raison : ' + reason : '')]);
+        }
     }
     res.json({ success: true, message: 'Annonce rejetée' });
 });

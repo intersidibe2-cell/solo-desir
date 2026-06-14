@@ -424,6 +424,7 @@ const B = {
         document.getElementById('createAnnonceBtn')?.addEventListener('click', () => this.openCreateAnnonceModal());
         document.getElementById('annonceFilterCountry')?.addEventListener('change', () => this.loadAnnonces());
         document.getElementById('annonceFilterGender')?.addEventListener('change', () => this.loadAnnonces());
+        document.getElementById('annonceFilterCategory')?.addEventListener('change', () => this.loadAnnonces());
         document.getElementById('filterGender').addEventListener('change', () => this.loadProfiles());
         document.getElementById('filterCountry').addEventListener('change', () => this.loadProfiles());
         document.getElementById('filterAgeMin').addEventListener('change', () => this.loadProfiles());
@@ -927,33 +928,67 @@ const B = {
         var params = new URLSearchParams();
         var c = document.getElementById('annonceFilterCountry')?.value;
         var g = document.getElementById('annonceFilterGender')?.value;
+        var cat = document.getElementById('annonceFilterCategory')?.value;
         if (c) params.set('country', c);
         if (g) params.set('gender', g);
+        if (cat) params.set('category', cat);
         var r = await this.safeFetch('/api/solo/annonces?' + params);
         if (!r.ok) return;
         var d = await r.resp.json();
         this.renderAnnonces(d.annonces || []);
+        this.loadNotifications();
+    },
+
+    async loadNotifications() {
+        if (!this.token) return;
+        var r = await this.safeFetch('/api/solo/notifications', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (!r.ok) return;
+        var d = await r.resp.json();
+        if (d.notifications && d.notifications.length > 0) {
+            d.notifications.forEach(function(n) {
+                B.toast(n.title + ': ' + n.body.substring(0, 60));
+            });
+            this.safeFetch('/api/solo/notifications/read', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token } });
+        }
+    },
+
+    async loadMyAnnonces() {
+        var r = await this.safeFetch('/api/solo/annonces/mine', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (!r.ok) return;
+        var d = await r.resp.json();
+        this.myAnnonces = d.annonces || [];
     },
 
     renderAnnonces(annonces) {
         var list = document.getElementById('annoncesList');
         if (!annonces.length) { list.innerHTML = '<p style="text-align:center;color:#666;padding:2rem">Aucune annonce pour le moment</p>'; return; }
-        var now = Date.now();
         list.innerHTML = annonces.map(function(a) {
             var photos = Array.isArray(a.photos) ? a.photos : [];
             var img = photos[0] || '';
-            var expires = new Date(a.expires_at).getTime();
-            var daysLeft = Math.max(0, Math.ceil((expires - now) / (1000 * 60 * 60 * 24)));
             var isMine = a.user_id === B.user?.email;
+            // Check status from myAnnonces
+            var statusBadge = '';
+            var statusClass = '';
+            var rejectReason = '';
+            if (a.status) {
+                if (a.status === 'pending') { statusBadge = '⏳ En attente'; statusClass = 'badge-pending'; }
+                else if (a.status === 'approved') { statusBadge = '✅ Approuvée'; statusClass = 'badge-resolved'; }
+                else if (a.status === 'rejected') { statusBadge = '❌ Rejetée'; statusClass = 'badge-banned'; rejectReason = a.reject_reason ? ': ' + a.reject_reason : ''; }
+            }
+            var categoryBadge = a.category ? '<span style="font-size:.65rem;color:#888;margin-left:.3rem">' + a.category + '</span>' : '';
+            var daysLeft = a.daysLeft !== undefined ? a.daysLeft : Math.max(0, Math.ceil((new Date(a.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+            var deleteBtn = isMine ? '<button class="annonce-delete" onclick="B.deleteAnnonce(' + a.id + ')">🗑️ Supprimer</button>' : '';
+            var respondBtn = (isMine || a.status === 'pending' || a.status === 'rejected') ? '' : '<button class="annonce-respond" onclick="B.respondToAnnonce(' + a.id + ')">💬 Répondre</button>';
             return '<div class="annonce-card" data-id="' + a.id + '">' +
-                '<div class="annonce-header"><div><div class="annonce-title">' + B.esc(a.title) + '</div><div class="annonce-meta">' + B.esc(a.pseudo) + ', ' + (a.age || '?') + ' · ' + B.esc(a.city || '') + ' ' + B.esc(a.country || '') + '</div></div>' +
+                '<div class="annonce-header"><div><div class="annonce-title">' + B.esc(a.title) + ' ' + categoryBadge + '</div><div class="annonce-meta">' + B.esc(a.pseudo) + ', ' + (a.age || '?') + ' · ' + B.esc(a.city || '') + ' ' + B.esc(a.country || '') + '</div></div>' +
                 (img ? '<div class="annonce-photo" style="background-image:url(\'' + B.esc(img) + '\')"></div>' : '') +
                 '</div>' +
                 '<div class="annonce-desc">' + B.esc(a.description) + '</div>' +
                 (a.looking_for ? '<div class="annonce-looking">❤️ ' + B.esc(a.looking_for) + '</div>' : '') +
+                (statusBadge ? '<div style="margin:.3rem 0"><span class="badge ' + statusClass + '">' + statusBadge + '</span>' + B.esc(rejectReason) + '</div>' : '') +
                 '<div class="annonce-footer">' +
                     '<span class="annonce-expire">⏱️ ' + daysLeft + 'j restant' + (daysLeft > 1 ? 's' : '') + '</span>' +
-                    (isMine ? '<button class="annonce-delete" onclick="B.deleteAnnonce(' + a.id + ')">🗑️ Supprimer</button>' : '<button class="annonce-respond" onclick="B.respondToAnnonce(' + a.id + ')">💬 Répondre</button>') +
+                    deleteBtn + respondBtn +
                 '</div>' +
             '</div>';
         }).join('');
@@ -970,6 +1005,9 @@ const B = {
                 '<textarea id="annonceDesc" placeholder="Décris ce que tu cherches..." rows="4" style="width:100%;padding:.7rem;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.04);color:#eee;font-size:.85rem;margin-bottom:.7rem;outline:none;resize:vertical;font-family:inherit"></textarea>' +
                 '<select id="annonceLooking" style="width:100%;padding:.7rem;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.04);color:#eee;font-size:.85rem;margin-bottom:.7rem;outline:none">' +
                     '<option value="">Je cherche...</option><option value="Mariage">Mariage</option><option value="Relation sérieuse">Relation sérieuse</option><option value="À voir">À voir</option><option value="Amitié">Amitié</option>' +
+                '</select>' +
+                '<select id="annonceCategory" style="width:100%;padding:.7rem;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.04);color:#eee;font-size:.85rem;margin-bottom:.7rem;outline:none">' +
+                    '<option value="">Catégorie (optionnelle)</option><option value="Mariage">💍 Mariage</option><option value="Relation sérieuse">💖 Relation sérieuse</option><option value="Amitié">🤝 Amitié</option><option value="Voyage">✈️ Voyage</option><option value="Discussion">💬 Discussion</option>' +
                 '</select>' +
                 '<div style="display:flex;gap:.5rem;margin-bottom:.7rem">' +
                     '<select id="annonceCountry" style="flex:1;padding:.7rem;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.04);color:#eee;font-size:.85rem;outline:none">' +
@@ -1014,7 +1052,7 @@ const B = {
         }
         var r = await this.safeFetch('/api/solo/annonces', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token },
-            body: JSON.stringify({ title: title, description: desc, looking_for: document.getElementById('annonceLooking').value, photos: photos, discreet: document.getElementById('annonceDiscreet')?.checked || false })
+            body: JSON.stringify({ title: title, description: desc, looking_for: document.getElementById('annonceLooking').value, photos: photos, discreet: document.getElementById('annonceDiscreet')?.checked || false, category: document.getElementById('annonceCategory')?.value || '' })
         });
         if (!r.ok) { this.toast('Erreur réseau'); return; }
         var d = await r.resp.json();
