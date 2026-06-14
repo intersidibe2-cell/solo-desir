@@ -63,7 +63,7 @@ const B = {
         const saved = localStorage.getItem('solo_token') || sessionStorage.getItem('solo_token');
         if (saved) { this.token = saved; this.loadMain(); return; }
         i18n.load(localStorage.getItem('solo_lang') || 'fr').then(function() { i18n.initSwitcher(); });
-        document.getElementById('loginForm').addEventListener('submit', function(e) { e.preventDefault(); self.login(); });
+        document.getElementById('loginForm').addEventListener('submit', function(e) { e.preventDefault(); B.login(); });
         document.querySelectorAll('.tab').forEach(function(t) {
             t.addEventListener('click', function() {
                 document.querySelectorAll('.tab').forEach(function(x) { x.classList.remove('active'); });
@@ -93,8 +93,6 @@ const B = {
             var tzMap = {'Africa/Bamako':'ML','Africa/Abidjan':'CI','Africa/Dakar':'SN','Africa/Ouagadougou':'BF','Africa/Conakry':'GN','Africa/Douala':'CM','Africa/Porto-Novo':'BJ','Africa/Lome':'TG','Africa/Niamey':'NE','Africa/Ndjamena':'TD','Africa/Cairo':'EG','Africa/Casablanca':'MA','Africa/Tunis':'TN','Africa/Algiers':'DZ','Africa/Maputo':'MZ','Africa/Lagos':'NG','Africa/Accra':'GH','Africa/Nairobi':'KE'};
             if (tzMap[tz]) { document.getElementById('regCountry').value = tzMap[tz]; document.getElementById('regCountry').dispatchEvent(new Event('change')); }
         } catch(e) {}
-        var loginBtn = document.getElementById('loginSubmit');
-        if (loginBtn) loginBtn.addEventListener('click', function(e) { e.preventDefault(); self.login(); });
     },
 
     nextStep(current) {

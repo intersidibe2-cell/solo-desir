@@ -37,7 +37,7 @@
                 <form id="loginForm" class="auth-form">
                     <div class="input-icon"><span>📱</span><input type="text" id="loginField" placeholder="Téléphone, email ou pseudo" required autocomplete="tel"></div>
                     <div class="input-icon"><span>🔒</span><input type="password" id="loginPassword" placeholder="Mot de passe" required></div>
-                    <button type="submit" id="loginSubmit">Se connecter</button>
+                    <button type="button" id="loginSubmit" onclick="B.login()">Se connecter</button>
                     <a class="forgot-link" onclick="B.forgotPassword()">Mot de passe oublié ?</a>
                 </form>
                 <div id="registerContainer" class="register-container" style="display:none">
