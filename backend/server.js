@@ -57,9 +57,8 @@ app.post('/api/solo/upload-photo', authMiddleware, async (req, res) => {
     if (buf.length > 15 * 1024 * 1024) return res.status(400).json({ success: false, message: 'Image trop lourde (max 15MB)' });
     const filename = 'solo_' + crypto.randomBytes(8).toString('hex') + '.' + ext;
     const dir = path.join(__dirname, '..', 'uploads');
-    try { await fs.mkdir(dir, { recursive: true }); } catch (e) {}
-    await fs.writeFile(path.join(dir, filename), buf);
-    res.json({ success: true, url: '/uploads/' + filename });
+    try { await fs.mkdir(dir, { recursive: true }); await fs.writeFile(path.join(dir, filename), buf); res.json({ success: true, url: '/uploads/' + filename }); }
+    catch (e) { console.error('Upload error:', e); res.status(500).json({ success: false, message: 'Erreur sauvegarde image' }); }
 });
 
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 100, message: { success: false, message: 'Trop de requêtes' } });
@@ -76,10 +75,7 @@ const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('he
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || crypto.randomBytes(32).toString('hex');
 
 // ─── Storage ─────────────────────────────────────────
-const USERS_MEM = {};
-const LIKES_MEM = [];
-const MATCHES_MEM = [];
-const MSGS_MEM = {};
+const USERS_MEM = {}, LIKES_MEM = [], MATCHES_MEM = [], MSGS_MEM = {};
 let pool = null;
 
 async function initDB() {
@@ -87,7 +83,9 @@ async function initDB() {
     pool = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-        max: 10
+        max: 10,
+        min: 2,
+        idleTimeoutMillis: 30000
     });
     const client = await pool.connect();
     try {
@@ -129,26 +127,28 @@ async function initDB() {
         await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_match ON solo_messages(match_id)`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_users_phone ON solo_users(phone)`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_users_country_gender ON solo_users(country, gender)`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ DEFAULT NOW()`);
-        await client.query(`ALTER TABLE solo_messages ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ DEFAULT NULL`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS profession TEXT DEFAULT ''`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS looking_for TEXT DEFAULT ''`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]'`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS referral_code TEXT DEFAULT ''`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS referred_by TEXT DEFAULT ''`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS referrals_count INTEGER DEFAULT 0`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT ''`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS religion TEXT DEFAULT ''`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS children TEXT DEFAULT ''`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS likes_today INTEGER DEFAULT 0`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS last_like_date TEXT DEFAULT ''`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION DEFAULT 0`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION DEFAULT 0`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS push_sub TEXT DEFAULT ''`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS incognito BOOLEAN DEFAULT false`);
-        await client.query(`ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS prenom TEXT DEFAULT ''`);
+        await client.query(`
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ DEFAULT NOW();
+            ALTER TABLE solo_messages ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ DEFAULT NULL;
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS profession TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS looking_for TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS interests JSONB DEFAULT '[]';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS referral_code TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS referred_by TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS referrals_count INTEGER DEFAULT 0;
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS religion TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS children TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS likes_today INTEGER DEFAULT 0;
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS last_like_date TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false;
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION DEFAULT 0;
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION DEFAULT 0;
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS push_sub TEXT DEFAULT '';
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS incognito BOOLEAN DEFAULT false;
+            ALTER TABLE solo_users ADD COLUMN IF NOT EXISTS prenom TEXT DEFAULT '';
+        `);
         console.log('✅ PostgreSQL migrations done');
         await client.query(`
             CREATE TABLE IF NOT EXISTS solo_annonces (
@@ -208,13 +208,21 @@ async function initDB() {
     } finally { client.release(); }
 }
 
+// ─── Cache ────────────────────────────────────────
+const CACHE = new Map();
+function cacheGet(key) { const v = CACHE.get(key); if (v && Date.now() - v.time < 30000) return v.data; CACHE.delete(key); return null; }
+function cacheSet(key, data) { CACHE.set(key, { data, time: Date.now() }); }
+
 // ─── Auth ────────────────────────────────────────────
 function authMiddleware(req, res, next) {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(401).json({ success: false, message: 'Token requis' });
     try { 
         req.user = jwt.verify(token, JWT_SECRET); 
-        if (pool) pool.query('UPDATE solo_users SET last_seen = NOW() WHERE email = $1', [req.user.email]).catch(() => {});
+        const email = req.user.email;
+        // Cache last_seen: update DB only every 30s per user
+        const cacheKey = 'ls:' + email;
+        if (!cacheGet(cacheKey)) { cacheSet(cacheKey, true); if (pool) pool.query('UPDATE solo_users SET last_seen = NOW() WHERE email = $1', [email]).catch(() => {}); }
         next(); 
     }
     catch (e) { return res.status(401).json({ success: false, message: 'Token invalide ou expiré' }); }
@@ -249,9 +257,13 @@ if (webPush && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 async function sendPushNotification(email, title, body, url) {
     if (!webPush || !VAPID_PUBLIC_KEY) return;
     try {
-        const user = pool ? (await pool.query('SELECT push_sub FROM solo_users WHERE email = $1', [email])).rows[0] : USERS_MEM[email];
-        if (!user || !user.push_sub) return;
-        const sub = typeof user.push_sub === 'string' ? JSON.parse(user.push_sub) : user.push_sub;
+        let sub = cacheGet('push:' + email);
+        if (!sub) {
+            const user = pool ? (await pool.query('SELECT push_sub FROM solo_users WHERE email = $1', [email])).rows[0] : null;
+            if (!user || !user.push_sub) return;
+            sub = typeof user.push_sub === 'string' ? JSON.parse(user.push_sub) : user.push_sub;
+            cacheSet('push:' + email, sub);
+        }
         await webPush.sendNotification(sub, JSON.stringify({ title, body, url: url || '/solo.html', icon: '/manifest-icon-192.png' }));
     } catch (e) { console.error('Push error:', e.message); }
 }
@@ -477,10 +489,12 @@ const VERIFICATION_CODES = {};
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_AUTH = process.env.TWILIO_AUTH_TOKEN || '';
 const TWILIO_FROM = process.env.TWILIO_PHONE_NUMBER || '';
+let twilioFailures = 0;
+let twilioCircuitOpen = false;
 
 async function sendSMS(phone, message) {
-    if (!TWILIO_SID || !TWILIO_AUTH || !TWILIO_FROM) {
-        console.log('📱 SMS (mock):', phone, message);
+    if (!TWILIO_SID || !TWILIO_AUTH || !TWILIO_FROM || twilioCircuitOpen) {
+        console.log('📱 SMS (mock):', phone, message.substring(0, 20));
         return { success: true, mock: true };
     }
     try {
@@ -497,10 +511,18 @@ async function sendSMS(phone, message) {
             body: body.toString()
         });
         const data = await r.json();
-        return { success: !data.error_code, sid: data.sid };
+        if (data.error_code) {
+            twilioFailures++;
+            if (twilioFailures >= 3) { twilioCircuitOpen = true; console.error('Twilio circuit OPEN - falling back to mock mode'); }
+            return { success: false, error: data.error_message };
+        }
+        twilioFailures = 0;
+        return { success: true, sid: data.sid };
     } catch (e) {
-        console.error('Twilio error:', e);
-        return { success: false, error: 'Twilio failed' };
+        twilioFailures++;
+        if (twilioFailures >= 3) { twilioCircuitOpen = true; console.error('Twilio circuit OPEN - falling back to mock mode'); }
+        console.error('Twilio error:', e.message);
+        return { success: true, mock: true };
     }
 }
 
@@ -579,7 +601,7 @@ app.post('/api/solo/reset-password', async (req, res) => {
     delete VERIFICATION_CODES['reset:' + cleanPhone];
 
     if (password.length < 6) return res.status(400).json({ success: false, message: 'Mot de passe trop court (6+ caractères)' });
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(8);
     const hash = await bcrypt.hash(password, salt);
     if (pool) {
         await pool.query('UPDATE solo_users SET password = $1 WHERE phone = $2', [hash, cleanPhone]);
@@ -1254,8 +1276,17 @@ app.get('/api/solo/chat/stream/:matchId', async (req, res) => {
 
 // ─── Health ──────────────────────────────────────────
 app.get('/health', async (req, res) => {
-    const users = pool ? (await pool.query('SELECT COUNT(*) FROM solo_users')).rows[0].count : Object.keys(USERS_MEM).length;
-    res.json({ success: true, status: 'ok', uptime: process.uptime(), users, db: pool ? 'postgres' : 'memory', version: '2.0' });
+    const info = { success: true, status: 'ok', uptime: process.uptime(), db: pool ? 'postgres' : 'memory', version: '2.0', twilioMode: TWILIO_SID && !twilioCircuitOpen ? 'live' : 'mock', circuitOpen: twilioCircuitOpen, cacheSize: CACHE.size };
+    if (pool) {
+        try {
+            const start = Date.now();
+            const result = await pool.query('SELECT COUNT(*) as count FROM solo_users');
+            info.users = result.rows[0].count;
+            info.dbLatencyMs = Date.now() - start;
+            info.dbStatus = 'ok';
+        } catch (e) { info.dbStatus = 'error'; info.dbError = e.message; }
+    }
+    res.json(info);
 });
 
 // ─── SPA fallback ────────────────────────────────────

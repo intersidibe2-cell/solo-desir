@@ -469,6 +469,11 @@ const B = {
 
     logout() {
         if (this.pollInterval) clearInterval(this.pollInterval);
+        if (this.typingInterval) clearInterval(this.typingInterval);
+        if (this.autoRefreshInterval) clearInterval(this.autoRefreshInterval);
+        if (this.sseSource) { try { this.sseSource.close(); } catch(e) {} }
+        this.pollInterval = null; this.typingInterval = null; this.autoRefreshInterval = null; this.sseSource = null;
+        this.sseRetries = 0;
         localStorage.removeItem('solo_token'); sessionStorage.removeItem('solo_token');
         localStorage.removeItem('solo_user_cache');
         location.reload(); },
@@ -669,13 +674,17 @@ const B = {
     startSSE(matchId) {
         if (this.sseSource) { try { this.sseSource.close(); } catch(e) {} }
         var self = this;
+        this.sseRetries = 0;
         this.sseSource = new EventSource('/api/solo/chat/stream/' + matchId + '?token=' + this.token);
         this.sseSource.onmessage = function(e) {
             if (!self.currentMatch || self.currentMatch.id !== matchId) return;
             try { self.loadMessages(); } catch(err) {}
         };
         this.sseSource.onerror = function() {
-            setTimeout(function() { if (self.currentMatch && self.currentMatch.id === matchId) self.startSSE(matchId); }, 5000);
+            self.sseRetries = (self.sseRetries || 0) + 1;
+            if (self.sseRetries <= 5 && self.currentMatch && self.currentMatch.id === matchId) {
+                setTimeout(function() { self.startSSE(matchId); }, 5000);
+            }
         };
     },
 
