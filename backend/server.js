@@ -25,7 +25,7 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com", "cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "*.unsplash.com", "api.dicebear.com", "i.giphy.com", "images.unsplash.com"],
             fontSrc: ["'self'", "fonts.gstatic.com", "cdnjs.cloudflare.com"],
-            connectSrc: ["'self'", "*.giphy.com", "api.africastalking.com", "api.twilio.com", "cdn.jsdelivr.net", "static.cloudflareinsights.com", "*.ingest.sentry.io"],
+            connectSrc: ["'self'", "*.giphy.com", "api.africastalking.com", "api.twilio.com", "cdn.jsdelivr.net", "static.cloudflareinsights.com", "*.ingest.sentry.io", "*.ingest.de.sentry.io"],
         }
     }
 }));
