@@ -52,23 +52,57 @@ const B = {
         if (saved) { this.token = saved; this.loadMain(); return; }
         i18n.load(localStorage.getItem('solo_lang') || 'fr').then(function() { i18n.initSwitcher(); });
         document.getElementById('loginForm').addEventListener('submit', function(e) { e.preventDefault(); self.login(); });
-        document.getElementById('registerForm').addEventListener('submit', e => { e.preventDefault(); this.register(); });
-        document.querySelectorAll('.tab').forEach(t => {
-            t.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(function(t) {
+            t.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(function(x) { x.classList.remove('active'); });
                 t.classList.add('active');
-                document.getElementById(t.dataset.tab + 'Form').style.display = 'block';
-                document.getElementById(t.dataset.tab === 'login' ? 'registerForm' : 'loginForm').style.display = 'none';
+                var isLogin = t.dataset.tab === 'login';
+                document.getElementById('loginForm').style.display = isLogin ? 'block' : 'none';
+                document.getElementById('registerContainer').style.display = isLogin ? 'none' : 'block';
+                if (!isLogin) { document.querySelectorAll('.step').forEach(function(s,i){s.style.display=i===0?'block':'none'}); document.getElementById('progressFill').style.width='25%'; }
             });
         });
         const prefixMap = { ML:'+223',CI:'+225',SN:'+221',BF:'+226',GN:'+224',CM:'+237',BJ:'+229',TG:'+228',NE:'+227',TD:'+235' };
         document.getElementById('regCountry').addEventListener('change', function() {
             const p = prefixMap[this.value] || '+223';
             document.getElementById('phonePrefix').textContent = p;
-            document.getElementById('regPhone').dataset.country = this.value;
-            document.getElementById('regPhone').focus();
+            var phoneInput = document.getElementById('regPhone');
+            phoneInput.dataset.country = this.value;
+            if (phoneInput) phoneInput.focus();
         });
         document.getElementById('regCountry').dispatchEvent(new Event('change'));
+    },
+
+    nextStep(current) {
+        if (current === 1) { if (!this.validateStep1()) return; }
+        if (current === 2) { if (!this.validateStep2()) return; }
+        document.querySelectorAll('.step').forEach(function(s) { s.style.display = 'none'; });
+        var next = document.getElementById('step' + (current + 1));
+        if (next) { next.style.display = 'block'; next.classList.add('slide-in-right'); }
+        document.getElementById('progressFill').style.width = (current + 1) * 25 + '%';
+    },
+
+    prevStep(current) {
+        document.querySelectorAll('.step').forEach(function(s) { s.style.display = 'none'; });
+        var prev = document.getElementById('step' + (current));
+        if (prev) { prev.style.display = 'block'; prev.classList.add('slide-in-left'); }
+        document.getElementById('progressFill').style.width = current * 25 + '%';
+    },
+
+    validateStep1() {
+        var pseudo = document.getElementById('regPseudo').value.trim();
+        if (!pseudo) { this.showErr('Choisis un pseudo'); return false; }
+        this.showErr(''); return true;
+    },
+
+    validateStep2() {
+        var age = document.getElementById('regAge').value;
+        var gender = document.getElementById('regGender').value;
+        var pwd = document.getElementById('regPassword').value;
+        if (!age || age < 18) { this.showErr('Âge requis (18+)'); return false; }
+        if (!gender) { this.showErr('Choisis ton genre'); return false; }
+        if (!pwd || pwd.length < 6) { this.showErr('Mot de passe (6+ caractères)'); return false; }
+        this.showErr(''); return true;
     },
 
     async login() {
@@ -91,75 +125,73 @@ const B = {
         this.loadMain();
     },
 
-    async register() {
+    async registerStep3() {
         this.showErr('');
         var btn = document.getElementById('regSubmit');
         var prefixEl = document.getElementById('phonePrefix');
         var phoneRaw = document.getElementById('regPhone').value.trim().replace(/[^0-9]/g, '');
         var prefix = prefixEl.textContent.trim() || '+223';
         var fullPhone = prefix + phoneRaw;
-        if (!phoneRaw || phoneRaw.length < 7) { this.showErr('Numéro de téléphone invalide'); return; }
-        var country = document.getElementById('regPhone').dataset.country || 'ML';
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner"></span> Envoi du code...';
-
+        if (!phoneRaw || phoneRaw.length < 7) { this.showErr('Numéro invalide'); return; }
+        btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Envoi...';
         var r = await this.safeFetch('/api/solo/verify/sms-send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: fullPhone }), timeout: 15000 });
-        btn.disabled = false;
-        btn.textContent = 'Créer mon compte';
+        btn.disabled = false; btn.textContent = 'Recevoir le code';
         if (!r.ok) { this.showErr('Erreur réseau'); return; }
         var d = await r.resp.json();
         if (!d.success) { this.showErr(d.message); return; }
-
-        this.showVerifyModal(fullPhone, phoneRaw, prefix, country);
+        this.fullPhone = fullPhone; document.getElementById('smsCodeSection').style.display = 'block';
     },
 
-    showVerifyModal(phone, phoneRaw, prefix, country) {
-        var overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        overlay.id = 'verifyModal';
-        overlay.innerHTML = '<div class="modal-detail" style="max-width:360px">' +
-            '<div class="detail-info" style="text-align:center">' +
-                '<div style="font-size:3rem;margin-bottom:.5rem">📱</div>' +
-                '<h3 style="margin-bottom:.3rem">Vérifie ton numéro</h3>' +
-                '<p style="color:#888;font-size:.8rem;margin-bottom:1rem">Un code à 4 chiffres a été envoyé à ' + this.esc(phone) + '</p>' +
-                '<input type="text" id="verifySmsCode" placeholder="0000" maxlength="4" style="width:100%;padding:.8rem;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eee;font-size:1.5rem;text-align:center;letter-spacing:8px;outline:none;margin-bottom:1rem">' +
-                '<button class="btn-primary" onclick="B.confirmSmsCode(\'' + this.esc(phone) + '\',\'' + this.esc(phoneRaw) + '\',\'' + this.esc(prefix) + '\',\'' + this.esc(country) + '\')" style="width:100%;padding:.8rem;border-radius:12px;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff;border:none;font-weight:600;cursor:pointer;font-size:1rem;margin-bottom:.5rem">Confirmer</button>' +
-                '<button class="btn-ghost" onclick="document.getElementById(\'verifyModal\').remove()" style="color:#888">Annuler</button>' +
-            '</div>' +
-        '</div>';
-        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-        document.body.appendChild(overlay);
-        setTimeout(function() { var el = document.getElementById('verifySmsCode'); if (el) el.focus(); }, 300);
-    },
+    resendSmsCode() { this.registerStep3(); },
 
-    async confirmSmsCode(phone, phoneRaw, prefix, country) {
-        var code = document.getElementById('verifySmsCode').value.trim();
+    async confirmSmsAndRegister() {
+        this.showErr('');
+        var code = document.getElementById('regSmsCode').value.trim();
         if (code.length < 4) { this.toast('Code incomplet'); return; }
-        var r = await this.safeFetch('/api/solo/verify/sms-confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: phone, code: code }), timeout: 10000 });
-        if (!r.ok) { this.toast('Erreur réseau'); return; }
+        var r = await this.safeFetch('/api/solo/verify/sms-confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: this.fullPhone, code: code }), timeout: 10000 });
+        if (!r.ok) { this.showErr('Erreur réseau'); return; }
         var d = await r.resp.json();
-        if (!d.success) { this.toast(d.message); return; }
-        document.getElementById('verifyModal')?.remove();
-        // Complete registration
+        if (!d.success) { this.showErr(d.message); return; }
+        document.getElementById('smsCodeSection').style.display = 'none';
+        this.nextStep(3);
+    },
+
+    previewStep4Photo(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) { document.getElementById('step4Placeholder').style.display = 'none'; var img = document.getElementById('step4Preview'); img.src = ev.target.result; img.style.display = 'block'; document.getElementById('step4Photo').setAttribute('data-photo', ev.target.result); };
+        reader.readAsDataURL(file);
+    },
+
+    skipStep4() { if (this.fullPhone) this.finalizeRegistration(); },
+    submitStep4() { if (this.fullPhone) this.finalizeRegistration(); },
+
+    async finalizeRegistration() {
+        this.showErr('');
+        var photoData = document.getElementById('step4Photo').getAttribute('data-photo') || '';
+        var photoUrl = '';
+        if (photoData) {
+            if (!this.token) this.token = 'temp';
+            var r = await this.safeFetch('/api/solo/upload-photo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: photoData }), timeout: 15000 });
+            if (r.ok) { var d = await r.resp.json(); if (d.success) photoUrl = d.url; }
+        }
         var body = JSON.stringify({
             pseudo: document.getElementById('regPseudo').value.trim(),
-            prenom: (document.getElementById('regPrenom')?.value || '').trim(),
-            password: document.getElementById('regPassword').value,
-            phone: phone, country: country,
-            email: (document.getElementById('regEmail').value || '').trim(),
-            gender: document.getElementById('regGender').value,
-            age: parseInt(document.getElementById('regAge').value) || 25
+            prenom: (document.getElementById('regPrenom')?.value || '').trim(), password: document.getElementById('regPassword').value,
+            phone: this.fullPhone, country: document.getElementById('regPhone').dataset.country || 'ML',
+            email: (document.getElementById('regEmail').value || '').trim(), gender: document.getElementById('regGender').value,
+            age: parseInt(document.getElementById('regAge').value) || 25, photos: photoUrl ? [photoUrl] : [], verified: true
         });
         var r2 = await this.safeFetch('/api/solo/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, timeout: 30000 });
         if (!r2.ok) { this.showErr('Erreur réseau'); return; }
         var d2 = await r2.resp.json();
         if (!d2.success) { this.showErr(d2.message); return; }
-        this.setToken(d2.token);
-        this.loadMain();
+        this.setToken(d2.token); this.loadMain();
     },
 
     setToken(t) { this.token = t; localStorage.setItem('solo_token', t); sessionStorage.setItem('solo_token', t); },
-    showErr(msg) { const el = document.getElementById('authError'); el.textContent = msg || ''; },
+    showErr(msg) { const el = document.getElementById('authError'); if (el) el.textContent = msg || ''; },
 
     async loadMain() {
         document.getElementById('soloLogin').style.display = 'none';

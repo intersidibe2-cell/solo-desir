@@ -40,39 +40,80 @@
                     <button type="submit" id="loginSubmit">Se connecter</button>
                     <a class="forgot-link" onclick="B.forgotPassword()">Mot de passe oublié ?</a>
                 </form>
-                <form id="registerForm" class="auth-form" style="display:none">
-                    <div class="input-icon"><span>👤</span><input type="text" id="regPseudo" placeholder="Choisis ton pseudo" required></div>
-                    <div class="input-icon"><span>✏️</span><input type="text" id="regPrenom" placeholder="Ton prénom (optionnel)"></div>
-                    <div class="input-icon"><span>🔒</span><input type="password" id="regPassword" placeholder="Mot de passe (6+ caractères)" required minlength="6"></div>
-                    <div class="input-icon"><span>🌍</span>
-                        <select id="regCountry">
-                            <option value="ML" selected>🇲🇱 Mali (+223)</option>
-                            <option value="CI">🇨🇮 Côte d'Ivoire (+225)</option>
-                            <option value="SN">🇸🇳 Sénégal (+221)</option>
-                            <option value="BF">🇧🇫 Burkina Faso (+226)</option>
-                            <option value="GN">🇬🇳 Guinée (+224)</option>
-                            <option value="CM">🇨🇲 Cameroun (+237)</option>
-                            <option value="BJ">🇧🇯 Bénin (+229)</option>
-                            <option value="TG">🇹🇬 Togo (+228)</option>
-                            <option value="NE">🇳🇪 Niger (+227)</option>
-                            <option value="TD">🇹🇩 Tchad (+235)</option>
-                        </select>
+                <div id="registerContainer" class="register-container" style="display:none">
+                    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+                    <div class="step active" id="step1">
+                        <h3 style="margin-bottom:1rem;font-size:1.1rem">Qui es-tu ?</h3>
+                        <div class="input-icon"><span>👤</span><input type="text" id="regPseudo" placeholder="Pseudo" required></div>
+                        <div class="input-icon"><span>✏️</span><input type="text" id="regPrenom" placeholder="Prénom (optionnel)"></div>
+                        <button class="btn-next" onclick="B.nextStep(1)">Continuer →</button>
                     </div>
-                    <div class="input-icon"><span>📱</span><div class="phone-input-group"><span class="phone-prefix" id="phonePrefix">+223</span><input type="tel" id="regPhone" placeholder="70 00 00 00" required class="phone-input"></div></div>
-                    <div class="input-icon"><span>📧</span><input type="email" id="regEmail" placeholder="Email (optionnel)"></div>
-                    <div class="input-icon"><span>⚧</span>
-                        <select id="regGender" required>
-                            <option value="">Choisis ton genre</option>
-                            <option value="homme">👨 Homme</option>
-                            <option value="femme">👩 Femme</option>
-                            <option value="couple">👥 Couple</option>
-                        </select>
+                    <div class="step" id="step2" style="display:none">
+                        <h3 style="margin-bottom:1rem;font-size:1.1rem">Ton profil</h3>
+                        <div class="input-icon"><span>🎂</span><input type="number" id="regAge" placeholder="Âge" min="18" max="99"></div>
+                        <div class="input-icon"><span>⚧</span>
+                            <select id="regGender">
+                                <option value="">Choisis ton genre</option>
+                                <option value="homme">👨 Homme</option>
+                                <option value="femme">👩 Femme</option>
+                                <option value="couple">👥 Couple</option>
+                            </select>
+                        </div>
+                        <div class="input-icon"><span>🔒</span><input type="password" id="regPassword" placeholder="Mot de passe (6+ caractères)" minlength="6"></div>
+                        <div class="step-actions">
+                            <button class="btn-back" onclick="B.prevStep(1)">← Retour</button>
+                            <button class="btn-next" onclick="B.nextStep(2)">Continuer →</button>
+                        </div>
                     </div>
-                    <div class="input-icon"><span>🎂</span><input type="number" id="regAge" placeholder="Âge" min="18" max="99" class="age-input"></div>
-                    <button type="submit" id="regSubmit">Créer mon compte</button>
-                    <p class="auth-note">📱 Sans email obligatoire · 100% discret</p>
-                </form>
-                <div id="authError" class="error-msg"></div>
+                    <div class="step" id="step3" style="display:none">
+                        <h3 style="margin-bottom:1rem;font-size:1.1rem">Ton numéro</h3>
+                        <div class="input-icon"><span>🌍</span>
+                            <select id="regCountry">
+                                <option value="ML" selected>🇲🇱 Mali (+223)</option>
+                                <option value="CI">🇨🇮 Côte d'Ivoire (+225)</option>
+                                <option value="SN">🇸🇳 Sénégal (+221)</option>
+                                <option value="BF">🇧🇫 Burkina Faso (+226)</option>
+                                <option value="GN">🇬🇳 Guinée (+224)</option>
+                                <option value="CM">🇨🇲 Cameroun (+237)</option>
+                                <option value="BJ">🇧🇯 Bénin (+229)</option>
+                                <option value="TG">🇹🇬 Togo (+228)</option>
+                                <option value="NE">🇳🇪 Niger (+227)</option>
+                                <option value="TD">🇹🇩 Tchad (+235)</option>
+                            </select>
+                        </div>
+                        <div class="input-icon"><span>📧</span><input type="email" id="regEmail" placeholder="Email (optionnel)"></div>
+                        <div class="phone-input-group" style="margin-bottom:.8rem"><span class="phone-prefix" id="phonePrefix">+223</span><input type="tel" id="regPhone" placeholder="70 00 00 00" class="phone-input"></div>
+                        <div class="step-actions">
+                            <button class="btn-back" onclick="B.prevStep(2)">← Retour</button>
+                            <button id="regSubmit" class="btn-next">Recevoir le code</button>
+                        </div>
+                        <div id="smsCodeSection" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.06)">
+                            <p style="color:#888;font-size:.75rem;margin-bottom:.5rem">Code envoyé au numéro</p>
+                            <input type="text" id="regSmsCode" placeholder="0000" maxlength="4" class="sms-input">
+                            <div class="step-actions">
+                                <button class="btn-back" onclick="B.resendSmsCode()">Renvoyer</button>
+                                <button class="btn-next" onclick="B.confirmSmsAndRegister()">Confirmer</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step" id="step4" style="display:none">
+                        <h3 style="margin-bottom:.5rem;font-size:1.1rem;text-align:center">Ajoute une photo</h3>
+                        <p style="color:#888;font-size:.8rem;text-align:center;margin-bottom:1rem">Optionnel mais recommandé</p>
+                        <div class="step4-photo" id="step4Photo" onclick="document.getElementById('step4Input').click()">
+                            <div class="step4-photo-placeholder" id="step4Placeholder">
+                                <span style="font-size:3rem">📸</span>
+                                <span style="color:#888;font-size:.8rem;margin-top:.5rem">Tape pour ajouter</span>
+                            </div>
+                            <img id="step4Preview" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:12px">
+                        </div>
+                        <input type="file" id="step4Input" accept="image/*" style="display:none" onchange="B.previewStep4Photo(event)">
+                        <div class="step-actions" style="margin-top:1rem">
+                            <button class="btn-back" onclick="B.skipStep4()">Passer</button>
+                            <button class="btn-next" onclick="B.submitStep4()">Terminer</button>
+                        </div>
+                    </div>
+                    <div id="authError" class="error-msg"></div>
+                </div>
             </div>
         </div>
 
