@@ -1,4 +1,4 @@
-const CACHE = 'solo-v27';
+const CACHE = 'solo-v28';
 const OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', function(e) {

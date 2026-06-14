@@ -523,33 +523,25 @@ const B = {
         if (!this.profiles.length) { grid.innerHTML = '<p style="text-align:center;color:#666;padding:2rem">Aucun profil trouvé</p>'; return; }
         grid.innerHTML = this.profiles.map(p => {
             const photos = Array.isArray(p.photos) ? p.photos : typeof p.photos === 'string' ? p.photos.split(',').map(s => s.trim()).filter(s => s) : [];
-            const onlineClass = p.isOnline ? 'online' : '';
-            const onlineDot = p.isOnline ? '<span class="online-dot"></span>' : '';
             const carousel = photos.length > 0
                 ? `<div class="photo-carousel" data-photos='${this.esc(JSON.stringify(photos))}'>
                      <div class="carousel-track">${photos.map(u => `<img src="${this.esc(u)}" onerror="this.style.display='none'" loading="lazy">`).join('')}</div>
                      <div class="carousel-dots">${photos.map((_, i) => `<span class="dot${i === 0 ? ' active' : ''}"></span>`).join('')}</div>
                    </div>`
-                : `<div class="no-photo"><img src="${this.avatarUrl(p.prenom || p.pseudo, [])}" alt="${this.esc(p.pseudo)}" style="width:100%;height:180px;object-fit:cover"></div>`;
-            return `<div class="profile-card ${onlineClass}" data-email="${this.esc(p.email)}">
+                : `<div class="no-photo"><img src="${this.avatarUrl(p.prenom || p.pseudo, [])}" alt="${this.esc(p.pseudo)}" style="width:100%;height:380px;object-fit:cover"></div>`;
+            return `<div class="profile-card" data-email="${this.esc(p.email)}" onclick="B.showProfile('${this.esc(p.email)}')">
+                ${p.isOnline ? '<div class="card-online"></div>' : ''}
                 ${carousel}
-                <div class="profile-info">
-                    <div class="name">${this.esc(p.prenom || p.pseudo)}, ${p.age || '?'}${p.verified ? '<span class="verified-badge">✓</span>' : ''} ${onlineDot}</div>
-                    <div class="meta">${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}${p.distanceKm != null ? ' · <span style="color:#ff3b3b">📍 ' + p.distanceKm + ' km</span>' : ''}</div>
-                    ${p.isOnline ? '<div style="font-size:.7rem;color:#4caf50;margin-top:.2rem">🟢 En ligne</div>' : ''}
-                    ${p.looking_for === 'Mariage' ? '<div style="font-size:.65rem;color:#ffd700;margin-top:.2rem">💍 Cherche le mariage</div>' : ''}
-                    ${p.looking_for ? `<div style="font-size:.7rem;color:#ff3b3b;margin-top:.2rem">❤️ ${this.esc(p.looking_for)}</div>` : ''}
-                    <div class="actions"><button class="btn-like" onclick="B.like('${this.esc(p.email)}')">❤️ J'aime</button></div>
+                <div class="card-overlay">
+                    <div class="card-info">
+                        <div class="card-name">${this.esc(p.prenom || p.pseudo)}, ${p.age || '?'}${p.verified ? '<span class="card-verified">✓</span>' : ''}</div>
+                        <div class="card-sub">${p.distanceKm != null ? '📍 '+p.distanceKm+' km' : ''}${p.country ? ' · '+p.country : ''}</div>
+                    </div>
+                    <button class="card-like" onclick="event.stopPropagation();B.like('${this.esc(p.email)}')">❤️</button>
                 </div>
             </div>`;
         }).join('');
         this.initCarousels();
-        document.querySelectorAll('.profile-card').forEach(card => {
-            card.addEventListener('click', e => {
-                if (e.target.closest('.btn-like') || e.target.closest('.photo-carousel')) return;
-                this.showProfile(card.dataset.email);
-            });
-        });
     },
 
     initCarousels() {
