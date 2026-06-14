@@ -136,7 +136,8 @@ const B = {
         var phoneRaw = document.getElementById('regPhone').value.trim().replace(/[^0-9]/g, '');
         var prefix = prefixEl.textContent.trim() || '+223';
         var fullPhone = prefix + phoneRaw;
-        if (!phoneRaw || phoneRaw.length < 7) { this.showErr('Numéro invalide'); return; }
+        if (!phoneRaw || phoneRaw.length < 7) { this.showErr('Numéro invalide'); this.toast('📱 Entre un numéro valide'); return; }
+        this.toast('📡 Envoi du code...');
         btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Envoi...';
         var r = await this.safeFetch('/api/solo/verify/sms-send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: fullPhone }), timeout: 15000 });
         btn.disabled = false; btn.textContent = 'Recevoir le code';

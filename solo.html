@@ -46,7 +46,7 @@
                         <h3 style="margin-bottom:1rem;font-size:1.1rem">Qui es-tu ?</h3>
                         <div class="input-icon"><span>👤</span><input type="text" id="regPseudo" placeholder="Pseudo" required></div>
                         <div class="input-icon"><span>✏️</span><input type="text" id="regPrenom" placeholder="Prénom (optionnel)"></div>
-                        <button class="btn-next" onclick="B.nextStep(1)">Continuer →</button>
+                        <button type="button" class="btn-next" onclick="B.nextStep(1)">Continuer →</button>
                     </div>
                     <div class="step" id="step2" style="display:none">
                         <h3 style="margin-bottom:1rem;font-size:1.1rem">Ton profil</h3>
@@ -61,8 +61,8 @@
                         </div>
                         <div class="input-icon"><span>🔒</span><input type="password" id="regPassword" placeholder="Mot de passe (6+ caractères)" minlength="6"></div>
                         <div class="step-actions">
-                            <button class="btn-back" onclick="B.prevStep(1)">← Retour</button>
-                            <button class="btn-next" onclick="B.nextStep(2)">Continuer →</button>
+                            <button type="button" class="btn-back" onclick="B.prevStep(1)">← Retour</button>
+                            <button type="button" class="btn-next" onclick="B.nextStep(2)">Continuer →</button>
                         </div>
                     </div>
                     <div class="step" id="step3" style="display:none">
@@ -84,15 +84,15 @@
                         <div class="input-icon"><span>📧</span><input type="email" id="regEmail" placeholder="Email (optionnel)"></div>
                         <div class="phone-input-group" style="margin-bottom:.8rem"><span class="phone-prefix" id="phonePrefix">+223</span><input type="tel" id="regPhone" placeholder="70 00 00 00" class="phone-input"></div>
                         <div class="step-actions">
-                            <button class="btn-back" onclick="B.prevStep(2)">← Retour</button>
-                            <button id="regSubmit" class="btn-next">Recevoir le code</button>
+                            <button type="button" class="btn-back" onclick="B.prevStep(2)">← Retour</button>
+                            <button type="button" id="regSubmit" class="btn-next" onclick="B.registerStep3()">Recevoir le code</button>
                         </div>
                         <div id="smsCodeSection" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.06)">
                             <p style="color:#888;font-size:.75rem;margin-bottom:.5rem">Code envoyé au numéro</p>
                             <input type="text" id="regSmsCode" placeholder="0000" maxlength="4" class="sms-input">
                             <div class="step-actions">
-                                <button class="btn-back" onclick="B.resendSmsCode()">Renvoyer</button>
-                                <button class="btn-next" onclick="B.confirmSmsAndRegister()">Confirmer</button>
+                                <button type="button" class="btn-back" onclick="B.resendSmsCode()">Renvoyer</button>
+                                <button type="button" class="btn-next" onclick="B.confirmSmsAndRegister()">Confirmer</button>
                             </div>
                         </div>
                     </div>
@@ -108,8 +108,8 @@
                         </div>
                         <input type="file" id="step4Input" accept="image/*" style="display:none" onchange="B.previewStep4Photo(event)">
                         <div class="step-actions" style="margin-top:1rem">
-                            <button class="btn-back" onclick="B.skipStep4()">Passer</button>
-                            <button class="btn-next" onclick="B.submitStep4()">Terminer</button>
+                            <button type="button" class="btn-back" onclick="B.skipStep4()">Passer</button>
+                            <button type="button" class="btn-next" onclick="B.submitStep4()">Terminer</button>
                         </div>
                     </div>
                     <div id="authError" class="error-msg"></div>
