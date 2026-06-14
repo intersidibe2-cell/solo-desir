@@ -71,6 +71,10 @@ const B = {
             if (phoneInput) phoneInput.focus();
         });
         document.getElementById('regCountry').dispatchEvent(new Event('change'));
+        var regBtn = document.getElementById('regSubmit');
+        if (regBtn) regBtn.addEventListener('click', function(e) { e.preventDefault(); B.registerStep3(); });
+        var loginBtn = document.getElementById('loginSubmit');
+        if (loginBtn) loginBtn.addEventListener('click', function(e) { e.preventDefault(); B.login(); });
     },
 
     nextStep(current) {
