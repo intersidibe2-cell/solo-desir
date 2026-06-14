@@ -627,22 +627,6 @@ app.post('/api/solo/message', authMiddleware, async (req, res) => {
     res.json({ success: true, warning: hasSuspicious ? '⚠️ Message suspect détecté. Ne partage jamais tes informations bancaires.' : null });
 });
 
-app.get('/api/solo/likes-received', authMiddleware, async (req, res) => {
-    const email = req.user.email;
-    const likes = pool
-        ? (await pool.query(`SELECT l.from_user, l.created_at, u.pseudo, u.age, u.country, u.city, u.photos
-             FROM solo_likes l JOIN solo_users u ON l.from_user = u.email
-             WHERE l.to_user = $1 AND l.from_user NOT IN
-             (SELECT user2 FROM solo_matches WHERE user1 = $1 UNION SELECT user1 FROM solo_matches WHERE user2 = $1)
-             ORDER BY l.created_at DESC LIMIT 20`, [email])).rows
-        : LIKES_MEM.filter(l => l.to === email && !MATCHES_MEM.find(m => (m.user1 === email && m.user2 === l.from) || (m.user2 === email && m.user1 === l.from)));
-    const profiles = likes.map(l => ({
-        email: l.from_user || l.from, pseudo: l.pseudo, age: l.age,
-        country: l.country, city: l.city, photos: (l.photos || [])[0] || null
-    }));
-    res.json({ success: true, likes: profiles });
-});
-
 // ─── Annonces ────────────────────────────────────────
 const ANNONCES_MEM = [];
 
