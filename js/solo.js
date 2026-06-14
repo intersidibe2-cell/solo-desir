@@ -964,6 +964,66 @@ const B = {
         var d = await r.resp.json();
         this.renderAnnonces(d.annonces || []);
         this.loadNotifications();
+        this.loadMyResponses();
+    },
+
+    async loadMyResponses() {
+        if (!this.token) return;
+        var r = await this.safeFetch('/api/solo/annonces/mine/responses', { headers: { 'Authorization': 'Bearer ' + this.token } });
+        if (!r.ok) return;
+        var d = await r.resp.json();
+        this.pendingResponses = d.responses || [];
+        // Update badge on annonces cards
+        document.querySelectorAll('.annonce-card').forEach(function(card) {
+            var annonceId = parseInt(card.dataset.id);
+            var count = (B.pendingResponses || []).filter(function(r) { return r.annonce_id === annonceId; }).length;
+            var badge = card.querySelector('.response-badge');
+            if (badge) {
+                if (count > 0) { badge.textContent = count + ' réponse' + (count > 1 ? 's' : ''); badge.style.display = 'inline'; }
+                else { badge.style.display = 'none'; }
+            }
+        });
+    },
+
+    async viewResponses(annonceId) {
+        var responses = (this.pendingResponses || []).filter(function(r) { return r.annonce_id === annonceId; });
+        if (!responses.length) { this.toast('Aucune réponse'); return; }
+        var self = this;
+        var overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.id = 'responsesModal';
+        var html = '<div class="modal-detail" style="max-width:400px"><div class="detail-info">' +
+            '<h3 style="margin-bottom:.8rem">💌 ' + responses.length + ' réponse' + (responses.length > 1 ? 's' : '') + '</h3>';
+        responses.forEach(function(r) {
+            var photos = Array.isArray(r.photos) ? r.photos : [];
+            var img = photos[0] || '';
+            html += '<div class="response-item" style="background:rgba(255,255,255,.03);border-radius:12px;padding:.8rem;margin-bottom:.5rem;border:1px solid rgba(255,255,255,.04)">' +
+                '<div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.5rem">' +
+                    '<div style="width:40px;height:40px;border-radius:50%;background-size:cover;background-position:center;flex-shrink:0;' + (img ? 'background-image:url(' + B.esc(img) + ')' : 'background:' + B.avatarUrl(r.pseudo, [])) + '"></div>' +
+                    '<div><div style="font-weight:600;font-size:.9rem">' + B.esc(r.pseudo) + ', ' + (r.age || '?') + '</div><div style="font-size:.7rem;color:#888">' + B.esc(r.city || '') + ' ' + B.esc(r.country || '') + '</div></div>' +
+                '</div>' +
+                '<div style="color:#bbb;font-size:.8rem;margin-bottom:.8rem;line-height:1.4">' + B.esc(r.message) + '</div>' +
+                '<div style="display:flex;gap:.4rem">' +
+                    '<button class="btn-sm btn-success" onclick="B.acceptResponse(' + r.id + ')" style="flex:1;padding:.5rem;border-radius:8px;border:none;background:rgba(76,175,80,.15);color:#4caf50;cursor:pointer;font-size:.8rem;font-weight:600">Accepter</button>' +
+                    '<button class="btn-sm btn-danger" onclick="B.ignoreResponse(' + r.id + ')" style="flex:1;padding:.5rem;border-radius:8px;border:none;background:rgba(255,59,59,.1);color:#ff3b3b;cursor:pointer;font-size:.8rem;font-weight:600">Ignorer</button>' +
+                '</div>' +
+            '</div>';
+        });
+        html += '<button class="btn-close-detail" onclick="document.getElementById(\'responsesModal\').remove()" style="width:100%;padding:.7rem;border-radius:10px;border:none;background:rgba(255,255,255,.06);color:#888;cursor:pointer;font-size:.85rem">Fermer</button>';
+        html += '</div></div>';
+        overlay.innerHTML = html;
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+    },
+
+    async acceptResponse(id) {
+        var r = await this.safeFetch('/api/solo/annonces/responses/' + id + '/accept', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token } });
+        if (r.ok) { document.getElementById('responsesModal')?.remove(); this.toast('✅ Match créé — allez dans Chat !'); this.loadMyResponses(); }
+    },
+
+    async ignoreResponse(id) {
+        var r = await this.safeFetch('/api/solo/annonces/responses/' + id + '/ignore', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token } });
+        if (r.ok) { this.toast('Réponse ignorée'); this.loadMyResponses(); }
     },
 
     async loadNotifications() {
@@ -1005,7 +1065,8 @@ const B = {
             var categoryBadge = a.category ? '<span style="font-size:.65rem;color:#888;margin-left:.3rem">' + a.category + '</span>' : '';
             var daysLeft = a.daysLeft !== undefined ? a.daysLeft : Math.max(0, Math.ceil((new Date(a.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
             var deleteBtn = isMine ? '<button class="annonce-delete" onclick="B.deleteAnnonce(' + a.id + ')">🗑️ Supprimer</button>' : '';
-            var respondBtn = (isMine || a.status === 'pending' || a.status === 'rejected') ? '' : '<button class="annonce-respond" onclick="B.respondToAnnonce(' + a.id + ')">💬 Répondre</button>';
+            var respondBtn = (isMine || a.status === 'pending' || a.status === 'rejected') ? '' : '<button class="annonce-respond" onclick="B.respondToAnnonce(' + a.id + ')">💌 Répondre</button>';
+            var responseBadge = isMine ? '<span class="badge response-badge" style="display:none;cursor:pointer;background:rgba(255,215,0,.15);color:#ffd700;margin-left:.3rem" onclick="event.stopPropagation();B.viewResponses(' + a.id + ')"></span>' : '';
             return '<div class="annonce-card" data-id="' + a.id + '">' +
                 '<div class="annonce-header"><div><div class="annonce-title">' + B.esc(a.title) + ' ' + categoryBadge + '</div><div class="annonce-meta">' + B.esc(a.pseudo) + ', ' + (a.age || '?') + ' · ' + B.esc(a.city || '') + ' ' + B.esc(a.country || '') + '</div></div>' +
                 (img ? '<div class="annonce-photo" style="background-image:url(\'' + B.esc(img) + '\')"></div>' : '') +
@@ -1015,7 +1076,7 @@ const B = {
                 (statusBadge ? '<div style="margin:.3rem 0"><span class="badge ' + statusClass + '">' + statusBadge + '</span>' + B.esc(rejectReason) + '</div>' : '') +
                 '<div class="annonce-footer">' +
                     '<span class="annonce-expire">⏱️ ' + daysLeft + 'j restant' + (daysLeft > 1 ? 's' : '') + '</span>' +
-                    deleteBtn + respondBtn +
+                    deleteBtn + respondBtn + responseBadge +
                 '</div>' +
             '</div>';
         }).join('');
@@ -1094,11 +1155,34 @@ const B = {
     },
 
     async respondToAnnonce(id) {
-        var r = await this.safeFetch('/api/solo/annonces/' + id + '/respond', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token } });
+        var overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.id = 'respondModal';
+        overlay.innerHTML = '<div class="modal-detail" style="max-width:360px">' +
+            '<div class="detail-info">' +
+                '<h3 style="margin-bottom:.3rem">💌 Envoyer un message</h3>' +
+                '<p style="color:#888;font-size:.8rem;margin-bottom:1rem">Écris à l\'auteur. Il pourra choisir de te répondre.</p>' +
+                '<textarea id="respondMessage" placeholder="Salut, je suis intéressé par ton annonce..." rows="4" style="width:100%;padding:.7rem;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:#eee;font-size:.9rem;outline:none;resize:vertical;font-family:inherit;margin-bottom:.8rem"></textarea>' +
+                '<div class="detail-actions">' +
+                    '<button class="btn-primary" onclick="B.sendResponse(' + id + ')" style="flex:1;background:linear-gradient(135deg,#ff3b3b,#ff6b6b);color:#fff;padding:.7rem;border-radius:12px;border:none;font-weight:600;cursor:pointer">Envoyer</button>' +
+                    '<button class="btn-close-detail" onclick="document.getElementById(\'respondModal\').remove()" style="flex:1;background:rgba(255,255,255,.06);color:#888;padding:.7rem;border-radius:12px;border:none;cursor:pointer">Annuler</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+        setTimeout(function() { var el = document.getElementById('respondMessage'); if (el) el.focus(); }, 300);
+    },
+
+    async sendResponse(id) {
+        var msg = document.getElementById('respondMessage').value.trim();
+        if (msg.length < 2) { this.toast('Écris un message personnalisé'); return; }
+        var r = await this.safeFetch('/api/solo/annonces/' + id + '/respond', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token }, body: JSON.stringify({ message: msg }), timeout: 10000 });
+        document.getElementById('respondModal')?.remove();
         if (!r.ok) { this.toast('Erreur réseau'); return; }
         var d = await r.resp.json();
-        if (d.matched) { this.toast('💘 Match créé — discutez maintenant !'); this.openChat(d.matchId, d.pseudo || ''); }
-        else this.toast(d.message || 'Réponse envoyée');
+        if (d.success) { this.toast(d.message || '💌 Message envoyé'); }
+        else { this.toast(d.message); }
     },
 
     // ─── Auto-refresh profils ───────────────────────────
