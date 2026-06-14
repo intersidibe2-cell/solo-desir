@@ -715,14 +715,15 @@ app.post('/api/solo/annonces/:id/respond', authMiddleware, async (req, res) => {
     const existingMatch = pool
         ? (await pool.query('SELECT * FROM solo_matches WHERE (user1 = $1 AND user2 = $2) OR (user1 = $2 AND user2 = $1)', [req.user.email, annonce.user_id])).rows[0]
         : MATCHES_MEM.find(m => (m.user1 === req.user.email && m.user2 === annonce.user_id) || (m.user1 === annonce.user_id && m.user2 === req.user.email));
-    if (existingMatch) return res.json({ success: true, matched: true, matchId: existingMatch.id, message: 'Match déjà existant' });
+    if (existingMatch) return res.json({ success: true, matched: true, matchId: existingMatch.id, pseudo: annonce.pseudo, message: 'Match déjà existant' });
     if (pool) {
         await pool.query('INSERT INTO solo_likes (from_user, to_user) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.user.email, annonce.user_id]);
         await pool.query('INSERT INTO solo_likes (from_user, to_user) VALUES ($1,$2) ON CONFLICT DO NOTHING', [annonce.user_id, req.user.email]);
         const m = (await pool.query('INSERT INTO solo_matches (user1, user2) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING *', [req.user.email, annonce.user_id])).rows[0];
         if (m) {
             await pool.query('INSERT INTO solo_messages (match_id, sender, content) VALUES ($1,$2,$3)', [m.id, req.user.email, '👋 Je réponds à ton annonce : "' + annonce.title + '"']);
-            return res.json({ success: true, matched: true, matchId: m.id });
+            await pool.query("INSERT INTO solo_notifications (user_id, type, title, body) VALUES ($1,'annonce_response','💬 Réponse annonce', $2)", [annonce.user_id, req.user.email + ' a répondu à votre annonce']);
+            return res.json({ success: true, matched: true, matchId: m.id, pseudo: annonce.pseudo });
         }
     } else {
         LIKES_MEM.push({ from: req.user.email, to: annonce.user_id });
@@ -731,7 +732,7 @@ app.post('/api/solo/annonces/:id/respond', authMiddleware, async (req, res) => {
         MATCHES_MEM.push({ id: matchId, user1: req.user.email, user2: annonce.user_id, created_at: new Date().toISOString() });
         if (!MSGS_MEM[matchId]) MSGS_MEM[matchId] = [];
         MSGS_MEM[matchId].push({ sender: req.user.email, content: '👋 Je réponds à ton annonce : "' + annonce.title + '"', time: new Date().toISOString() });
-        return res.json({ success: true, matched: true, matchId });
+        return res.json({ success: true, matched: true, matchId, pseudo: annonce.pseudo });
     }
     res.json({ success: true, matched: false });
 });

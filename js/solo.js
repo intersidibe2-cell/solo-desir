@@ -1097,8 +1097,8 @@ const B = {
         var r = await this.safeFetch('/api/solo/annonces/' + id + '/respond', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token } });
         if (!r.ok) { this.toast('Erreur réseau'); return; }
         var d = await r.resp.json();
-        if (d.matched) { this.toast('💘 Match ! Allez dans Chat pour discuter'); this.openChat(d.matchId, ''); }
-        else this.toast('Réponse envoyée');
+        if (d.matched) { this.toast('💘 Match créé — discutez maintenant !'); this.openChat(d.matchId, d.pseudo || ''); }
+        else this.toast(d.message || 'Réponse envoyée');
     },
 
     // ─── Auto-refresh profils ───────────────────────────
