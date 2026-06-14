@@ -992,20 +992,24 @@ const B = {
         var overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.id = 'responsesModal';
-        var html = '<div class="modal-detail" style="max-width:400px"><div class="detail-info">' +
+        var html = '<div class="modal-detail" style="max-width:420px"><div class="detail-info">' +
             '<h3 style="margin-bottom:.8rem">💌 ' + responses.length + ' réponse' + (responses.length > 1 ? 's' : '') + '</h3>';
         responses.forEach(function(r) {
             var photos = Array.isArray(r.photos) ? r.photos : [];
             var img = photos[0] || '';
             html += '<div class="response-item" style="background:rgba(255,255,255,.03);border-radius:12px;padding:.8rem;margin-bottom:.5rem;border:1px solid rgba(255,255,255,.04)">' +
-                '<div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.5rem">' +
-                    '<div style="width:40px;height:40px;border-radius:50%;background-size:cover;background-position:center;flex-shrink:0;' + (img ? 'background-image:url(' + B.esc(img) + ')' : 'background:' + B.avatarUrl(r.pseudo, [])) + '"></div>' +
-                    '<div><div style="font-weight:600;font-size:.9rem">' + B.esc(r.pseudo) + ', ' + (r.age || '?') + '</div><div style="font-size:.7rem;color:#888">' + B.esc(r.city || '') + ' ' + B.esc(r.country || '') + '</div></div>' +
+                '<div style="display:flex;align-items:flex-start;gap:.8rem;margin-bottom:.5rem">' +
+                    '<div style="width:48px;height:48px;border-radius:50%;background-size:cover;background-position:center;flex-shrink:0;' + (img ? 'background-image:url(' + B.esc(img) + ')' : '') + '">' + (!img ? '<img src="' + B.avatarUrl(r.prenom || r.pseudo, []) + '" style="width:48px;height:48px;border-radius:50%">' : '') + '</div>' +
+                    '<div style="flex:1;min-width:0">' +
+                        '<div style="font-weight:600;font-size:.9rem">' + B.esc(r.prenom || r.pseudo) + ', ' + (r.age || '?') + '</div>' +
+                        '<div style="font-size:.7rem;color:#888">' + B.esc(r.city || '') + ' ' + B.esc(r.country || '') + (r.profession ? ' · ' + B.esc(r.profession) : '') + '</div>' +
+                        (r.bio ? '<div style="font-size:.7rem;color:#aaa;margin-top:.2rem;line-height:1.3">' + B.esc(r.bio.substring(0, 80)) + '</div>' : '') +
+                    '</div>' +
                 '</div>' +
-                '<div style="color:#bbb;font-size:.8rem;margin-bottom:.8rem;line-height:1.4">' + B.esc(r.message) + '</div>' +
-                '<div style="display:flex;gap:.4rem">' +
-                    '<button class="btn-sm btn-success" onclick="B.acceptResponse(' + r.id + ')" style="flex:1;padding:.5rem;border-radius:8px;border:none;background:rgba(76,175,80,.15);color:#4caf50;cursor:pointer;font-size:.8rem;font-weight:600">Accepter</button>' +
-                    '<button class="btn-sm btn-danger" onclick="B.ignoreResponse(' + r.id + ')" style="flex:1;padding:.5rem;border-radius:8px;border:none;background:rgba(255,59,59,.1);color:#ff3b3b;cursor:pointer;font-size:.8rem;font-weight:600">Ignorer</button>' +
+                '<div style="color:#bbb;font-size:.8rem;margin-bottom:.8rem;line-height:1.4;padding-left:56px">' + B.esc(r.message) + '</div>' +
+                '<div style="display:flex;gap:.4rem;padding-left:56px">' +
+                    '<button class="btn-sm btn-success" onclick="B.acceptResponse(' + r.id + ')" style="flex:1;padding:.5rem;border-radius:8px;border:none;background:rgba(76,175,80,.15);color:#4caf50;cursor:pointer;font-size:.8rem;font-weight:600">✅ Accepter</button>' +
+                    '<button class="btn-sm btn-danger" onclick="B.ignoreResponse(' + r.id + ')" style="flex:1;padding:.5rem;border-radius:8px;border:none;background:rgba(255,59,59,.1);color:#ff3b3b;cursor:pointer;font-size:.8rem;font-weight:600">❌ Ignorer</button>' +
                 '</div>' +
             '</div>';
         });

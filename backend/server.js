@@ -742,7 +742,7 @@ const ANNONCES_RESPONSES_MEM = [];
 
 app.get('/api/solo/annonces/mine/responses', authMiddleware, async (req, res) => {
     if (pool) {
-        const responses = (await pool.query(`SELECT r.*, u.pseudo, u.age, u.country, u.city, u.photos, a.title as annonce_title FROM solo_annonce_responses r JOIN solo_users u ON r.from_user = u.email JOIN solo_annonces a ON r.annonce_id = a.id WHERE r.to_user = $1 AND r.status = 'pending' ORDER BY r.created_at DESC LIMIT 30`, [req.user.email])).rows;
+        const responses = (await pool.query(`SELECT r.*, u.pseudo, u.prenom, u.age, u.country, u.city, u.photos, u.bio, u.profession, a.title as annonce_title FROM solo_annonce_responses r JOIN solo_users u ON r.from_user = u.email JOIN solo_annonces a ON r.annonce_id = a.id WHERE r.to_user = $1 AND r.status = 'pending' ORDER BY r.created_at DESC LIMIT 30`, [req.user.email])).rows;
         res.json({ success: true, responses });
     } else {
         res.json({ success: true, responses: ANNONCES_RESPONSES_MEM.filter(r => r.to_user === req.user.email) });
@@ -761,6 +761,11 @@ app.post('/api/solo/annonces/responses/:id/accept', authMiddleware, async (req, 
         const m = (await pool.query('INSERT INTO solo_matches (user1, user2) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING *', [req.user.email, resp.from_user])).rows[0];
         if (m) {
             await pool.query('INSERT INTO solo_messages (match_id, sender, content) VALUES ($1,$2,$3)', [m.id, resp.from_user, resp.message]);
+            // Send auto-message from the annonce owner
+            const ownerPseudo = (await pool.query('SELECT pseudo FROM solo_users WHERE email = $1', [req.user.email])).rows[0]?.pseudo || 'Utilisateur';
+            await pool.query('INSERT INTO solo_messages (match_id, sender, content) VALUES ($1,$2,$3)', [m.id, req.user.email, '👋 Bonjour ! J\'ai accepté ta réponse. Discutons !']);
+            // Notify the visitor
+            await pool.query("INSERT INTO solo_notifications (user_id, type, title, body) VALUES ($1,'response_accepted','✅ Réponse acceptée', $2)", [resp.from_user, 'Ta réponse a été acceptée par ' + ownerPseudo + '. Allez dans Chat !']);
             await pool.query("UPDATE solo_annonce_responses SET status = 'accepted' WHERE annonce_id = $1 AND from_user = $2 AND id != $3", [resp.annonce_id, resp.from_user, id]);
         }
         res.json({ success: true, matched: true, matchId: m?.id });
@@ -772,9 +777,10 @@ app.post('/api/solo/annonces/responses/:id/accept', authMiddleware, async (req, 
 app.post('/api/solo/annonces/responses/:id/ignore', authMiddleware, async (req, res) => {
     const id = parseInt(req.params.id);
     if (pool) {
-        const resp = (await pool.query('SELECT to_user FROM solo_annonce_responses WHERE id = $1', [id])).rows[0];
+        const resp = (await pool.query('SELECT to_user, from_user FROM solo_annonce_responses WHERE id = $1', [id])).rows[0];
         if (!resp || resp.to_user !== req.user.email) return res.status(403).json({ success: false });
         await pool.query("UPDATE solo_annonce_responses SET status = 'ignored' WHERE id = $1", [id]);
+        await pool.query("INSERT INTO solo_notifications (user_id, type, title, body) VALUES ($1,'response_ignored','❌ Réponse ignorée','L\\'auteur n\\'a pas donné suite à ta réponse.')", [resp.from_user]);
     }
     res.json({ success: true, message: 'Réponse ignorée' });
 });
