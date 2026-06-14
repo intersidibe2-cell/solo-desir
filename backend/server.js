@@ -16,7 +16,16 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
 app.use(helmet({
-    contentSecurityPolicy: false
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com", "cdn.jsdelivr.net"],
+            styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com", "cdnjs.cloudflare.com"],
+            imgSrc: ["'self'", "data:", "*.unsplash.com", "api.dicebear.com", "i.giphy.com"],
+            fontSrc: ["'self'", "fonts.gstatic.com", "cdnjs.cloudflare.com"],
+            connectSrc: ["'self'", "*.giphy.com", "api.africastalking.com", "api.twilio.com"]
+        }
+    }
 }));
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'

@@ -38,6 +38,18 @@ const B = {
 
     init() {
         var self = this;
+        // PWA Install prompt
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            self.deferredPrompt = e;
+            var banner = document.getElementById('pwaInstallBanner');
+            if (banner && !localStorage.getItem('pwa_dismissed')) banner.style.display = 'flex';
+        });
+        window.addEventListener('appinstalled', function() {
+            var banner = document.getElementById('pwaInstallBanner');
+            if (banner) banner.style.display = 'none';
+            localStorage.setItem('pwa_installed', '1');
+        });
         window.addEventListener('online', function() {
             var banner = document.getElementById('offlineBanner');
             if (banner) banner.style.display = 'none';
@@ -525,6 +537,7 @@ const B = {
                     <div class="name">${this.esc(p.prenom || p.pseudo)}, ${p.age || '?'}${p.verified ? '<span class="verified-badge">✓</span>' : ''} ${onlineDot}</div>
                     <div class="meta">${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}${p.distanceKm != null ? ' · <span style="color:#ff3b3b">📍 ' + p.distanceKm + ' km</span>' : ''}</div>
                     ${p.isOnline ? '<div style="font-size:.7rem;color:#4caf50;margin-top:.2rem">🟢 En ligne</div>' : ''}
+                    ${p.looking_for === 'Mariage' ? '<div style="font-size:.65rem;color:#ffd700;margin-top:.2rem">💍 Cherche le mariage</div>' : ''}
                     ${p.looking_for ? `<div style="font-size:.7rem;color:#ff3b3b;margin-top:.2rem">❤️ ${this.esc(p.looking_for)}</div>` : ''}
                     <div class="actions"><button class="btn-like" onclick="B.like('${this.esc(p.email)}')">❤️ J'aime</button></div>
                 </div>
@@ -587,6 +600,7 @@ const B = {
             <div class="detail-info">
                 <div class="detail-name">${this.esc(p.prenom || p.pseudo)}, ${p.age || '?'} ${p.verified ? '<span class="verified-badge">✓</span>' : ''} ${onlineStatus}</div>
                 <div class="detail-meta">${this.esc(p.gender)} · ${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}</div>
+                ${p.looking_for === 'Mariage' ? '<div style="color:#ffd700;font-size:.85rem;margin:.3rem 0">💍 Cherche le mariage</div>' : ''}
                 ${p.looking_for ? `<div style="color:#ff3b3b;font-size:.85rem;margin:.3rem 0">❤️ ${this.esc(p.looking_for)}</div>` : ''}
                 ${p.interests && p.interests.length > 0 ? `<div style="color:#999;font-size:.75rem;margin:.3rem 0">🏷️ ${p.interests.map(i => this.esc(i)).join(', ')}</div>` : ''}
                 ${p.bio ? `<div class="detail-bio">${this.esc(p.bio)}</div>` : ''}
@@ -817,6 +831,7 @@ const B = {
             <div class="swipe-info">
                 <div class="swipe-name">${this.esc(p.prenom || p.pseudo)}, ${p.age || '?'}</div>
                 <div class="swipe-meta">${p.profession ? this.esc(p.profession) + ' · ' : ''}${this.esc(p.city || '')} ${this.esc(p.country || '')}</div>
+                ${p.looking_for === 'Mariage' ? '<div class="swipe-looking" style="color:#ffd700">💍 Cherche le mariage</div>' : ''}
                 ${p.looking_for ? `<div class="swipe-looking">❤️ ${this.esc(p.looking_for)}</div>` : ''}
                 ${p.interests && p.interests.length > 0 ? `<div class="swipe-interests">${p.interests.map(x => '#' + this.esc(x)).join(' ')}</div>` : ''}
                 ${p.bio ? `<div class="swipe-bio">${this.esc(p.bio)}</div>` : ''}
@@ -1375,6 +1390,21 @@ const B = {
         }).join('');
         document.getElementById('pageLikes').classList.add('active');
         document.querySelectorAll('.page').forEach(function(p) { if (p.id !== 'pageLikes') p.classList.remove('active'); });
+    },
+
+    installApp() {
+        if (this.deferredPrompt) {
+            this.deferredPrompt.prompt();
+            this.deferredPrompt.userChoice.then(function() {
+                document.getElementById('pwaInstallBanner').style.display = 'none';
+                localStorage.setItem('pwa_installed', '1');
+            });
+        }
+    },
+
+    dismissPwa() {
+        document.getElementById('pwaInstallBanner').style.display = 'none';
+        localStorage.setItem('pwa_dismissed', '1');
     }
 };
 

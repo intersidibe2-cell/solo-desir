@@ -1,9 +1,9 @@
-const CACHE = 'solo-v26';
+const CACHE = 'solo-v27';
 const OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', function(e) {
     e.waitUntil(caches.open(CACHE).then(function(c) {
-        return c.addAll(['/', '/solo.html', '/css/landing.css', '/css/solo.css', '/js/solo.js', '/js/i18n.js', '/lang/fr.json', '/lang/en.json', '/lang/ar.json']);
+        return c.addAll(['/', '/solo.html', '/offline.html', '/css/landing.css', '/css/solo.css', '/js/solo.js', '/js/i18n.js', '/lang/fr.json', '/lang/en.json', '/lang/ar.json']);
     }));
     self.skipWaiting();
 });
