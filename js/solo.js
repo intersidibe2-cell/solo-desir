@@ -194,12 +194,13 @@ const B = {
         reader.readAsDataURL(file);
     },
 
-    skipStep4() { if (this.smsVerified) this.finalizeRegistration(); },
-    submitStep4() { if (this.smsVerified) this.finalizeRegistration(); },
+    skipStep4() { this.finalizeRegistration(); },
+    submitStep4() { this.finalizeRegistration(); },
 
     async finalizeRegistration() {
         this.showErr('');
-        if (!this.smsVerified || !this.fullPhone) { this.toast('⚠️ Tu dois d\'abord vérifier ton numéro'); return; }
+        if (!this.fullPhone) { this.toast('⚠️ Entre d\'abord ton numéro'); return; }
+        if (!this.smsVerified) { this.toast('⚠️ Vérifie d\'abord ton numéro par SMS'); return; }
         var photoData = document.getElementById('step4Photo').getAttribute('data-photo') || '';
         var photoUrl = '';
         if (photoData) {
